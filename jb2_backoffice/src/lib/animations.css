@@ -1,0 +1,494 @@
+/**
+ * JB SQUARE Animation System
+ * World-class micro-interactions
+ * Inspired by Apple, Linear, Vercel
+ */
+
+/* ========================================
+   KEYFRAMES - Enter Animations
+   ======================================== */
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes slide-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-in-down {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-in-left {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes scale-out {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+}
+
+/* ========================================
+   KEYFRAMES - Loading Animations
+   ======================================== */
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes skeleton-wave {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* ========================================
+   KEYFRAMES - Micro-interactions
+   ======================================== */
+
+@keyframes bounce-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+  70% {
+    transform: scale(0.9);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  10%,
+  30%,
+  50%,
+  70%,
+  90% {
+    transform: translateX(-2px);
+  }
+  20%,
+  40%,
+  60%,
+  80% {
+    transform: translateX(2px);
+  }
+}
+
+@keyframes wiggle {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  25% {
+    transform: rotate(-5deg);
+  }
+  75% {
+    transform: rotate(5deg);
+  }
+}
+
+/* ========================================
+   KEYFRAMES - Progress/Loading
+   ======================================== */
+
+@keyframes progress-indeterminate {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(400%);
+  }
+}
+
+@keyframes dot-flashing {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+
+/* ========================================
+   UTILITY CLASSES - Enter Animations
+   ======================================== */
+
+.animate-fade-in {
+  animation: fade-in var(--duration-base) var(--ease-out-expo);
+}
+
+.animate-fade-out {
+  animation: fade-out var(--duration-base) var(--ease-out-expo);
+}
+
+.animate-slide-in-up {
+  animation: slide-in-up var(--duration-base) var(--ease-out-expo);
+}
+
+.animate-slide-in-down {
+  animation: slide-in-down var(--duration-base) var(--ease-out-expo);
+}
+
+.animate-slide-in-left {
+  animation: slide-in-left var(--duration-base) var(--ease-out-expo);
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right var(--duration-base) var(--ease-out-expo);
+}
+
+.animate-scale-in {
+  animation: scale-in var(--duration-base) var(--ease-out-back);
+}
+
+.animate-scale-out {
+  animation: scale-out var(--duration-fast) var(--ease-in);
+}
+
+.animate-bounce-in {
+  animation: bounce-in var(--duration-slow) var(--ease-out-back);
+}
+
+/* ========================================
+   UTILITY CLASSES - Loading States
+   ======================================== */
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.animate-shimmer {
+  animation: shimmer 2s linear infinite;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(0, 0, 0, 0.04) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+}
+
+/* ========================================
+   UTILITY CLASSES - Micro-interactions
+   ======================================== */
+
+.animate-shake {
+  animation: shake var(--duration-slow) var(--ease-in-out);
+}
+
+.animate-wiggle {
+  animation: wiggle var(--duration-slow) var(--ease-in-out);
+}
+
+/* ========================================
+   HOVER EFFECTS - Interactive Elements
+   ======================================== */
+
+.hover-lift {
+  transition: transform var(--duration-fast) var(--ease-out-expo);
+}
+
+.hover-lift:hover {
+  transform: translateY(-2px);
+}
+
+.hover-scale {
+  transition: transform var(--duration-fast) var(--ease-out-expo);
+}
+
+.hover-scale:hover {
+  transform: scale(1.02);
+}
+
+.hover-brightness {
+  transition: filter var(--duration-fast) var(--ease-out);
+}
+
+.hover-brightness:hover {
+  filter: brightness(0.9);
+}
+
+/* Active state (press down effect) */
+.active-press:active {
+  transform: scale(var(--active-scale)) translateY(var(--active-translate-y));
+  transition: transform var(--duration-instant) var(--ease-out);
+}
+
+/* ========================================
+   FOCUS EFFECTS - Accessibility
+   ======================================== */
+
+.focus-ring {
+  outline: none;
+  transition: box-shadow var(--duration-fast) var(--ease-out);
+}
+
+.focus-ring:focus-visible {
+  box-shadow: 0 0 0 var(--focus-ring-width) var(--focus-black);
+}
+
+.focus-ring-offset {
+  outline: none;
+  transition: box-shadow var(--duration-fast) var(--ease-out);
+}
+
+.focus-ring-offset:focus-visible {
+  box-shadow: 0 0 0 var(--focus-ring-offset) var(--bg),
+    0 0 0 calc(var(--focus-ring-offset) + var(--focus-ring-width)) var(--focus-black);
+}
+
+/* ========================================
+   SKELETON UI - Loading Placeholders
+   ======================================== */
+
+.skeleton {
+  background-color: var(--surface-1);
+  position: relative;
+  overflow: hidden;
+}
+
+.skeleton::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.5) 50%,
+    transparent 100%
+  );
+  animation: skeleton-wave 1.5s infinite;
+}
+
+/* ========================================
+   STAGGER ANIMATIONS - List Items
+   ======================================== */
+
+.stagger > * {
+  animation: slide-in-up var(--duration-base) var(--ease-out-expo) backwards;
+}
+
+.stagger > *:nth-child(1) {
+  animation-delay: 0ms;
+}
+.stagger > *:nth-child(2) {
+  animation-delay: 50ms;
+}
+.stagger > *:nth-child(3) {
+  animation-delay: 100ms;
+}
+.stagger > *:nth-child(4) {
+  animation-delay: 150ms;
+}
+.stagger > *:nth-child(5) {
+  animation-delay: 200ms;
+}
+.stagger > *:nth-child(6) {
+  animation-delay: 250ms;
+}
+.stagger > *:nth-child(7) {
+  animation-delay: 300ms;
+}
+.stagger > *:nth-child(8) {
+  animation-delay: 350ms;
+}
+
+/* ========================================
+   PAGE TRANSITIONS
+   ======================================== */
+
+.page-enter {
+  animation: fade-in var(--duration-base) var(--ease-out-expo),
+    slide-in-up var(--duration-base) var(--ease-out-expo);
+}
+
+.page-exit {
+  animation: fade-out var(--duration-fast) var(--ease-in);
+}
+
+/* ========================================
+   MODAL/OVERLAY TRANSITIONS
+   ======================================== */
+
+.backdrop-enter {
+  animation: fade-in var(--duration-base) var(--ease-out);
+}
+
+.backdrop-exit {
+  animation: fade-out var(--duration-fast) var(--ease-in);
+}
+
+.modal-enter {
+  animation: fade-in var(--duration-base) var(--ease-out-expo),
+    scale-in var(--duration-base) var(--ease-out-back);
+}
+
+.modal-exit {
+  animation: fade-out var(--duration-fast) var(--ease-in),
+    scale-out var(--duration-fast) var(--ease-in);
+}
+
+/* ========================================
+   TOAST/NOTIFICATION TRANSITIONS
+   ======================================== */
+
+.toast-enter {
+  animation: slide-in-right var(--duration-base) var(--ease-out-expo);
+}
+
+.toast-exit {
+  animation: fade-out var(--duration-fast) var(--ease-in),
+    slide-in-right var(--duration-fast) var(--ease-in) reverse;
+}
+
+/* ========================================
+   DROPDOWN/POPOVER TRANSITIONS
+   ======================================== */
+
+.dropdown-enter {
+  animation: fade-in var(--duration-fast) var(--ease-out),
+    slide-in-down var(--duration-fast) var(--ease-out-expo);
+}
+
+.dropdown-exit {
+  animation: fade-out var(--duration-fast) var(--ease-in);
+}
+
+/* ========================================
+   REDUCED MOTION SUPPORT
+   ======================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .skeleton::after {
+    animation: none;
+  }
+}
+
+/* ========================================
+   PRINT STYLES
+   ======================================== */
+
+@media print {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
