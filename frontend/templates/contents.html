@@ -1,0 +1,296 @@
+{% extends "base.html" %}
+
+{% block title %}콘텐츠 관리 - 바이오 플랫폼 백오피스{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">콘텐츠 관리</h1>
+    <p class="page-subtitle">자동 수집된 공고를 검수하고 게시하세요</p>
+</div>
+
+<!-- Tabs -->
+<div class="tabs">
+    <button class="tab active" data-tab="list" onclick="switchTab('list')">수집 목록</button>
+    <button class="tab" data-tab="published" onclick="switchTab('published')">게시됨</button>
+    <button class="tab" data-tab="hold" onclick="switchTab('hold')">보류됨</button>
+    <button class="tab" data-tab="crawl" onclick="switchTab('crawl')">크롤링 실행</button>
+</div>
+
+<!-- Tab 1: 수집 목록 -->
+<div id="tab-list" class="tab-content active">
+    <div class="card">
+        <!-- 필터 -->
+        <div class="flex-between mb-16">
+            <div class="flex gap-16">
+                <input type="text" id="search" class="form-input" placeholder="제목 검색..." style="width: 300px;">
+                <select id="filter-source" class="form-select" onchange="loadContents()" style="width: 150px;">
+                    <option value="">전체 출처</option>
+                    <option value="JBTP">JBTP</option>
+                    <option value="NTIS">NTIS</option>
+                    <option value="BizInfo">BizInfo</option>
+                </select>
+            </div>
+            <button class="btn btn-primary" onclick="loadContents()">🔄 새로고침</button>
+        </div>
+
+        <!-- 테이블 -->
+        <div id="contents-list">
+            <div class="loading">로딩 중...</div>
+        </div>
+
+        <!-- 페이지네이션 -->
+        <div id="pagination-container"></div>
+    </div>
+</div>
+
+<!-- Tab 2: 게시됨 -->
+<div id="tab-published" class="tab-content">
+    <div class="card">
+        <p>게시된 공고 목록 (곧 구현 예정)</p>
+    </div>
+</div>
+
+<!-- Tab 3: 보류됨 -->
+<div id="tab-hold" class="tab-content">
+    <div class="card">
+        <p>보류된 공고 목록 (곧 구현 예정)</p>
+    </div>
+</div>
+
+<!-- Tab 4: 크롤링 실행 -->
+<div id="tab-crawl" class="tab-content">
+    <div class="card">
+        <h3 style="margin-bottom: 16px;">크롤링 실행</h3>
+        <p style="margin-bottom: 24px; color: #666;">크롤링을 수동으로 실행합니다. 실행 후 자동으로 목록이 업데이트됩니다.</p>
+
+        <div class="flex gap-16">
+            <button class="btn btn-primary" onclick="executeCrawl('all')">전체 실행</button>
+            <button class="btn" onclick="executeCrawl('jbtp')">JBTP만</button>
+            <button class="btn" onclick="executeCrawl('ntis')">NTIS만</button>
+            <button class="btn" onclick="executeCrawl('bizinfo')">BizInfo만</button>
+        </div>
+
+        <div id="crawl-status" style="margin-top: 24px;"></div>
+    </div>
+</div>
+
+<!-- 상세 모달 -->
+<div id="detail-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 class="modal-title">콘텐츠 상세</h2>
+            <button class="modal-close" onclick="closeModal('detail-modal')">&times;</button>
+        </div>
+        <div id="modal-body">
+            <!-- 동적으로 채워짐 -->
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentPage = 1;
+let currentStatus = 'pending';
+
+// 콘텐츠 목록 로드
+async function loadContents(page = 1) {
+    showLoading('contents-list');
+
+    try {
+        const source = document.getElementById('filter-source').value;
+        const search = document.getElementById('search').value;
+
+        const params = new URLSearchParams({
+            page: page,
+            per_page: 20,
+            status: currentStatus,
+        });
+
+        if (source) params.append('source', source);
+        if (search) params.append('search', search);
+
+        const data = await apiGet(`/contents?${params}`);
+
+        let html = '<table class="table"><thead><tr>';
+        html += '<th style="width: 50px;"><input type="checkbox" id="select-all"></th>';
+        html += '<th>상태</th><th>출처</th><th>제목</th><th>마감일</th><th>수집일</th><th>작업</th>';
+        html += '</tr></thead><tbody>';
+
+        if (data.contents.length === 0) {
+            html += '<tr><td colspan="7" style="text-align: center; padding: 40px; color: #999;">공고가 없습니다.</td></tr>';
+        } else {
+            data.contents.forEach(content => {
+                html += `
+                    <tr>
+                        <td><input type="checkbox" class="content-checkbox" value="${content.id}"></td>
+                        <td>${getStatusBadge(content.status)}</td>
+                        <td>${getSourceIcon(content.source)} ${content.source}</td>
+                        <td><a href="#" onclick="showDetail(${content.id}); return false;" style="text-decoration: none; color: #000;">${content.title}</a></td>
+                        <td>${formatDate(content.deadline)}</td>
+                        <td>${relativeTime(content.crawled_at)}</td>
+                        <td>
+                            <div class="flex gap-8">
+                                <button class="btn btn-small btn-primary" onclick="approveContent(${content.id})">승인</button>
+                                <button class="btn btn-small" onclick="holdContent(${content.id})">보류</button>
+                                <button class="btn btn-small btn-danger" onclick="deleteContent(${content.id})">삭제</button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        html += '</tbody></table>';
+        document.getElementById('contents-list').innerHTML = html;
+
+        // 페이지네이션
+        renderPagination('pagination-container', data.page, data.total_pages, 'loadContents');
+
+        currentPage = page;
+
+    } catch (error) {
+        document.getElementById('contents-list').innerHTML = '<p style="padding: 20px; text-align: center; color: #ef4444;">로드 실패</p>';
+    }
+}
+
+// 상세 보기
+async function showDetail(id) {
+    try {
+        const content = await apiGet(`/contents/${id}`);
+
+        let html = `
+            <div class="form-group">
+                <label class="form-label">제목</label>
+                <p>${content.title}</p>
+            </div>
+            <div class="form-group">
+                <label class="form-label">링크</label>
+                <p><a href="${content.link}" target="_blank">${content.link}</a></p>
+            </div>
+            <div class="form-group">
+                <label class="form-label">출처</label>
+                <p>${getSourceIcon(content.source)} ${content.source}</p>
+            </div>
+            <div class="form-group">
+                <label class="form-label">상태</label>
+                <p>${getStatusBadge(content.status)}</p>
+            </div>
+            <div class="form-group">
+                <label class="form-label">마감일</label>
+                <p>${formatDate(content.deadline)}</p>
+            </div>
+            <div class="form-group">
+                <label class="form-label">매칭 키워드</label>
+                <p>${content.matched_keywords || '-'}</p>
+            </div>
+            <div class="form-group">
+                <label class="form-label">수집일시</label>
+                <p>${formatDateTime(content.crawled_at)}</p>
+            </div>
+            <div class="mt-24">
+                <button class="btn btn-primary" onclick="approveContent(${id}); closeModal('detail-modal');">승인</button>
+                <button class="btn" onclick="holdContent(${id}); closeModal('detail-modal');">보류</button>
+                <button class="btn btn-danger" onclick="deleteContent(${id}); closeModal('detail-modal');">삭제</button>
+            </div>
+        `;
+
+        document.getElementById('modal-body').innerHTML = html;
+        openModal('detail-modal');
+
+    } catch (error) {
+        showAlert('상세 정보 로드 실패', 'error');
+    }
+}
+
+// 승인
+async function approveContent(id) {
+    if (!confirm('이 공고를 승인하시겠습니까?')) return;
+
+    try {
+        await apiPatch(`/contents/${id}/status`, { status: 'published' });
+        showAlert('승인되었습니다', 'success');
+        loadContents(currentPage);
+    } catch (error) {
+        showAlert('승인 실패', 'error');
+    }
+}
+
+// 보류
+async function holdContent(id) {
+    try {
+        await apiPatch(`/contents/${id}/status`, { status: 'hold' });
+        showAlert('보류되었습니다', 'success');
+        loadContents(currentPage);
+    } catch (error) {
+        showAlert('보류 실패', 'error');
+    }
+}
+
+// 삭제
+async function deleteContent(id) {
+    if (!confirm('이 공고를 삭제하시겠습니까?')) return;
+
+    try {
+        await apiPatch(`/contents/${id}/status`, { status: 'deleted' });
+        showAlert('삭제되었습니다', 'success');
+        loadContents(currentPage);
+    } catch (error) {
+        showAlert('삭제 실패', 'error');
+    }
+}
+
+// 크롤링 실행
+async function executeCrawl(source) {
+    const statusDiv = document.getElementById('crawl-status');
+    statusDiv.innerHTML = '<div class="alert alert-info">크롤링 실행 중...</div>';
+
+    try {
+        const result = await apiPost('/contents/crawl', { source });
+
+        let html = '<div class="alert alert-success">크롤링 완료!</div>';
+        html += '<table class="table"><thead><tr><th>소스</th><th>총 수집</th><th>바이오</th><th>저장</th><th>소요시간</th></tr></thead><tbody>';
+
+        for (const [key, value] of Object.entries(result)) {
+            if (value.success) {
+                html += `
+                    <tr>
+                        <td>${key.toUpperCase()}</td>
+                        <td>${value.total}개</td>
+                        <td>${value.bio}개</td>
+                        <td>${value.saved}개</td>
+                        <td>${value.duration.toFixed(1)}초</td>
+                    </tr>
+                `;
+            }
+        }
+
+        html += '</tbody></table>';
+        statusDiv.innerHTML = html;
+
+        // 목록 새로고침
+        switchTab('list');
+        loadContents(1);
+
+    } catch (error) {
+        statusDiv.innerHTML = '<div class="alert alert-error">크롤링 실패</div>';
+    }
+}
+
+// 검색 입력 이벤트
+document.addEventListener('DOMContentLoaded', () => {
+    const searchInput = document.getElementById('search');
+    if (searchInput) {
+        searchInput.addEventListener('keyup', (e) => {
+            if (e.key === 'Enter') {
+                loadContents(1);
+            }
+        });
+    }
+
+    // 초기 로드
+    loadContents();
+});
+</script>
+{% endblock %}
