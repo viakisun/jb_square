@@ -5,10 +5,10 @@
 	 */
 
 	import { onMount } from 'svelte';
-	import { Button } from '$lib/components/buttons';
-	import { Input, Select } from '$lib/components/forms';
+	import { Button } from '$lib/components/ui/buttons';
+	import { Input, Select } from '$lib/components/ui/forms';
 	import { Panel } from '$lib/components/layout';
-	import { DataTable, Pagination, EmptyState, type Column } from '$lib/components/data';
+	import { DataTable, Pagination, EmptyState, type Column } from '$lib/components/ui/data';
 	import { Badge, Spinner } from '$lib/components/feedback';
 
 	type Notice = {

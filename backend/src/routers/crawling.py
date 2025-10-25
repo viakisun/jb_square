@@ -8,8 +8,8 @@ from sqlalchemy.orm import Session
 from typing import List
 import asyncio
 
-from app.services.crawler_manager import crawler_manager
-from app.database import get_db, CrawlerConfig, CrawlResult
+from src.services.crawler_manager import crawler_manager
+from src.core.database import get_db, CrawlerConfig, CrawlResult
 
 router = APIRouter()
 

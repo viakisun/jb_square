@@ -5,9 +5,9 @@
 	 */
 
 	import { onMount } from 'svelte';
-	import { Button } from '$lib/components/buttons';
+	import { Button } from '$lib/components/ui/buttons';
 	import { Panel, Card } from '$lib/components/layout';
-	import { DataTable, type Column } from '$lib/components/data';
+	import { DataTable, type Column } from '$lib/components/ui/data';
 
 	let summary = $state({
 		notices: { total: 0, bio_related: 0, today_collected: 0, published: 0 },

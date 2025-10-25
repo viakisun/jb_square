@@ -16,7 +16,7 @@
 	 */
 
 	import { Badge } from '$lib/components/feedback';
-	import { Button } from '$lib/components/buttons';
+	import { Button } from '$lib/components/ui/buttons';
 
 	interface CrawlingCardProps {
 		sourceId: string;

@@ -13,8 +13,8 @@ from enum import Enum
 import sys
 sys.path.append(str(Path(__file__).parent.parent.parent.parent / "crawler"))
 
-from app.services.rate_limiter import RateLimiter
-from app.database import SessionLocal, CrawlerConfig, CrawlResult
+from src.services.rate_limiter import RateLimiter
+from src.core.database import SessionLocal, CrawlerConfig, CrawlResult
 
 
 class CrawlerStatus(str, Enum):

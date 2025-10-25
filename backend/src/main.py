@@ -4,8 +4,8 @@ FastAPI 메인 애플리케이션
 """
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import dashboard, contents, organizations, analytics, settings, crawling
-from app.database import init_db
+from src.routers import dashboard, contents, organizations, analytics, settings, crawling
+from src.core.database import init_db
 
 app = FastAPI(
     title="전북 바이오 플랫폼 API",

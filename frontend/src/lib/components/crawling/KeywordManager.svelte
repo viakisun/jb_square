@@ -6,7 +6,7 @@
 	 * 크롤러별 키워드 관리
 	 */
 
-	import { Button } from '$lib/components/buttons';
+	import { Button } from '$lib/components/ui/buttons';
 	import { toast } from '$lib/stores/toast';
 
 	interface KeywordManagerProps {

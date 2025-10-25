@@ -8,8 +8,8 @@
 	 * - Right: Black background, branding
 	 */
 
-	import { Button } from '$lib/components/buttons';
-	import { Input, Checkbox } from '$lib/components/forms';
+	import { Button } from '$lib/components/ui/buttons';
+	import { Input, Checkbox } from '$lib/components/ui/forms';
 	import { goto } from '$app/navigation';
 
 	let email = $state('');
