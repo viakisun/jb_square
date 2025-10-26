@@ -1,19 +1,22 @@
 <script lang="ts">
 	/**
 	 * 지자체 공고 페이지 (JBTP)
-	 * 전북테크노파크 크롤링 + 게시된 공고 관리
+	 * 1. 사업공고 (Business Notices) - JBTP 사업공고 게시판
+	 * 2. 유관기관공고 (External Organization Notices) - JBTP 유관기관 게시판
 	 */
 	import { onMount } from 'svelte';
 	import { Panel } from '$lib/components/layout';
 	import { Button } from '$lib/components/ui/buttons';
-	import { CrawlingStatus, CrawlerConfigCard } from '$lib/components/crawling';
+	import { CrawlingStatus } from '$lib/components/crawling';
 	import {
 		CrawlQueueTable,
 		PublishedNoticesList,
 		AddNoticeModal
 	} from '$lib/components/notices';
+	import ExternalNoticeQueueTable from '$lib/components/notices/ExternalNoticeQueueTable.svelte';
 	import { toast } from '$lib/stores/toast';
 	import JBTPConfigInline from '$lib/components/crawling/JBTPConfigInline.svelte';
+	import TagSelector from '$lib/components/contents/TagSelector.svelte';
 
 	const API_BASE = 'http://localhost:8000/api';
 
@@ -23,62 +26,96 @@
 		type?: 'info' | 'success' | 'error' | 'warning';
 	}
 
-	// Tab state
-	let activeTab = $state<'queue' | 'published'>('queue');
+	// ============================================
+	// Section 1: 사업공고 (Business Notices)
+	// ============================================
 
-	// Queue state
-	let queueItems = $state<any[]>([]);
-	let selectedIds = $state<number[]>([]);
-	let selectedTags = $state<string[]>([]);
-	let loading = $state(false);
+	// Tab state for business notices
+	let businessActiveTab = $state<'queue' | 'published'>('queue');
 
-	// Crawl state
-	let crawlStatus = $state<'idle' | 'collecting' | 'processing' | 'completed' | 'error' | 'stopped'>('idle');
-	let crawlLogs = $state<LogEntry[]>([]);
-	let crawlProgress = $state({ progress: 0, total: 0, success: 0, failed: 0 });
-	let crawlStatistics = $state({ total: 0, already_published: 0, in_queue: 0, new_items: 0, matched: 0, unmatched: 0 });
-	let pageProgress = $state({ page: 0, accumulated: 0 });
-	let errorMessage = $state('');
+	// Queue state for business notices
+	let businessQueueItems = $state<any[]>([]);
+	let businessSelectedIds = $state<number[]>([]);
+	let businessSelectedTagIds = $state<number[]>([]);
+	let businessLoading = $state(false);
 
+	// Crawl state for business notices
+	let businessCrawlStatus = $state<'idle' | 'collecting' | 'processing' | 'completed' | 'error' | 'stopped'>('idle');
+	let businessCrawlLogs = $state<LogEntry[]>([]);
+	let businessCrawlProgress = $state({ progress: 0, total: 0, success: 0, failed: 0 });
+	let businessCrawlStatistics = $state({ total: 0, already_published: 0, in_queue: 0, new_items: 0, matched: 0, unmatched: 0 });
+	let businessPageProgress = $state({ page: 0, accumulated: 0 });
+	let businessErrorMessage = $state('');
+
+	// Reference for scrolling
+	let businessCrawlingStatusRef: HTMLElement | null = null;
+	let businessQueueSectionRef: HTMLElement | null = null;
+
+	// ============================================
+	// Section 2: 유관기관공고 (External Notices)
+	// ============================================
+
+	// Tab state for external notices
+	let externalActiveTab = $state<'queue' | 'published'>('queue');
+
+	// Queue state for external notices
+	let externalQueueItems = $state<any[]>([]);
+	let externalSelectedIds = $state<number[]>([]);
+	let externalSelectedTagIds = $state<number[]>([]);
+	let externalLoading = $state(false);
+
+	// Crawl state for external notices
+	let externalCrawlStatus = $state<'idle' | 'collecting' | 'processing' | 'completed' | 'error' | 'stopped'>('idle');
+	let externalCrawlLogs = $state<LogEntry[]>([]);
+	let externalCrawlProgress = $state({ progress: 0, total: 0, success: 0, failed: 0 });
+	let externalCrawlStatistics = $state({ total: 0, already_published: 0, in_queue: 0, new_items: 0, matched: 0, unmatched: 0 });
+	let externalPageProgress = $state({ page: 0, accumulated: 0 });
+	let externalErrorMessage = $state('');
+
+	// Reference for scrolling
+	let externalCrawlingStatusRef: HTMLElement | null = null;
+	let externalQueueSectionRef: HTMLElement | null = null;
+
+	// ============================================
 	// Modal state
+	// ============================================
 	let showAddModal = $state(false);
 
-	// Reference for scrolling to crawling status panel
-	let crawlingStatusRef: HTMLElement | null = null;
-
-	// Reference for scrolling to queue section
-	let queueSectionRef: HTMLElement | null = null;
-
 	onMount(() => {
-		loadQueue();
+		loadBusinessQueue();
+		loadExternalQueue();
 	});
 
-	async function loadQueue() {
-		loading = true;
+	// ============================================
+	// Business Notices Functions
+	// ============================================
+
+	async function loadBusinessQueue() {
+		businessLoading = true;
 		try {
 			const res = await fetch(`${API_BASE}/notices/crawl-queue/list?source_id=jbtp`);
 			const data = await res.json();
-			queueItems = data.items;
+			businessQueueItems = data.items;
 		} catch (error) {
-			console.error('Failed to load queue:', error);
-			toast.error('대기열 로드 실패');
+			console.error('Failed to load business queue:', error);
+			toast.error('사업공고 대기열 로드 실패');
 		} finally {
-			loading = false;
+			businessLoading = false;
 		}
 	}
 
 	async function crawlJBTP() {
-		loading = true;
-		crawlStatus = 'collecting';
-		crawlLogs = [];
-		crawlProgress = { progress: 0, total: 0, success: 0, failed: 0 };
-		crawlStatistics = { total: 0, already_published: 0, in_queue: 0, new_items: 0, matched: 0, unmatched: 0 };
-		pageProgress = { page: 0, accumulated: 0 };
-		errorMessage = '';
+		businessLoading = true;
+		businessCrawlStatus = 'collecting';
+		businessCrawlLogs = [];
+		businessCrawlProgress = { progress: 0, total: 0, success: 0, failed: 0 };
+		businessCrawlStatistics = { total: 0, already_published: 0, in_queue: 0, new_items: 0, matched: 0, unmatched: 0 };
+		businessPageProgress = { page: 0, accumulated: 0 };
+		businessErrorMessage = '';
 
 		// Scroll to crawling status panel
 		setTimeout(() => {
-			crawlingStatusRef?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+			businessCrawlingStatusRef?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 		}, 100);
 
 		try {
@@ -90,25 +127,23 @@
 
 				switch (data.type) {
 					case 'start':
-						crawlLogs = [...crawlLogs, { timestamp, message: data.message || '크롤링 시작...', type: 'info' }];
+						businessCrawlLogs = [...businessCrawlLogs, { timestamp, message: data.message || '크롤링 시작...', type: 'info' }];
 						break;
 
 					case 'log':
-						crawlLogs = [...crawlLogs, { timestamp, message: data.message, type: 'info' }];
+						businessCrawlLogs = [...businessCrawlLogs, { timestamp, message: data.message, type: 'info' }];
 						break;
 
 					case 'page_progress':
-						// 페이지 수집 진행 (불확정 프로그레스)
-						crawlStatus = 'collecting';
-						pageProgress = {
+						businessCrawlStatus = 'collecting';
+						businessPageProgress = {
 							page: data.page || 0,
 							accumulated: data.accumulated || 0
 						};
 						break;
 
 					case 'statistics':
-						// 크롤링 통계 (중복 체크 결과)
-						crawlStatistics = {
+						businessCrawlStatistics = {
 							total: data.total || 0,
 							already_published: data.already_published || 0,
 							in_queue: data.in_queue || 0,
@@ -119,10 +154,9 @@
 						break;
 
 					case 'collection_complete':
-						// 수집 완료, 상세 크롤링 시작
-						crawlStatus = 'processing';
-						crawlLogs = [
-							...crawlLogs,
+						businessCrawlStatus = 'processing';
+						businessCrawlLogs = [
+							...businessCrawlLogs,
 							{
 								timestamp,
 								message: `✓ ${data.total_collected}개 공고 수집 완료. 상세 정보 수집 시작...`,
@@ -132,101 +166,275 @@
 						break;
 
 					case 'item_added':
-						// 실시간으로 매칭된 항목을 대기열에 추가
 						if (data.item) {
-							// 배열 맨 앞에 추가 (최신 항목이 위로)
-							queueItems = [data.item, ...queueItems];
+							businessQueueItems = [data.item, ...businessQueueItems];
 						}
 						break;
 
 					case 'progress':
-						crawlStatus = 'processing';
-						crawlProgress = {
+						businessCrawlStatus = 'processing';
+						businessCrawlProgress = {
 							progress: data.progress || 0,
 							total: data.total || 0,
 							success: data.success || 0,
 							failed: data.failed || 0
 						};
 						if (data.message) {
-							crawlLogs = [...crawlLogs, { timestamp, message: data.message, type: 'info' }];
+							businessCrawlLogs = [...businessCrawlLogs, { timestamp, message: data.message, type: 'info' }];
 						}
 						break;
 
 					case 'complete':
-						crawlStatus = 'completed';
-						crawlLogs = [
-							...crawlLogs,
+						businessCrawlStatus = 'completed';
+						businessCrawlLogs = [
+							...businessCrawlLogs,
 							{ timestamp, message: data.message || '크롤링 완료', type: 'success' },
-							{ timestamp, message: `📋 크롤링 대기열 탭에서 ${crawlProgress.success}개의 공고를 확인하세요`, type: 'info' }
+							{ timestamp, message: `📋 크롤링 대기열 탭에서 ${businessCrawlProgress.success}개의 공고를 확인하세요`, type: 'info' }
 						];
-						loading = false;
-						// 크롤링 완료 시 대기열 섹션으로 스크롤
-						activeTab = 'queue';
+						businessLoading = false;
+						businessActiveTab = 'queue';
 						setTimeout(() => {
-							queueSectionRef?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+							businessQueueSectionRef?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 						}, 300);
 						break;
 
 					case 'error':
-						crawlStatus = 'error';
-						errorMessage = data.message || '크롤링 중 오류 발생';
-						crawlLogs = [...crawlLogs, { timestamp, message: data.message, type: 'error' }];
-						loading = false;
+						businessCrawlStatus = 'error';
+						businessErrorMessage = data.message || '크롤링 중 오류 발생';
+						businessCrawlLogs = [...businessCrawlLogs, { timestamp, message: data.message, type: 'error' }];
+						businessLoading = false;
 						break;
 
 					case 'stopped':
-						crawlStatus = 'stopped';
-						crawlLogs = [...crawlLogs, { timestamp, message: data.message || '크롤링 중단됨', type: 'warning' }];
-						loading = false;
+						businessCrawlStatus = 'stopped';
+						businessCrawlLogs = [...businessCrawlLogs, { timestamp, message: data.message || '크롤링 중단됨', type: 'warning' }];
+						businessLoading = false;
 						break;
 				}
 			};
 
 			ws.onclose = () => {
-				if (crawlStatus === 'collecting' || crawlStatus === 'processing') {
-					crawlStatus = 'completed';
+				if (businessCrawlStatus === 'collecting' || businessCrawlStatus === 'processing') {
+					businessCrawlStatus = 'completed';
 				}
-				loadQueue();
-				loading = false;
+				loadBusinessQueue();
+				businessLoading = false;
 			};
 
 			ws.onerror = (error) => {
-				crawlStatus = 'error';
-				errorMessage = '웹소켓 연결 오류';
-				crawlLogs = [...crawlLogs, { timestamp: new Date().toISOString(), message: '웹소켓 연결 오류', type: 'error' }];
-				loading = false;
+				businessCrawlStatus = 'error';
+				businessErrorMessage = '웹소켓 연결 오류';
+				businessCrawlLogs = [...businessCrawlLogs, { timestamp: new Date().toISOString(), message: '웹소켓 연결 오류', type: 'error' }];
+				businessLoading = false;
 			};
 		} catch (error) {
-			crawlStatus = 'error';
-			errorMessage = String(error);
-			loading = false;
+			businessCrawlStatus = 'error';
+			businessErrorMessage = String(error);
+			businessLoading = false;
 		}
 	}
 
-	async function publishSelected() {
-		if (selectedIds.length === 0) return;
+	async function publishBusinessSelected() {
+		if (businessSelectedIds.length === 0) return;
 
-		loading = true;
+		businessLoading = true;
 		try {
 			const res = await fetch(`${API_BASE}/notices/publish`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
-					queue_ids: selectedIds,
-					category: 'government', // DB 카테고리: 'government' (지자체도 government)
-					tags: selectedTags
+					queue_ids: businessSelectedIds,
+					category: 'government',
+					tags: businessSelectedTagIds
 				})
 			});
 			const data = await res.json();
-			toast.success(`${data.published}개 공고가 게시되었습니다`);
-			await loadQueue();
-			selectedIds = [];
-			activeTab = 'published'; // Switch to published tab
+			toast.success(`${data.published}개 사업공고가 게시되었습니다`);
+			await loadBusinessQueue();
+			businessSelectedIds = [];
+			businessSelectedTagIds = [];
+			businessActiveTab = 'published';
 		} catch (error) {
 			console.error('Publish failed:', error);
 			toast.error('게시 실패');
 		} finally {
-			loading = false;
+			businessLoading = false;
+		}
+	}
+
+	// ============================================
+	// External Notices Functions
+	// ============================================
+
+	async function loadExternalQueue() {
+		externalLoading = true;
+		try {
+			const res = await fetch(`${API_BASE}/notices/crawl-queue/list?source_id=jbtp_external`);
+			const data = await res.json();
+			externalQueueItems = data.items;
+		} catch (error) {
+			console.error('Failed to load external queue:', error);
+			toast.error('유관기관공고 대기열 로드 실패');
+		} finally {
+			externalLoading = false;
+		}
+	}
+
+	async function crawlJBTPExternal() {
+		externalLoading = true;
+		externalCrawlStatus = 'collecting';
+		externalCrawlLogs = [];
+		externalCrawlProgress = { progress: 0, total: 0, success: 0, failed: 0 };
+		externalCrawlStatistics = { total: 0, already_published: 0, in_queue: 0, new_items: 0, matched: 0, unmatched: 0 };
+		externalPageProgress = { page: 0, accumulated: 0 };
+		externalErrorMessage = '';
+
+		// Scroll to crawling status panel
+		setTimeout(() => {
+			externalCrawlingStatusRef?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+		}, 100);
+
+		try {
+			const ws = new WebSocket(`ws://localhost:8000/api/notices/crawl/jbtp_external`);
+
+			ws.onmessage = (event) => {
+				const data = JSON.parse(event.data);
+				const timestamp = new Date().toISOString();
+
+				switch (data.type) {
+					case 'start':
+						externalCrawlLogs = [...externalCrawlLogs, { timestamp, message: data.message || '크롤링 시작...', type: 'info' }];
+						break;
+
+					case 'log':
+						externalCrawlLogs = [...externalCrawlLogs, { timestamp, message: data.message, type: 'info' }];
+						break;
+
+					case 'page_progress':
+						externalCrawlStatus = 'collecting';
+						externalPageProgress = {
+							page: data.page || 0,
+							accumulated: data.accumulated || 0
+						};
+						break;
+
+					case 'statistics':
+						externalCrawlStatistics = {
+							total: data.total || 0,
+							already_published: data.already_published || 0,
+							in_queue: data.in_queue || 0,
+							new_items: data.new_items || 0,
+							matched: data.matched || 0,
+							unmatched: data.unmatched || 0
+						};
+						break;
+
+					case 'collection_complete':
+						externalCrawlStatus = 'processing';
+						externalCrawlLogs = [
+							...externalCrawlLogs,
+							{
+								timestamp,
+								message: `✓ ${data.total_collected}개 공고 수집 완료. 상세 정보 수집 시작...`,
+								type: 'success'
+							}
+						];
+						break;
+
+					case 'item_added':
+						if (data.item) {
+							externalQueueItems = [data.item, ...externalQueueItems];
+						}
+						break;
+
+					case 'progress':
+						externalCrawlStatus = 'processing';
+						externalCrawlProgress = {
+							progress: data.progress || 0,
+							total: data.total || 0,
+							success: data.success || 0,
+							failed: data.failed || 0
+						};
+						if (data.message) {
+							externalCrawlLogs = [...externalCrawlLogs, { timestamp, message: data.message, type: 'info' }];
+						}
+						break;
+
+					case 'complete':
+						externalCrawlStatus = 'completed';
+						externalCrawlLogs = [
+							...externalCrawlLogs,
+							{ timestamp, message: data.message || '크롤링 완료', type: 'success' },
+							{ timestamp, message: `📋 크롤링 대기열 탭에서 ${externalCrawlProgress.success}개의 공고를 확인하세요`, type: 'info' }
+						];
+						externalLoading = false;
+						externalActiveTab = 'queue';
+						setTimeout(() => {
+							externalQueueSectionRef?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+						}, 300);
+						break;
+
+					case 'error':
+						externalCrawlStatus = 'error';
+						externalErrorMessage = data.message || '크롤링 중 오류 발생';
+						externalCrawlLogs = [...externalCrawlLogs, { timestamp, message: data.message, type: 'error' }];
+						externalLoading = false;
+						break;
+
+					case 'stopped':
+						externalCrawlStatus = 'stopped';
+						externalCrawlLogs = [...externalCrawlLogs, { timestamp, message: data.message || '크롤링 중단됨', type: 'warning' }];
+						externalLoading = false;
+						break;
+				}
+			};
+
+			ws.onclose = () => {
+				if (externalCrawlStatus === 'collecting' || externalCrawlStatus === 'processing') {
+					externalCrawlStatus = 'completed';
+				}
+				loadExternalQueue();
+				externalLoading = false;
+			};
+
+			ws.onerror = (error) => {
+				externalCrawlStatus = 'error';
+				externalErrorMessage = '웹소켓 연결 오류';
+				externalCrawlLogs = [...externalCrawlLogs, { timestamp: new Date().toISOString(), message: '웹소켓 연결 오류', type: 'error' }];
+				externalLoading = false;
+			};
+		} catch (error) {
+			externalCrawlStatus = 'error';
+			externalErrorMessage = String(error);
+			externalLoading = false;
+		}
+	}
+
+	async function publishExternalSelected() {
+		if (externalSelectedIds.length === 0) return;
+
+		externalLoading = true;
+		try {
+			const res = await fetch(`${API_BASE}/notices/publish`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					queue_ids: externalSelectedIds,
+					category: 'government',
+					tags: externalSelectedTagIds
+				})
+			});
+			const data = await res.json();
+			toast.success(`${data.published}개 유관기관공고가 게시되었습니다`);
+			await loadExternalQueue();
+			externalSelectedIds = [];
+			externalSelectedTagIds = [];
+			externalActiveTab = 'published';
+		} catch (error) {
+			console.error('Publish failed:', error);
+			toast.error('게시 실패');
+		} finally {
+			externalLoading = false;
 		}
 	}
 </script>
@@ -242,114 +450,201 @@
 			<p class="page-subtitle">전북테크노파크 공고 크롤링 및 관리</p>
 		</div>
 		<div class="header-actions">
-			<Button variant="primary" onclick={crawlJBTP} disabled={loading}>
-				{loading ? '크롤링 중...' : '크롤링 시작'}
-			</Button>
 			<Button variant="outline" onclick={() => (showAddModal = true)}>
 				+ 수동 추가
 			</Button>
 		</div>
 	</div>
 
-	<!-- 크롤링 설정 (검색 기간 + 키워드) -->
-	<JBTPConfigInline />
+	<!-- ============================================ -->
+	<!-- Section 1: 사업공고 (Business Notices) -->
+	<!-- ============================================ -->
+	<div class="section">
+		<div class="section-header">
+			<h2 class="section-title">사업공고</h2>
+			<Button variant="primary" onclick={crawlJBTP} disabled={businessLoading}>
+				{businessLoading ? '크롤링 중...' : '사업공고 크롤링 시작'}
+			</Button>
+		</div>
 
-	<!-- Crawling Status -->
-	{#if crawlStatus !== 'idle'}
-		<div bind:this={crawlingStatusRef}>
-			<Panel title="크롤링 진행 상황">
-				<!-- Phase indicator -->
-				{#if crawlStatus === 'collecting'}
-					<div class="phase-indicator">
-						<span class="phase-label">🔍 페이지 수집 중...</span>
-						<span class="phase-info">
-							페이지 {pageProgress.page} | 누적 {pageProgress.accumulated}개
-						</span>
-					</div>
-				{:else if crawlStatus === 'processing'}
-					<div class="phase-indicator processing">
-						<span class="phase-label">📋 상세 정보 수집 중</span>
-						<span class="phase-info">
-							{crawlProgress.progress}/{crawlProgress.total} ({Math.round((crawlProgress.progress / crawlProgress.total) * 100)}%)
-						</span>
+		<!-- 크롤링 설정 -->
+		<JBTPConfigInline configType="notices" />
+
+		<!-- Crawling Status -->
+		{#if businessCrawlStatus !== 'idle'}
+			<div bind:this={businessCrawlingStatusRef}>
+				<Panel title="크롤링 진행 상황">
+					{#if businessCrawlStatus === 'collecting'}
+						<div class="phase-indicator">
+							<span class="phase-label">🔍 페이지 수집 중...</span>
+							<span class="phase-info">
+								페이지 {businessPageProgress.page} | 누적 {businessPageProgress.accumulated}개
+							</span>
+						</div>
+					{:else if businessCrawlStatus === 'processing'}
+						<div class="phase-indicator processing">
+							<span class="phase-label">📋 상세 정보 수집 중</span>
+							<span class="phase-info">
+								{businessCrawlProgress.progress}/{businessCrawlProgress.total} ({Math.round((businessCrawlProgress.progress / businessCrawlProgress.total) * 100)}%)
+							</span>
+						</div>
+					{/if}
+
+					<CrawlingStatus
+						sourceId="jbtp"
+						sourceName="JBTP 사업공고"
+						status={businessCrawlStatus === 'collecting' || businessCrawlStatus === 'processing' ? 'running' : businessCrawlStatus}
+						progress={businessCrawlProgress.progress}
+						total={businessCrawlProgress.total}
+						success={businessCrawlProgress.success}
+						failed={businessCrawlProgress.failed}
+						logs={businessCrawlLogs}
+						errorMessage={businessErrorMessage}
+						statistics={businessCrawlStatistics}
+					/>
+				</Panel>
+			</div>
+		{/if}
+
+		<!-- Tabs -->
+		<div class="tabs" bind:this={businessQueueSectionRef}>
+			<button
+				class="tab"
+				class:active={businessActiveTab === 'queue'}
+				onclick={() => (businessActiveTab = 'queue')}
+			>
+				크롤링 대기열
+			</button>
+			<button
+				class="tab"
+				class:active={businessActiveTab === 'published'}
+				onclick={() => (businessActiveTab = 'published')}
+			>
+				게시된 공고
+			</button>
+		</div>
+
+		<!-- Tab Content -->
+		{#if businessActiveTab === 'queue'}
+			<Panel title="크롤링 대기열">
+				<CrawlQueueTable
+					bind:items={businessQueueItems}
+					onSelectionChange={(ids) => (businessSelectedIds = ids)}
+					onRefresh={loadBusinessQueue}
+				/>
+
+				{#if businessSelectedIds.length > 0}
+					<div class="queue-actions">
+						<div class="tag-selection-wrapper">
+							<TagSelector bind:selectedTags={businessSelectedTagIds} maxTags={5} required />
+						</div>
+						<Button onclick={publishBusinessSelected} disabled={businessLoading}>
+							선택 항목 게시 ({businessSelectedIds.length})
+						</Button>
 					</div>
 				{/if}
-
-			<CrawlingStatus
-				sourceId="jbtp"
-				sourceName="JBTP"
-				status={crawlStatus === 'collecting' || crawlStatus === 'processing' ? 'running' : crawlStatus}
-				progress={crawlProgress.progress}
-				total={crawlProgress.total}
-				success={crawlProgress.success}
-				failed={crawlProgress.failed}
-				logs={crawlLogs}
-				{errorMessage}
-				statistics={crawlStatistics}
-			/>
 			</Panel>
-		</div>
-	{/if}
-
-	<!-- Tabs -->
-	<div class="tabs" bind:this={queueSectionRef}>
-		<button
-			class="tab"
-			class:active={activeTab === 'queue'}
-			onclick={() => (activeTab = 'queue')}
-		>
-			크롤링 대기열
-		</button>
-		<button
-			class="tab"
-			class:active={activeTab === 'published'}
-			onclick={() => (activeTab = 'published')}
-		>
-			게시된 공고
-		</button>
+		{:else}
+			<Panel title="게시된 공고">
+				<PublishedNoticesList sourceId="jbtp" category="government" />
+			</Panel>
+		{/if}
 	</div>
 
-	<!-- Tab Content -->
-	{#if activeTab === 'queue'}
-		<Panel title="크롤링 대기열">
-			<CrawlQueueTable
-				bind:items={queueItems}
-				onSelectionChange={(ids) => (selectedIds = ids)}
-				onRefresh={loadQueue}
-			/>
+	<!-- ============================================ -->
+	<!-- Section 2: 유관기관공고 (External Notices) -->
+	<!-- ============================================ -->
+	<div class="section">
+		<div class="section-header">
+			<h2 class="section-title">유관기관공고</h2>
+			<Button variant="primary" onclick={crawlJBTPExternal} disabled={externalLoading}>
+				{externalLoading ? '크롤링 중...' : '유관기관공고 크롤링 시작'}
+			</Button>
+		</div>
 
-			{#if selectedIds.length > 0}
-				<div class="queue-actions">
-					<div class="tag-selector">
-						<label class="tag-label">태그:</label>
-						<label>
-							<input type="checkbox" bind:group={selectedTags} value="전북" />
-							전북
-						</label>
-						<label>
-							<input type="checkbox" bind:group={selectedTags} value="지원사업" />
-							지원사업
-						</label>
-						<label>
-							<input type="checkbox" bind:group={selectedTags} value="바이오" />
-							바이오
-						</label>
-						<label>
-							<input type="checkbox" bind:group={selectedTags} value="창업" />
-							창업
-						</label>
+		<!-- 크롤링 설정 -->
+		<JBTPConfigInline configType="external_notices" />
+
+		<!-- Crawling Status -->
+		{#if externalCrawlStatus !== 'idle'}
+			<div bind:this={externalCrawlingStatusRef}>
+				<Panel title="크롤링 진행 상황">
+					{#if externalCrawlStatus === 'collecting'}
+						<div class="phase-indicator">
+							<span class="phase-label">🔍 페이지 수집 중...</span>
+							<span class="phase-info">
+								페이지 {externalPageProgress.page} | 누적 {externalPageProgress.accumulated}개
+							</span>
+						</div>
+					{:else if externalCrawlStatus === 'processing'}
+						<div class="phase-indicator processing">
+							<span class="phase-label">📋 상세 정보 수집 중</span>
+							<span class="phase-info">
+								{externalCrawlProgress.progress}/{externalCrawlProgress.total} ({Math.round((externalCrawlProgress.progress / externalCrawlProgress.total) * 100)}%)
+							</span>
+						</div>
+					{/if}
+
+					<CrawlingStatus
+						sourceId="jbtp_external"
+						sourceName="JBTP 유관기관공고"
+						status={externalCrawlStatus === 'collecting' || externalCrawlStatus === 'processing' ? 'running' : externalCrawlStatus}
+						progress={externalCrawlProgress.progress}
+						total={externalCrawlProgress.total}
+						success={externalCrawlProgress.success}
+						failed={externalCrawlProgress.failed}
+						logs={externalCrawlLogs}
+						errorMessage={externalErrorMessage}
+						statistics={externalCrawlStatistics}
+					/>
+				</Panel>
+			</div>
+		{/if}
+
+		<!-- Tabs -->
+		<div class="tabs" bind:this={externalQueueSectionRef}>
+			<button
+				class="tab"
+				class:active={externalActiveTab === 'queue'}
+				onclick={() => (externalActiveTab = 'queue')}
+			>
+				크롤링 대기열
+			</button>
+			<button
+				class="tab"
+				class:active={externalActiveTab === 'published'}
+				onclick={() => (externalActiveTab = 'published')}
+			>
+				게시된 공고
+			</button>
+		</div>
+
+		<!-- Tab Content -->
+		{#if externalActiveTab === 'queue'}
+			<Panel title="크롤링 대기열">
+				<ExternalNoticeQueueTable
+					bind:items={externalQueueItems}
+					onSelectionChange={(ids) => (externalSelectedIds = ids)}
+					onRefresh={loadExternalQueue}
+				/>
+
+				{#if externalSelectedIds.length > 0}
+					<div class="queue-actions">
+						<div class="tag-selection-wrapper">
+							<TagSelector bind:selectedTags={externalSelectedTagIds} maxTags={5} required />
+						</div>
+						<Button onclick={publishExternalSelected} disabled={externalLoading}>
+							선택 항목 게시 ({externalSelectedIds.length})
+						</Button>
 					</div>
-					<Button onclick={publishSelected} disabled={loading}>
-						선택 항목 게시 ({selectedIds.length})
-					</Button>
-				</div>
-			{/if}
-		</Panel>
-	{:else}
-		<Panel title="게시된 공고">
-			<PublishedNoticesList sourceId="jbtp" category="government" />
-		</Panel>
-	{/if}
+				{/if}
+			</Panel>
+		{:else}
+			<Panel title="게시된 공고">
+				<PublishedNoticesList sourceId="jbtp_external" category="government" />
+			</Panel>
+		{/if}
+	</div>
 
 	<!-- Add Notice Modal -->
 	{#if showAddModal}
@@ -358,8 +653,8 @@
 			sourceId="jbtp"
 			onClose={() => (showAddModal = false)}
 			onSuccess={() => {
-				loadQueue();
-				activeTab = 'published';
+				loadBusinessQueue();
+				businessActiveTab = 'published';
 			}}
 		/>
 	{/if}
@@ -370,7 +665,7 @@
 		padding: var(--space-8);
 		display: flex;
 		flex-direction: column;
-		gap: var(--space-6);
+		gap: var(--space-8);
 	}
 
 	.page-header {
@@ -397,6 +692,30 @@
 	.header-actions {
 		display: flex;
 		gap: var(--space-3);
+	}
+
+	/* Section Styles */
+	.section {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-6);
+		padding: var(--space-6);
+		border: var(--border-width) solid var(--hair);
+		background-color: var(--surface-1);
+	}
+
+	.section-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+	}
+
+	.section-title {
+		font-size: var(--text-xl);
+		font-weight: var(--font-semibold);
+		letter-spacing: var(--tracking-tight);
+		color: var(--fg);
+		text-transform: uppercase;
 	}
 
 	/* Phase indicator styles */
@@ -456,36 +775,17 @@
 	.queue-actions {
 		display: flex;
 		justify-content: space-between;
-		align-items: center;
+		align-items: flex-start;
 		padding: var(--space-4);
 		border-top: var(--border-width) solid var(--hair);
 		margin-top: var(--space-4);
 		flex-wrap: wrap;
-		gap: var(--space-3);
-	}
-
-	.tag-selector {
-		display: flex;
 		gap: var(--space-4);
-		align-items: center;
-		flex-wrap: wrap;
 	}
 
-	.tag-label {
-		font-weight: var(--font-medium);
-		color: var(--fg);
-	}
-
-	.tag-selector label {
-		display: flex;
-		align-items: center;
-		gap: var(--space-2);
-		cursor: pointer;
-		color: var(--muted);
-	}
-
-	.tag-selector label:hover {
-		color: var(--fg);
+	.tag-selection-wrapper {
+		flex: 1;
+		min-width: 300px;
 	}
 
 	@media (max-width: 768px) {
@@ -501,6 +801,16 @@
 
 		.header-actions {
 			width: 100%;
+		}
+
+		.section {
+			padding: var(--space-4);
+		}
+
+		.section-header {
+			flex-direction: column;
+			align-items: flex-start;
+			gap: var(--space-3);
 		}
 
 		.queue-actions {

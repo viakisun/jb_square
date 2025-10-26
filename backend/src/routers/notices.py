@@ -374,6 +374,8 @@ async def crawl_source(websocket: WebSocket, source_id: str):
         # Execute crawler based on source_id
         if source_id == "jbtp":
             await crawler_manager.execute_jbtp(callback=send_update)
+        elif source_id == "jbtp_external":
+            await crawler_manager.execute_jbtp_external(callback=send_update)
         elif source_id == "ntis":
             await crawler_manager.execute_ntis(callback=send_update)
         elif source_id == "bizinfo":

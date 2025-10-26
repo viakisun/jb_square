@@ -19,6 +19,7 @@
 				{ path: '/notices/latest', label: '최신공고 모아보기' }
 			]
 		},
+		{ path: '/contents', label: '콘텐츠 관리' },
 		{ path: '/organizations', label: '기업·기관' },
 		{ path: '/analytics', label: '통계' }
 	];

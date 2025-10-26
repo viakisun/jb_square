@@ -1,6 +1,6 @@
 <script lang="ts">
 	/**
-	 * CrawlQueueTable - Multi-select table for crawl queue review
+	 * ExternalNoticeQueueTable - Queue table for external notices (유관기관공고)
 	 * BLACK/WHITE / ZERO-ROUND / INDUSTRIAL
 	 */
 
@@ -41,7 +41,6 @@
 
 	let selectedIds = $state<Set<number>>(new Set());
 	let allSelected = $state(false);
-	let expandedRows = $state<Set<number>>(new Set());
 	let previewItem = $state<QueueItem | null>(null);
 	let showPreview = $state(false);
 	let deleting = $state(false);
@@ -138,38 +137,8 @@
 		}
 	}
 
-	function getDaysUntilDeadline(deadline: string | null): number | null {
-		if (!deadline) return null;
-		try {
-			const deadlineDate = new Date(deadline);
-			const today = new Date();
-			const diffTime = deadlineDate.getTime() - today.getTime();
-			const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-			return diffDays;
-		} catch {
-			return null;
-		}
-	}
-
-	function getSourceLabel(sourceId: string): string {
-		const labels: Record<string, string> = {
-			jbtp: 'JBTP 사업공고',
-			jbtp_external: 'JBTP 유관기관',
-			ntis: 'NTIS',
-			bizinfo: '기업마당'
-		};
-		return labels[sourceId] || sourceId;
-	}
-
-	function toggleExpand(id: number, event: Event) {
-		event.stopPropagation();
-		const newExpanded = new Set(expandedRows);
-		if (newExpanded.has(id)) {
-			newExpanded.delete(id);
-		} else {
-			newExpanded.add(id);
-		}
-		expandedRows = newExpanded;
+	function removeOrganizationPrefix(title: string): string {
+		return title.replace(/^\[([^\]]+)\]\s*/, '');
 	}
 
 	function hasDetailData(item: QueueItem): boolean {
@@ -189,7 +158,7 @@
 	}
 </script>
 
-<div class="crawl-queue-table">
+<div class="external-queue-table">
 	<!-- Header Actions -->
 	<div class="table-header">
 		<div class="selected-count">
@@ -224,10 +193,10 @@
 							class="table-checkbox"
 						/>
 					</th>
+					<th class="col-source">출처</th>
 					<th class="col-title">제목</th>
 					<th class="col-keywords">키워드</th>
 					<th class="col-date">게시일</th>
-					<th class="col-deadline">마감일</th>
 					<th class="col-detail">상세</th>
 					<th class="col-link">링크</th>
 				</tr>
@@ -258,47 +227,29 @@
 									onclick={(e) => e.stopPropagation()}
 								/>
 							</td>
+							<td class="col-source">
+								<span class="source-badge">{item.organization || 'JBTP'}</span>
+							</td>
 							<td class="col-title">
 								<div class="title-container">
-									<span class="title-text">{item.title}</span>
+									<span class="title-text">{removeOrganizationPrefix(item.title)}</span>
 									{#if item.already_exists}
 										<span class="duplicate-badge">등록됨</span>
 									{/if}
 								</div>
 							</td>
-							<td class="col-keywords">
-								{#if item.matched_keywords && item.matched_keywords.length > 0}
-									<div class="keywords-badges">
-										{#each item.matched_keywords as keyword}
-											<span class="keyword-badge">{keyword}</span>
-										{/each}
-									</div>
-								{:else}
-									<span class="no-keywords">-</span>
-								{/if}
-							</td>
-							<td class="col-date">{formatDate(item.published_date)}</td>
-							<td class="col-deadline">
-								{#if item.deadline}
-									{@const daysLeft = getDaysUntilDeadline(item.deadline)}
-									<div class="deadline-cell">
-										<span class="deadline-date">{formatDate(item.deadline)}</span>
-										{#if daysLeft !== null}
-											{#if daysLeft < 0}
-												<span class="deadline-badge closed">마감</span>
-											{:else if daysLeft === 0}
-												<span class="deadline-badge urgent">오늘</span>
-											{:else if daysLeft <= 7}
-												<span class="deadline-badge urgent">D-{daysLeft}</span>
-											{:else}
-												<span class="deadline-badge">D-{daysLeft}</span>
-											{/if}
-										{/if}
-									</div>
-								{:else}
-									<span class="error-text">마감일 누락</span>
-								{/if}
-							</td>
+						<td class="col-keywords">
+							{#if item.matched_keywords && item.matched_keywords.length > 0}
+								<div class="keywords-badges">
+									{#each item.matched_keywords as keyword}
+										<span class="keyword-badge">{keyword}</span>
+									{/each}
+								</div>
+							{:else}
+								<span class="no-keywords">-</span>
+							{/if}
+						</td>
+						<td class="col-date">{formatDate(item.published_date)}</td>
 							<td class="col-detail">
 								{#if hasDetailData(item)}
 									<button
@@ -342,7 +293,7 @@
      CONTAINER
      ======================================== */
 
-	.crawl-queue-table {
+	.external-queue-table {
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-4);
@@ -413,6 +364,10 @@
 		width: 40px;
 	}
 
+	.col-source {
+		width: 240px;
+	}
+
 	.col-title {
 		min-width: 300px;
 	}
@@ -423,10 +378,6 @@
 
 	.col-date {
 		width: 110px;
-	}
-
-	.col-deadline {
-		width: 150px;
 	}
 
 	.col-detail {
@@ -468,6 +419,17 @@
 	/* ========================================
      CONTENT ELEMENTS
      ======================================== */
+
+	.source-badge {
+		display: inline-block;
+		padding: var(--space-1) var(--space-2);
+		background-color: var(--fg);
+		color: var(--bg);
+		font-size: var(--text-xs);
+		font-weight: var(--font-medium);
+		text-transform: uppercase;
+		letter-spacing: var(--tracking-wide);
+	}
 
 	.title-container {
 		display: flex;
@@ -578,6 +540,10 @@
 		color: var(--muted);
 	}
 
+	.no-keywords {
+		color: var(--muted);
+	}
+
 	/* ========================================
      TABLE CHECKBOX
      ======================================== */
@@ -587,55 +553,5 @@
 		height: 18px;
 		cursor: pointer;
 		accent-color: var(--fg);
-	}
-
-	/* ========================================
-     DEADLINE CELL & POSTED INFO
-     ======================================== */
-
-	.deadline-cell,
-	.posted-info {
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-1);
-		align-items: flex-start;
-	}
-
-	.deadline-date,
-	.posted-date {
-		font-size: var(--text-xs);
-		color: var(--muted);
-	}
-
-	.info-label {
-		font-size: var(--text-xs);
-		color: var(--muted);
-		font-weight: var(--font-medium);
-		text-transform: uppercase;
-		letter-spacing: var(--tracking-wide);
-		opacity: 0.7;
-	}
-
-	.deadline-badge {
-		display: inline-block;
-		padding: var(--space-1) var(--space-2);
-		font-size: var(--text-xs);
-		font-weight: var(--font-medium);
-		border: var(--border-width) solid var(--fg);
-		color: var(--fg);
-		text-transform: uppercase;
-		letter-spacing: var(--tracking-wide);
-	}
-
-	.deadline-badge.urgent {
-		background-color: var(--fg);
-		color: var(--bg);
-	}
-
-	.deadline-badge.closed {
-		background-color: var(--muted);
-		color: var(--bg);
-		border-color: var(--muted);
-		opacity: 0.7;
 	}
 </style>

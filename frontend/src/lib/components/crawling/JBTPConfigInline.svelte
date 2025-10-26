@@ -18,6 +18,12 @@
 		enabled: boolean;
 	}
 
+	type Props = {
+		configType?: 'notices' | 'external_notices';
+	};
+
+	let { configType = 'notices' }: Props = $props();
+
 	let configs = $state<JBTPConfig[]>([]);
 	let loading = $state(false);
 	let addingKeywordForId = $state<number | null>(null);
@@ -30,7 +36,7 @@
 	async function loadConfigs() {
 		loading = true;
 		try {
-			const res = await fetch(`${API_BASE}/crawling/configs/jbtp/configs`);
+			const res = await fetch(`${API_BASE}/crawling/configs/jbtp/configs?config_type=${configType}`);
 			if (!res.ok) {
 				throw new Error(`HTTP ${res.status}`);
 			}

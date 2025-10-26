@@ -72,7 +72,8 @@
 
 	function getSourceLabel(sourceId: string): string {
 		const labels: Record<string, string> = {
-			jbtp: 'JBTP',
+			jbtp: 'JBTP 사업공고',
+			jbtp_external: 'JBTP 유관기관',
 			ntis: 'NTIS',
 			bizinfo: '기업마당',
 			manual: '수동등록'
@@ -110,7 +111,14 @@
 			<span class="source-badge">{getSourceLabel(notice.crawler_source_id)}</span>
 		</div>
 		<div class="header-right">
-			{#if notice.deadline}
+			{#if notice.crawler_source_id === 'jbtp_external'}
+				<!-- 유관기관공고: 작성일 표시 -->
+				<div class="posted-info">
+					<span class="info-label">등록일</span>
+					<span class="posted-date">{formatDate(notice.published_at)}</span>
+				</div>
+			{:else if notice.deadline}
+				<!-- 사업공고: 마감일 표시 -->
 				<div class="deadline-info">
 					<span class="deadline-date">{formatDate(notice.deadline)}</span>
 					{#if daysLeft !== null}
@@ -145,6 +153,11 @@
 			{#each notice.tags as tag}
 				<Badge variant="outline">{tag}</Badge>
 			{/each}
+		</div>
+	{:else}
+		<div class="tag-warning">
+			<span class="warning-icon">⚠️</span>
+			<span class="warning-text">태그 미지정</span>
 		</div>
 	{/if}
 
@@ -254,18 +267,29 @@
 		flex-shrink: 0;
 	}
 
-	.deadline-info {
+	.deadline-info,
+	.posted-info {
 		display: flex;
 		align-items: center;
 		gap: var(--space-2);
 	}
 
-	.deadline-date {
+	.deadline-date,
+	.posted-date {
 		font-size: var(--text-xs);
 		color: var(--muted);
 		font-weight: var(--font-medium);
 		text-transform: uppercase;
 		letter-spacing: var(--tracking-wide);
+	}
+
+	.info-label {
+		font-size: var(--text-xs);
+		color: var(--muted);
+		font-weight: var(--font-medium);
+		text-transform: uppercase;
+		letter-spacing: var(--tracking-wide);
+		opacity: 0.7;
 	}
 
 	.deadline-badge {
@@ -324,6 +348,26 @@
 		display: flex;
 		flex-wrap: wrap;
 		gap: var(--space-2);
+	}
+
+	.tag-warning {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+		padding: var(--space-2) var(--space-3);
+		background-color: var(--color-warning-bg);
+		border: var(--border-width) solid var(--border-color);
+	}
+
+	.warning-icon {
+		font-size: var(--text-base);
+		line-height: 1;
+	}
+
+	.warning-text {
+		font-size: var(--text-sm);
+		font-weight: var(--font-medium);
+		color: var(--fg);
 	}
 
 	/* ========================================
