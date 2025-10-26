@@ -15,24 +15,18 @@
 		source_board_name: string | null;
 		title: string;
 		link: string | null;
-		source_date_string: string | null;
 		crawler_extracted_at: string;
-		is_selected: boolean;
-		is_processed: boolean;
+		deadline: string | null;
+		published_date: string | null;
+		organization: string | null;
+		department: string | null;
+		contact: string | null;
+		views: number;
+		status: string | null;
 		already_exists?: boolean;
 		existing_notice_id?: number;
 		matched_keywords?: string[];
-		raw_data?: {
-			detail?: {
-				writer?: string;
-				published_date?: string;
-				views?: number;
-				status?: string;
-				deadline?: string;
-				d_day?: string;
-				attachments?: Array<{ filename: string; url: string }>;
-			};
-		};
+		raw_data?: any;
 	};
 
 	type Props = {
@@ -144,6 +138,19 @@
 		}
 	}
 
+	function getDaysUntilDeadline(deadline: string | null): number | null {
+		if (!deadline) return null;
+		try {
+			const deadlineDate = new Date(deadline);
+			const today = new Date();
+			const diffTime = deadlineDate.getTime() - today.getTime();
+			const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+			return diffDays;
+		} catch {
+			return null;
+		}
+	}
+
 	function getSourceLabel(sourceId: string): string {
 		const labels: Record<string, string> = {
 			jbtp: 'JBTP',
@@ -219,7 +226,8 @@
 					<th class="col-source">출처</th>
 					<th class="col-board">게시판</th>
 					<th class="col-title">제목</th>
-					<th class="col-date">날짜</th>
+					<th class="col-date">게시일</th>
+					<th class="col-deadline">마감일</th>
 					<th class="col-detail">상세</th>
 					<th class="col-link">링크</th>
 				</tr>
@@ -227,7 +235,7 @@
 			<tbody>
 				{#if items.length === 0}
 					<tr class="empty-row">
-						<td colspan="6">
+						<td colspan="7">
 							<div class="empty-state">
 								<p>크롤링된 데이터가 없습니다.</p>
 								<p class="text-sm text-muted">크롤링을 실행하여 데이터를 수집하세요.</p>
@@ -269,7 +277,28 @@
 									{/if}
 								</div>
 							</td>
-							<td class="col-date">{formatDate(item.source_date_string)}</td>
+							<td class="col-date">{formatDate(item.published_date)}</td>
+							<td class="col-deadline">
+								{#if item.deadline}
+									{@const daysLeft = getDaysUntilDeadline(item.deadline)}
+									<div class="deadline-cell">
+										<span class="deadline-date">{formatDate(item.deadline)}</span>
+										{#if daysLeft !== null}
+											{#if daysLeft < 0}
+												<span class="deadline-badge closed">마감</span>
+											{:else if daysLeft === 0}
+												<span class="deadline-badge urgent">오늘</span>
+											{:else if daysLeft <= 7}
+												<span class="deadline-badge urgent">D-{daysLeft}</span>
+											{:else}
+												<span class="deadline-badge">D-{daysLeft}</span>
+											{/if}
+										{/if}
+									</div>
+								{:else}
+									-
+								{/if}
+							</td>
 							<td class="col-detail">
 								{#if hasDetailData(item)}
 									<button
@@ -397,7 +426,11 @@
 	}
 
 	.col-date {
-		width: 120px;
+		width: 110px;
+	}
+
+	.col-deadline {
+		width: 150px;
 	}
 
 	.col-detail {
@@ -569,5 +602,44 @@
 		height: 18px;
 		cursor: pointer;
 		accent-color: var(--fg);
+	}
+
+	/* ========================================
+     DEADLINE CELL
+     ======================================== */
+
+	.deadline-cell {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-1);
+		align-items: flex-start;
+	}
+
+	.deadline-date {
+		font-size: var(--text-xs);
+		color: var(--muted);
+	}
+
+	.deadline-badge {
+		display: inline-block;
+		padding: var(--space-1) var(--space-2);
+		font-size: var(--text-xs);
+		font-weight: var(--font-medium);
+		border: var(--border-width) solid var(--fg);
+		color: var(--fg);
+		text-transform: uppercase;
+		letter-spacing: var(--tracking-wide);
+	}
+
+	.deadline-badge.urgent {
+		background-color: var(--fg);
+		color: var(--bg);
+	}
+
+	.deadline-badge.closed {
+		background-color: var(--muted);
+		color: var(--bg);
+		border-color: var(--muted);
+		opacity: 0.7;
 	}
 </style>

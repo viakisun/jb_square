@@ -225,7 +225,7 @@ class CrawlerManager:
 
         return parsed
 
-    def _save_single_notice(self, source_id: str, notice: dict, keywords: List[str], db) -> tuple[str, List[str]]:
+    def _save_single_notice(self, source_id: str, notice: dict, keywords: List[str], db) -> tuple[str, List[str], Optional[CrawlQueue]]:
         """
         단일 공고를 notice_crawl_queue에 저장합니다.
 
@@ -236,7 +236,7 @@ class CrawlerManager:
             db: 데이터베이스 세션
 
         Returns:
-            tuple[str, List[str]]: (상태, 매칭된 키워드 리스트)
+            tuple[str, List[str], Optional[CrawlQueue]]: (상태, 매칭된 키워드 리스트, 저장된 객체)
             상태: 'added', 'updated', 'rejected', 'duplicate', 'no_match'
         """
         title = notice['title']
@@ -258,41 +258,33 @@ class CrawlerManager:
         if existing:
             # 2. 거부된 항목이면 스킵 (다시 추가하지 않음)
             if existing.rejection_status == 'rejected':
-                return ('rejected', matched_keywords)
+                return ('rejected', matched_keywords, None)
 
-            # 3. 아직 처리되지 않았으면 데이터 업데이트 (최신 정보 반영)
-            if not existing.is_processed:
-                existing.link = notice.get('link')
-                existing.source_date_string = notice.get('date')  # 하위 호환성 유지
-                existing.source_board_name = notice.get('board')
-                existing.raw_data = notice
-                existing.matched_keywords = matched_keywords
-                existing.crawler_extracted_at = datetime.now()
-                # Update parsed fields
-                existing.deadline = parsed_data.get('deadline')
-                existing.published_date = parsed_data.get('published_date')
-                existing.organization = parsed_data.get('organization')
-                existing.department = parsed_data.get('department')
-                existing.contact = parsed_data.get('contact')
-                existing.views = parsed_data.get('views', 0)
-                existing.status = parsed_data.get('status')
-                return ('updated', matched_keywords)
-            else:
-                # 이미 처리된 항목은 스킵
-                return ('duplicate', matched_keywords)
+            # 3. 기존 항목 업데이트 (최신 정보 반영)
+            existing.link = notice.get('link')
+            existing.source_board_name = notice.get('board')
+            existing.raw_data = notice
+            existing.matched_keywords = matched_keywords
+            existing.crawler_extracted_at = datetime.now()
+            # Update parsed fields
+            existing.deadline = parsed_data.get('deadline')
+            existing.published_date = parsed_data.get('published_date')
+            existing.organization = parsed_data.get('organization')
+            existing.department = parsed_data.get('department')
+            existing.contact = parsed_data.get('contact')
+            existing.views = parsed_data.get('views', 0)
+            existing.status = parsed_data.get('status')
+            return ('updated', matched_keywords, existing)
         else:
-            # 4. 새로운 항목 추가 (키워드 매칭 여부와 관계없이 모두 저장)
+            # 4. 새로운 항목 추가
             queue_item = CrawlQueue(
                 crawler_source_id=source_id,
                 title=title,
                 link=notice.get('link'),
-                source_date_string=notice.get('date'),  # 하위 호환성 유지
                 source_board_name=notice.get('board'),
                 raw_data=notice,
                 matched_keywords=matched_keywords,
                 crawler_extracted_at=datetime.now(),
-                is_selected=False,
-                is_processed=False,
                 rejection_status=None,  # NULL = pending review
                 # Structured fields
                 deadline=parsed_data.get('deadline'),
@@ -304,7 +296,7 @@ class CrawlerManager:
                 status=parsed_data.get('status')
             )
             db.add(queue_item)
-            return ('added', matched_keywords)
+            return ('added', matched_keywords, queue_item)
 
     def _save_results(self, source_id: str, notices: List[dict], keywords: List[str]):
         """
@@ -342,29 +334,21 @@ class CrawlerManager:
                         skipped_rejected += 1
                         continue
 
-                    # 3. 아직 처리되지 않았으면 데이터 업데이트 (최신 정보 반영)
-                    if not existing.is_processed:
-                        existing.link = notice.get('link')
-                        existing.source_date_string = notice.get('date')
-                        existing.source_board_name = notice.get('board')
-                        existing.raw_data = notice
-                        existing.crawler_extracted_at = datetime.now()
-                        updated_existing += 1
-                    else:
-                        # 이미 처리된 항목은 스킵
-                        skipped_duplicates += 1
+                    # 3. 기존 항목이 있으면 데이터 업데이트 (최신 정보 반영)
+                    existing.link = notice.get('link')
+                    existing.source_board_name = notice.get('board')
+                    existing.raw_data = notice
+                    existing.crawler_extracted_at = datetime.now()
+                    updated_existing += 1
                 else:
                     # 4. 새로운 항목 추가
                     queue_item = CrawlQueue(
                         crawler_source_id=source_id,
                         title=title,
                         link=notice.get('link'),
-                        source_date_string=notice.get('date'),
                         source_board_name=notice.get('board'),
                         raw_data=notice,
                         crawler_extracted_at=datetime.now(),
-                        is_selected=False,
-                        is_processed=False,
                         rejection_status=None  # NULL = pending review
                     )
                     db.add(queue_item)
@@ -862,13 +846,23 @@ class CrawlerManager:
                                 # 키워드 매칭된 항목만 DB에 저장
                                 matched_keywords = notice_row['matched_keywords']
                                 if matched_keywords:
-                                    status, _ = self._save_single_notice(
+                                    status, _, queue_item = self._save_single_notice(
                                         source_id, notice_data, keywords, db
                                     )
                                     if status == 'added' or status == 'updated':
                                         board_saved_count += 1
                                         total_saved += 1
                                         total_matched += 1
+
+                                        # DB 커밋 (즉시 저장하여 ID 생성)
+                                        db.commit()
+                                        db.refresh(queue_item)
+
+                                        # 실시간으로 저장된 항목 전송 (item_added 이벤트)
+                                        await self._send_event(callback, "item_added", {
+                                            "source_id": source_id,
+                                            "item": queue_item.to_dict()
+                                        })
 
                                     # 로그 출력 (매칭된 경우만)
                                     keyword_str = ', '.join(matched_keywords)
@@ -878,9 +872,9 @@ class CrawlerManager:
                                         "source_id": source_id,
                                         "message": log_msg
                                     })
-
-                                # DB 커밋 (즉시 저장)
-                                db.commit()
+                                else:
+                                    # 매칭 안된 경우도 커밋 (혹시 다른 변경사항이 있을 수 있음)
+                                    db.commit()
 
                                 # progress 상태 업데이트
                                 self.crawlers_status[source_id]["progress"] += 1

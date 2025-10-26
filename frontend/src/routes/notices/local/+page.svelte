@@ -27,7 +27,7 @@
 	let activeTab = $state<'queue' | 'published'>('queue');
 
 	// Queue state
-	let queueItems = $state([]);
+	let queueItems = $state<any[]>([]);
 	let selectedIds = $state<number[]>([]);
 	let selectedTags = $state<string[]>([]);
 	let loading = $state(false);
@@ -131,6 +131,14 @@
 						];
 						break;
 
+					case 'item_added':
+						// 실시간으로 매칭된 항목을 대기열에 추가
+						if (data.item) {
+							// 배열 맨 앞에 추가 (최신 항목이 위로)
+							queueItems = [data.item, ...queueItems];
+						}
+						break;
+
 					case 'progress':
 						crawlStatus = 'processing';
 						crawlProgress = {
@@ -175,7 +183,7 @@
 			};
 
 			ws.onclose = () => {
-				if (crawlStatus === 'running') {
+				if (crawlStatus === 'collecting' || crawlStatus === 'processing') {
 					crawlStatus = 'completed';
 				}
 				loadQueue();
@@ -237,7 +245,7 @@
 			<Button variant="primary" onclick={crawlJBTP} disabled={loading}>
 				{loading ? '크롤링 중...' : '크롤링 시작'}
 			</Button>
-			<Button variant="secondary" onclick={() => (showAddModal = true)}>
+			<Button variant="outline" onclick={() => (showAddModal = true)}>
 				+ 수동 추가
 			</Button>
 		</div>

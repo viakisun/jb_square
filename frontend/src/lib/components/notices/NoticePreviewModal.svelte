@@ -22,9 +22,9 @@
 	type NoticeItem = {
 		id: number;
 		title: string;
-		link?: string;
+		link?: string | null;
 		crawler_source_id: string;
-		source_board_name?: string;
+		source_board_name?: string | null;
 		source_date_string?: string;
 		raw_data?: {
 			detail?: NoticeDetail;
@@ -32,14 +32,16 @@
 	};
 
 	type Props = {
-		item: NoticeItem | null;
+		item?: NoticeItem | null;
+		notice?: NoticeItem | null;
 		open?: boolean;
 		onClose: () => void;
 	};
 
-	let { item, open = false, onClose }: Props = $props();
+	let { item, notice, open = false, onClose }: Props = $props();
 
-	let detail = $derived(item?.raw_data?.detail);
+	let activeItem = $derived(item || notice);
+	let detail = $derived(activeItem?.raw_data?.detail);
 
 	function handleBackdropClick(e: MouseEvent) {
 		if (e.target === e.currentTarget) {
@@ -63,18 +65,18 @@
 	}
 </script>
 
-{#if open && item}
+{#if open && activeItem}
 	<div class="modal-backdrop" onclick={handleBackdropClick} onkeydown={handleKeydown} role="button" tabindex="-1">
 		<div class="modal-content">
 			<!-- Header -->
 			<div class="modal-header">
 				<div class="header-top">
-					<span class="source-badge">{getSourceLabel(item.crawler_source_id)}</span>
-					{#if item.source_board_name}
-						<span class="board-label">{item.source_board_name}</span>
+					<span class="source-badge">{getSourceLabel(activeItem.crawler_source_id)}</span>
+					{#if activeItem.source_board_name}
+						<span class="board-label">{activeItem.source_board_name}</span>
 					{/if}
 				</div>
-				<h2 class="modal-title">{detail?.full_title || item.title}</h2>
+				<h2 class="modal-title">{detail?.full_title || activeItem.title}</h2>
 				<button class="close-button" onclick={onClose} aria-label="닫기">✕</button>
 			</div>
 
@@ -176,8 +178,8 @@
 
 			<!-- Footer -->
 			<div class="modal-footer">
-				{#if item.link}
-					<a href={item.link} target="_blank" rel="noopener noreferrer" class="link-button">
+				{#if activeItem.link}
+					<a href={activeItem.link} target="_blank" rel="noopener noreferrer" class="link-button">
 						원본 페이지 열기
 					</a>
 				{/if}

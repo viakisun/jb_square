@@ -13,7 +13,7 @@
 	 */
 
 	interface BadgeProps {
-		variant?: 'default' | 'success' | 'error' | 'warning' | 'info';
+		variant?: 'default' | 'success' | 'error' | 'warning' | 'info' | 'outline';
 		size?: 'sm' | 'md' | 'lg';
 		dot?: boolean;
 		class?: string;
@@ -33,7 +33,8 @@
 		success: 'badge-success',
 		error: 'badge-error',
 		warning: 'badge-warning',
-		info: 'badge-info'
+		info: 'badge-info',
+		outline: 'badge-outline'
 	};
 
 	const sizeClasses = {
@@ -131,6 +132,12 @@
 		background-color: var(--color-info-bg);
 		color: var(--color-info);
 		border-color: var(--hair);
+	}
+
+	.badge-outline {
+		background-color: transparent;
+		color: var(--fg);
+		border-color: var(--fg);
 	}
 
 	/* ========================================

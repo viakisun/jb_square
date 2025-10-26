@@ -74,7 +74,7 @@
 
 	.toast-container {
 		position: fixed;
-		top: var(--topbar-height);
+		top: calc(var(--topbar-height) + var(--space-3));
 		right: 0;
 		z-index: var(--z-toast);
 		display: flex;
@@ -94,9 +94,11 @@
 		align-items: flex-start;
 		gap: var(--space-3);
 		padding: var(--space-4);
-		background-color: var(--bg);
+		background-color: rgba(255, 255, 255, 0.98);
 		border: var(--border-width) solid var(--fg);
 		box-shadow: var(--shadow-lg);
+		backdrop-filter: blur(10px) saturate(180%);
+		-webkit-backdrop-filter: blur(10px) saturate(180%);
 		pointer-events: auto;
 		width: var(--toast-width);
 		animation: slide-in-right var(--duration-base) var(--ease-out-expo);
@@ -106,24 +108,12 @@
      TOAST TYPES
      ======================================== */
 
-	.toast-success {
-		border-color: var(--color-success);
-		background-color: var(--color-success-bg);
-	}
-
-	.toast-error {
-		border-color: var(--color-error);
-		background-color: var(--color-error-bg);
-	}
-
-	.toast-warning {
-		border-color: var(--color-warning);
-		background-color: var(--color-warning-bg);
-	}
-
+	.toast-success,
+	.toast-error,
+	.toast-warning,
 	.toast-info {
-		border-color: var(--color-info);
-		background-color: var(--color-info-bg);
+		background-color: rgba(255, 255, 255, 0.98);
+		border-color: var(--fg);
 	}
 
 	/* ========================================

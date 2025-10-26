@@ -108,9 +108,6 @@
 	<div class="card-header">
 		<div class="header-left">
 			<span class="source-badge">{getSourceLabel(notice.crawler_source_id)}</span>
-			{#if notice.organization}
-				<span class="organization">{notice.organization}</span>
-			{/if}
 		</div>
 		<div class="header-right">
 			{#if notice.deadline}
@@ -132,27 +129,15 @@
 		</div>
 	</div>
 
-	<!-- Title with matched keywords -->
+	<!-- Title -->
 	<div class="title-section">
 		<h3 class="card-title">
 			{notice.title}
 		</h3>
-		{#if notice.matched_keywords && notice.matched_keywords.length > 0}
-			<div class="matched-keywords">
-				<span class="keywords-label">매칭:</span>
-				{#each notice.matched_keywords as keyword}
-					<Badge variant="outline" class="keyword-badge">{keyword}</Badge>
-				{/each}
-			</div>
+		{#if notice.organization}
+			<p class="organization">{notice.organization}</p>
 		{/if}
 	</div>
-
-	<!-- Content Preview -->
-	{#if notice.content}
-		<p class="card-content">
-			{notice.content.substring(0, 120)}{notice.content.length > 120 ? '...' : ''}
-		</p>
-	{/if}
 
 	<!-- Tags -->
 	{#if notice.tags && notice.tags.length > 0}
@@ -166,7 +151,7 @@
 	<!-- Footer -->
 	<div class="card-footer">
 		<div class="footer-left">
-			<span class="date">게시일: {formatDate(notice.published_at)}</span>
+			<span class="date">{formatDate(notice.published_at)}</span>
 		</div>
 		<div class="footer-right">
 			<Button variant="outline" size="sm" onclick={openPreview}>바로보기</Button>
@@ -269,20 +254,10 @@
 		flex-shrink: 0;
 	}
 
-	.organization {
-		font-size: var(--text-sm);
-		color: var(--muted);
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-	}
-
 	.deadline-info {
 		display: flex;
 		align-items: center;
 		gap: var(--space-2);
-		flex-direction: column;
-		align-items: flex-end;
 	}
 
 	.deadline-date {
@@ -321,47 +296,24 @@
 	.title-section {
 		display: flex;
 		flex-direction: column;
-		gap: var(--space-2);
+		gap: var(--space-1);
 	}
 
 	.card-title {
-		font-size: var(--text-lg);
+		font-size: var(--text-xl);
 		font-weight: var(--font-semibold);
 		line-height: var(--leading-tight);
 		color: var(--fg);
 		margin: 0;
 	}
 
-	.matched-keywords {
-		display: flex;
-		align-items: center;
-		gap: var(--space-2);
-		flex-wrap: wrap;
-	}
-
-	.keywords-label {
-		font-size: var(--text-xs);
-		font-weight: var(--font-medium);
-		color: var(--muted);
-		text-transform: uppercase;
-		letter-spacing: var(--tracking-wide);
-	}
-
-	.keyword-badge {
-		background-color: var(--fg);
-		color: var(--bg);
-		border: none;
-	}
-
-	/* ========================================
-     CONTENT
-     ======================================== */
-
-	.card-content {
+	.organization {
 		font-size: var(--text-sm);
-		line-height: var(--leading-relaxed);
 		color: var(--muted);
 		margin: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 
 	/* ========================================

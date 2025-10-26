@@ -495,8 +495,6 @@ async def publish_from_queue(
             organization=queue_item.organization,
             department=queue_item.department,
             contact=queue_item.contact,
-            # Legacy fields
-            source_date_string=queue_item.source_date_string,
             crawler_extracted_at=queue_item.crawler_extracted_at,
             created_at=datetime.now()
         )
@@ -573,9 +571,8 @@ async def delete_queue_item(queue_id: int, db: Session = Depends(get_db)):
 async def clear_processed_queue(db: Session = Depends(get_db)):
     """Clear all processed items from crawl queue"""
 
-    deleted_count = db.query(CrawlQueue).filter(
-        CrawlQueue.is_processed == True
-    ).delete()
+    # Clear all items from crawl queue (deprecated endpoint - queue items are deleted on publish)
+    deleted_count = db.query(CrawlQueue).delete()
 
     db.commit()
 

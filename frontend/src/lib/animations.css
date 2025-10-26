@@ -338,8 +338,10 @@
 }
 
 .focus-ring-offset:focus-visible {
-  box-shadow: 0 0 0 var(--focus-ring-offset) var(--bg),
-    0 0 0 calc(var(--focus-ring-offset) + var(--focus-ring-width)) var(--focus-black);
+  box-shadow:
+    0 0 0 var(--focus-ring-offset) var(--bg),
+    0 0 0 calc(var(--focus-ring-offset) + var(--focus-ring-width))
+      var(--focus-black);
 }
 
 /* ========================================
@@ -353,7 +355,7 @@
 }
 
 .skeleton::after {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: 0;
@@ -406,7 +408,8 @@
    ======================================== */
 
 .page-enter {
-  animation: fade-in var(--duration-base) var(--ease-out-expo),
+  animation:
+    fade-in var(--duration-base) var(--ease-out-expo),
     slide-in-up var(--duration-base) var(--ease-out-expo);
 }
 
@@ -427,12 +430,14 @@
 }
 
 .modal-enter {
-  animation: fade-in var(--duration-base) var(--ease-out-expo),
+  animation:
+    fade-in var(--duration-base) var(--ease-out-expo),
     scale-in var(--duration-base) var(--ease-out-back);
 }
 
 .modal-exit {
-  animation: fade-out var(--duration-fast) var(--ease-in),
+  animation:
+    fade-out var(--duration-fast) var(--ease-in),
     scale-out var(--duration-fast) var(--ease-in);
 }
 
@@ -445,7 +450,8 @@
 }
 
 .toast-exit {
-  animation: fade-out var(--duration-fast) var(--ease-in),
+  animation:
+    fade-out var(--duration-fast) var(--ease-in),
     slide-in-right var(--duration-fast) var(--ease-in) reverse;
 }
 
@@ -454,7 +460,8 @@
    ======================================== */
 
 .dropdown-enter {
-  animation: fade-in var(--duration-fast) var(--ease-out),
+  animation:
+    fade-in var(--duration-fast) var(--ease-out),
     slide-in-down var(--duration-fast) var(--ease-out-expo);
 }
 

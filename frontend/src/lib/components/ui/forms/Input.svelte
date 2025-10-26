@@ -20,7 +20,7 @@
 	 */
 
 	interface InputProps {
-		type?: 'text' | 'email' | 'password' | 'number' | 'search' | 'tel' | 'url';
+		type?: 'text' | 'email' | 'password' | 'number' | 'search' | 'tel' | 'url' | 'date' | 'datetime-local';
 		value?: string;
 		placeholder?: string;
 		label?: string;
@@ -40,6 +40,7 @@
 		id?: string;
 		name?: string;
 		class?: string;
+		onkeydown?: (e: KeyboardEvent) => void;
 	}
 
 	let {
@@ -62,7 +63,8 @@
 		showCounter = false,
 		id = `input-${Math.random().toString(36).substring(2, 9)}`,
 		name = '',
-		class: className = ''
+		class: className = '',
+		onkeydown
 	}: InputProps = $props();
 
 	let showPassword = $state(false);
@@ -128,10 +130,11 @@
 			{disabled}
 			{readonly}
 			{required}
-			{maxLength}
+			maxlength={maxLength}
 			bind:value
 			onfocus={handleFocus}
 			onblur={handleBlur}
+			onkeydown={onkeydown}
 			class="input"
 			class:has-prefix={!!prefix}
 			class:has-suffix={!!suffix || canClear || (type === 'password' && showPasswordToggle)}

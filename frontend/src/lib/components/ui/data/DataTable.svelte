@@ -50,8 +50,11 @@
 		if (!sortKey) return data;
 
 		return [...data].sort((a, b) => {
-			const aValue = a[sortKey];
-			const bValue = b[sortKey];
+			const key = sortKey;
+			if (!key) return 0;
+
+			const aValue = a[key];
+			const bValue = b[key];
 
 			if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
 			if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;

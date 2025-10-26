@@ -21,7 +21,22 @@
 
 	const API_BASE = 'http://localhost:8000/api';
 
-	let notices = $state([]);
+	type Notice = {
+		id: number;
+		title: string;
+		content: string | null;
+		link: string | null;
+		origin_type: string;
+		crawler_source_id: string;
+		category: string;
+		tags: string[];
+		organization: string | null;
+		published_at: string | null;
+		deadline: string | null;
+		matched_keywords?: string[];
+	};
+
+	let notices = $state<Notice[]>([]);
 	let total = $state(0);
 	let loading = $state(false);
 

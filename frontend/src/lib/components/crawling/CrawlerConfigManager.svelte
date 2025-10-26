@@ -353,7 +353,7 @@
 						<div class="config-item">
 							<div class="config-header">
 								<h4>{config.name}</h4>
-								<Button variant="danger" size="sm" onclick={() => deleteJBTPBoard(config.id)}>
+								<Button variant="outline" size="sm" onclick={() => deleteJBTPBoard(config.id)}>
 									삭제
 								</Button>
 							</div>
@@ -414,7 +414,7 @@
 						<div class="config-item">
 							<div class="config-header">
 								<h4>{config.region_name} ({config.region_code})</h4>
-								<Button variant="danger" size="sm" onclick={() => deleteBinetRegion(config.id)}>
+								<Button variant="outline" size="sm" onclick={() => deleteBinetRegion(config.id)}>
 									삭제
 								</Button>
 							</div>

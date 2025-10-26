@@ -22,6 +22,7 @@
 		name?: string;
 		value?: string;
 		class?: string;
+		onchange?: () => void;
 		children?: any;
 	}
 
@@ -33,6 +34,7 @@
 		name = '',
 		value = '',
 		class: className = '',
+		onchange,
 		children
 	}: CheckboxProps = $props();
 
@@ -47,6 +49,7 @@
 		{disabled}
 		type="checkbox"
 		bind:checked
+		onchange={onchange}
 		class="checkbox-input"
 		aria-checked={checked}
 	/>

@@ -3,9 +3,9 @@
  * Import order: tokens → reset → animations → app
  */
 
-@import './tokens.css';
-@import './reset.css';
-@import './animations.css';
+@import "./tokens.css";
+@import "./reset.css";
+@import "./animations.css";
 
 /* ========================================
    GLOBAL UTILITIES
@@ -279,7 +279,8 @@
    ======================================== */
 
 .transition {
-  transition-property: opacity, transform, background-color, border-color, color;
+  transition-property:
+    opacity, transform, background-color, border-color, color;
   transition-duration: var(--duration-base);
   transition-timing-function: var(--ease-out);
 }
