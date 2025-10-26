@@ -19,6 +19,22 @@
 		type?: 'info' | 'success' | 'error' | 'warning';
 	}
 
+	interface BoardProgress {
+		board_name: string;
+		current: number;
+		total: number;
+		percentage: number;
+	}
+
+	interface Statistics {
+		total: number;
+		already_published: number;
+		in_queue: number;
+		new_items: number;
+		matched: number;
+		unmatched: number;
+	}
+
 	interface CrawlingStatusProps {
 		sourceId: string;
 		sourceName: string;
@@ -29,6 +45,8 @@
 		failed?: number;
 		logs?: LogEntry[];
 		errorMessage?: string;
+		boardProgress?: BoardProgress;
+		statistics?: Statistics;
 		class?: string;
 	}
 
@@ -42,6 +60,8 @@
 		failed = 0,
 		logs = [],
 		errorMessage = '',
+		boardProgress,
+		statistics,
 		class: className = ''
 	}: CrawlingStatusProps = $props();
 
@@ -131,25 +151,71 @@
 		</div>
 	{/if}
 
+	<!-- 게시판별 프로그레스 바 (실시간) -->
+	{#if boardProgress && status === 'running'}
+		<div class="board-progress-section">
+			<div class="board-progress-header">
+				<span class="board-name">[{boardProgress.board_name}]</span>
+				<span class="board-stats"
+					>{boardProgress.current}/{boardProgress.total} ({boardProgress.percentage}%)</span
+				>
+			</div>
+			<div class="board-progress-bar">
+				<div class="board-progress-fill" style="width: {boardProgress.percentage}%"></div>
+			</div>
+		</div>
+	{/if}
+
 	{#if status === 'running' || status === 'completed'}
 		<div class="status-progress">
 			<ProgressBar {progress} {total} />
 		</div>
 
-		<div class="status-stats">
-			<div class="stat-item">
-				<span class="stat-label">성공</span>
-				<span class="stat-value stat-success">{success}</span>
+		{#if statistics && statistics.total > 0}
+			<!-- New statistics format -->
+			<div class="status-stats">
+				<div class="stat-item">
+					<span class="stat-label">총 개수</span>
+					<span class="stat-value">{statistics.total}</span>
+				</div>
+				<div class="stat-item">
+					<span class="stat-label">이미 게시됨</span>
+					<span class="stat-value stat-muted">{statistics.already_published}</span>
+				</div>
+				<div class="stat-item">
+					<span class="stat-label">대기 중</span>
+					<span class="stat-value stat-muted">{statistics.in_queue}</span>
+				</div>
+				<div class="stat-item">
+					<span class="stat-label">신규</span>
+					<span class="stat-value stat-success">{statistics.new_items}</span>
+				</div>
+				<div class="stat-item">
+					<span class="stat-label">키워드 매칭</span>
+					<span class="stat-value stat-success">{statistics.matched}</span>
+				</div>
+				<div class="stat-item">
+					<span class="stat-label">매칭 없음</span>
+					<span class="stat-value stat-muted">{statistics.unmatched}</span>
+				</div>
 			</div>
-			<div class="stat-item">
-				<span class="stat-label">실패</span>
-				<span class="stat-value stat-failed">{failed}</span>
+		{:else}
+			<!-- Legacy statistics format (for backward compatibility) -->
+			<div class="status-stats">
+				<div class="stat-item">
+					<span class="stat-label">성공</span>
+					<span class="stat-value stat-success">{success}</span>
+				</div>
+				<div class="stat-item">
+					<span class="stat-label">실패</span>
+					<span class="stat-value stat-failed">{failed}</span>
+				</div>
+				<div class="stat-item">
+					<span class="stat-label">합계</span>
+					<span class="stat-value">{success + failed}</span>
+				</div>
 			</div>
-			<div class="stat-item">
-				<span class="stat-label">합계</span>
-				<span class="stat-value">{success + failed}</span>
-			</div>
-		</div>
+		{/if}
 	{/if}
 
 	{#if errorMessage}
@@ -301,6 +367,17 @@
 		border: var(--border-width) solid var(--hair);
 	}
 
+	/* When there are 6 stats, use 3 columns on large screens, 2 on medium */
+	.status-stats:has(.stat-item:nth-child(6)) {
+		grid-template-columns: repeat(3, 1fr);
+	}
+
+	@media (max-width: 768px) {
+		.status-stats:has(.stat-item:nth-child(6)) {
+			grid-template-columns: repeat(2, 1fr);
+		}
+	}
+
 	.stat-item {
 		display: flex;
 		flex-direction: column;
@@ -328,6 +405,10 @@
 	}
 
 	.stat-failed {
+		color: var(--muted);
+	}
+
+	.stat-muted {
 		color: var(--muted);
 	}
 
@@ -362,6 +443,54 @@
 
 	.status-logs {
 		/* Logs component has its own styling */
+	}
+
+	/* ========================================
+     BOARD PROGRESS
+     ======================================== */
+
+	.board-progress-section {
+		padding: var(--space-4);
+		background-color: var(--surface-1);
+		border: var(--border-width) solid var(--hair);
+		margin-bottom: var(--space-2);
+	}
+
+	.board-progress-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		margin-bottom: var(--space-3);
+	}
+
+	.board-name {
+		font-size: var(--text-sm);
+		font-weight: var(--font-semibold);
+		color: var(--fg);
+		letter-spacing: var(--tracking-wide);
+		text-transform: uppercase;
+	}
+
+	.board-stats {
+		font-size: var(--text-sm);
+		font-weight: var(--font-medium);
+		color: var(--muted);
+		font-variant-numeric: tabular-nums;
+	}
+
+	.board-progress-bar {
+		width: 100%;
+		height: 8px;
+		background-color: var(--bg);
+		border: var(--border-width) solid var(--hair);
+		position: relative;
+		overflow: hidden;
+	}
+
+	.board-progress-fill {
+		height: 100%;
+		background-color: var(--fg);
+		transition: width 0.3s var(--ease-out);
 	}
 
 	/* ========================================

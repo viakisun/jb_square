@@ -6,7 +6,7 @@ Crawler Manager
 import asyncio
 import json
 import requests
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Callable, Dict, Optional, List
 from enum import Enum
@@ -17,6 +17,7 @@ sys.path.append(str(Path(__file__).parent.parent.parent.parent / "crawler"))
 from src.services.rate_limiter import RateLimiter
 from src.core.database import SessionLocal, CrawlerConfig, CrawlResult
 from src.models.notice import CrawlQueue
+from src.models.crawler_config import JBTPConfig, BinetConfig
 
 
 class CrawlerStatus(str, Enum):
@@ -143,24 +144,134 @@ class CrawlerManager:
                 matched.append(keyword)
         return matched
 
+    def _parse_date(self, date_str: str) -> Optional[datetime]:
+        """날짜 문자열을 datetime 객체로 파싱"""
+        if not date_str:
+            return None
+
+        try:
+            # "2025-01-15" 형식
+            if '-' in date_str and len(date_str) >= 10:
+                return datetime.strptime(date_str[:10], '%Y-%m-%d')
+        except:
+            pass
+
+        return None
+
+    def _load_jbtp_configs(self, config_type: str = 'notices') -> List[tuple]:
+        """JBTP 설정을 DB에서 로드합니다. (게시판명, URL, 키워드, date_range_days) 반환"""
+        db = SessionLocal()
+        try:
+            configs = db.query(JBTPConfig).filter(
+                JBTPConfig.config_type == config_type,
+                JBTPConfig.enabled == True
+            ).all()
+            return [(c.name, c.board_url, c.keywords or [], c.date_range_days or 30) for c in configs]
+        finally:
+            db.close()
+
+    def _load_binet_configs(self) -> List[tuple]:
+        """BI Center 설정을 DB에서 로드합니다."""
+        db = SessionLocal()
+        try:
+            configs = db.query(BinetConfig).filter(BinetConfig.enabled == True).all()
+            return [(c.region_name, c.region_code) for c in configs]
+        finally:
+            db.close()
+
+    def _save_single_notice(self, source_id: str, notice: dict, keywords: List[str], db) -> tuple[str, List[str]]:
+        """
+        단일 공고를 notice_crawl_queue에 저장합니다.
+
+        Args:
+            source_id: 크롤러 소스 ID
+            notice: 공고 데이터
+            keywords: 키워드 리스트
+            db: 데이터베이스 세션
+
+        Returns:
+            tuple[str, List[str]]: (상태, 매칭된 키워드 리스트)
+            상태: 'added', 'updated', 'rejected', 'duplicate', 'no_match'
+        """
+        title = notice['title']
+
+        # 키워드 매칭 확인
+        matched_keywords = []
+        if keywords:
+            matched_keywords = self._match_keywords(title, keywords)
+
+        # 1. 이미 존재하는지 확인 (title + crawler_source_id로 중복 체크)
+        existing = db.query(CrawlQueue).filter(
+            CrawlQueue.crawler_source_id == source_id,
+            CrawlQueue.title == title
+        ).first()
+
+        if existing:
+            # 2. 거부된 항목이면 스킵 (다시 추가하지 않음)
+            if existing.rejection_status == 'rejected':
+                return ('rejected', matched_keywords)
+
+            # 3. 아직 처리되지 않았으면 데이터 업데이트 (최신 정보 반영)
+            if not existing.is_processed:
+                existing.link = notice.get('link')
+                existing.posted_date = notice.get('posted_date')
+                existing.deadline = notice.get('deadline')
+                existing.source_date_string = notice.get('date')  # 하위 호환성 유지
+                existing.source_board_name = notice.get('board')
+                existing.raw_data = notice
+                existing.matched_keywords = matched_keywords
+                existing.crawler_extracted_at = datetime.now()
+                return ('updated', matched_keywords)
+            else:
+                # 이미 처리된 항목은 스킵
+                return ('duplicate', matched_keywords)
+        else:
+            # 4. 새로운 항목 추가 (키워드 매칭 여부와 관계없이 모두 저장)
+            queue_item = CrawlQueue(
+                crawler_source_id=source_id,
+                title=title,
+                link=notice.get('link'),
+                posted_date=notice.get('posted_date'),
+                deadline=notice.get('deadline'),
+                source_date_string=notice.get('date'),  # 하위 호환성 유지
+                source_board_name=notice.get('board'),
+                raw_data=notice,
+                matched_keywords=matched_keywords,
+                crawler_extracted_at=datetime.now(),
+                is_selected=False,
+                is_processed=False,
+                rejection_status=None  # NULL = pending review
+            )
+            db.add(queue_item)
+            return ('added', matched_keywords)
+
     def _save_results(self, source_id: str, notices: List[dict], keywords: List[str]):
         """
-        크롤링 결과를 crawl_queue에 저장합니다 (검토 대기).
+        크롤링 결과를 notice_crawl_queue에 저장합니다 (검토 대기).
         중복 및 거부된 항목은 스킵합니다.
+        키워드 필터링: keywords가 있으면, 제목에 키워드가 포함된 공고만 저장합니다.
         """
         db = SessionLocal()
         try:
             skipped_rejected = 0
             skipped_duplicates = 0
+            skipped_filtered = 0
             added_new = 0
             updated_existing = 0
 
             for notice in notices:
                 title = notice['title']
 
-                # 1. 이미 존재하는지 확인 (title + source_id로 중복 체크)
+                # 0. 키워드 필터링 (키워드가 설정되어 있으면)
+                if keywords:
+                    matched = self._match_keywords(title, keywords)
+                    if not matched:
+                        skipped_filtered += 1
+                        continue  # 키워드 매칭 안되면 저장하지 않음
+
+                # 1. 이미 존재하는지 확인 (title + crawler_source_id로 중복 체크)
                 existing = db.query(CrawlQueue).filter(
-                    CrawlQueue.source_id == source_id,
+                    CrawlQueue.crawler_source_id == source_id,
                     CrawlQueue.title == title
                 ).first()
 
@@ -171,12 +282,12 @@ class CrawlerManager:
                         continue
 
                     # 3. 아직 처리되지 않았으면 데이터 업데이트 (최신 정보 반영)
-                    if not existing.processed:
+                    if not existing.is_processed:
                         existing.link = notice.get('link')
-                        existing.date = notice.get('date')
-                        existing.board = notice.get('board')
+                        existing.source_date_string = notice.get('date')
+                        existing.source_board_name = notice.get('board')
                         existing.raw_data = notice
-                        existing.extracted_at = datetime.now()
+                        existing.crawler_extracted_at = datetime.now()
                         updated_existing += 1
                     else:
                         # 이미 처리된 항목은 스킵
@@ -184,15 +295,15 @@ class CrawlerManager:
                 else:
                     # 4. 새로운 항목 추가
                     queue_item = CrawlQueue(
-                        source_id=source_id,
+                        crawler_source_id=source_id,
                         title=title,
                         link=notice.get('link'),
-                        date=notice.get('date'),
-                        board=notice.get('board'),
+                        source_date_string=notice.get('date'),
+                        source_board_name=notice.get('board'),
                         raw_data=notice,
-                        extracted_at=datetime.now(),
-                        selected=False,
-                        processed=False,
+                        crawler_extracted_at=datetime.now(),
+                        is_selected=False,
+                        is_processed=False,
                         rejection_status=None  # NULL = pending review
                     )
                     db.add(queue_item)
@@ -202,7 +313,7 @@ class CrawlerManager:
 
             # 통계 출력 (로깅용)
             print(f"[{source_id}] 저장 완료: 신규={added_new}, 업데이트={updated_existing}, "
-                  f"거부됨 스킵={skipped_rejected}, 중복 스킵={skipped_duplicates}")
+                  f"키워드 필터={skipped_filtered}, 거부됨 스킵={skipped_rejected}, 중복 스킵={skipped_duplicates}")
 
         except Exception as e:
             print(f"Error saving crawl results: {str(e)}")
@@ -399,54 +510,90 @@ class CrawlerManager:
                 'Accept-Language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7',
             })
 
-            # 크롤링할 게시판 목록
-            board_urls = [
-                ("사업공고", "https://www.jbtp.or.kr/index.jbtp?menuCd=DOM_000000102001000000"),
-                ("채용공고", "https://www.jbtp.or.kr/index.jbtp?menuCd=DOM_000000101001000000"),
-                ("유관기관공고", "https://www.jbtp.or.kr/index.jbtp?menuCd=DOM_000000102002000000"),
-            ]
+            # 크롤링할 게시판 목록 (DB에서 로드)
+            board_configs = self._load_jbtp_configs('notices')
 
-            self.crawlers_status[source_id]["total"] = len(board_urls)
-            all_notices = []
+            # 초기값: 아직 공고 개수를 모르므로 0으로 시작
+            self.crawlers_status[source_id]["total"] = 0
+            self.crawlers_status[source_id]["progress"] = 0
 
-            for idx, (board_name, url) in enumerate(board_urls):
-                # 중단 체크
-                if self.stop_flags[source_id]:
-                    await self._send_event(callback, "stopped", {
+            # 데이터베이스 세션 생성 (실시간 저장용)
+            db = SessionLocal()
+
+            try:
+                total_saved = 0
+                total_matched = 0
+
+                for idx, (board_name, url, keywords, date_range_days) in enumerate(board_configs):
+                    # 중단 체크
+                    if self.stop_flags[source_id]:
+                        await self._send_event(callback, "stopped", {
+                            "source_id": source_id,
+                            "message": "크롤링이 사용자에 의해 중단되었습니다."
+                        })
+                        self.crawlers_status[source_id]["status"] = CrawlerStatus.STOPPED
+                        db.close()
+                        return
+
+                    # Rate limiting
+                    waited = rate_limiter.wait()
+
+                    # 날짜 기준 계산
+                    cutoff_date = datetime.now() - timedelta(days=date_range_days)
+
+                    await self._send_event(callback, "log", {
                         "source_id": source_id,
-                        "message": "크롤링이 사용자에 의해 중단되었습니다."
+                        "message": f"\n[{board_name}] 수집 시작 (최근 {date_range_days}일간 데이터)... (대기: {waited:.2f}s)"
                     })
-                    self.crawlers_status[source_id]["status"] = CrawlerStatus.STOPPED
-                    return
 
-                # Rate limiting
-                waited = rate_limiter.wait()
+                    board_saved_count = 0
+                    board_checked_count = 0
 
-                await self._send_event(callback, "log", {
-                    "source_id": source_id,
-                    "message": f"[{board_name}] 수집 중... (대기: {waited:.2f}s)"
-                })
+                    # 1단계: 날짜 기준까지 페이지 수집
+                    notice_rows = []
+                    seen_titles = set()  # 중복 제거용
+                    found_old_notices = False
+                    page = 1
+                    MAX_PAGES = 100  # 안전장치
 
-                try:
-                    response = session.get(url, timeout=10)
+                    while not found_old_notices and page <= MAX_PAGES:
+                        # 중단 체크
+                        if self.stop_flags[source_id]:
+                            break
 
-                    if response.status_code == 200:
-                        soup = BeautifulSoup(response.text, 'html.parser')
+                        # 페이지 URL 생성 (JBTP는 menuCd 파라미터 사용)
+                        if '?' in url:
+                            page_url = f"{url}&pageNo={page}"
+                        else:
+                            page_url = f"{url}?pageNo={page}"
 
-                        # 테이블에서 공고 파싱
-                        notices = []
-                        table = soup.find('table')
-                        if table:
+                        try:
+                            response = session.get(page_url, timeout=10)
+
+                            if response.status_code != 200:
+                                break
+
+                            soup = BeautifulSoup(response.text, 'html.parser')
+
+                            # 테이블에서 공고 row 파싱
+                            table = soup.find('table')
+                            if not table:
+                                break
+
                             tbody = table.find('tbody')
                             if tbody:
                                 rows = tbody.find_all('tr')
                             else:
                                 rows = table.find_all('tr')
 
+                            page_notice_count = 0
                             for row in rows:
                                 cols = row.find_all('td')
-                                if len(cols) >= 3:
-                                    # 제목이 포함된 컬럼 찾기
+                                if len(cols) >= 7:  # 최소 7개 컬럼 필요 (0-6)
+                                    # 번호 컬럼 확인 (컬럼 0)
+                                    num_col = cols[0].get_text(strip=True)
+
+                                    # 제목이 포함된 컬럼 찾기 (컬럼 1)
                                     title_col = None
                                     for col in cols:
                                         if col.find('a'):
@@ -457,6 +604,12 @@ class CrawlerManager:
                                         title_tag = title_col.find('a')
                                         if title_tag:
                                             title = title_tag.get_text(strip=True)
+
+                                            # 중복 체크 (공지는 한 번만 수집)
+                                            if title in seen_titles:
+                                                continue
+                                            seen_titles.add(title)
+
                                             link = title_tag.get('href', '')
 
                                             # 상대 경로를 절대 경로로 변환
@@ -466,103 +619,268 @@ class CrawlerManager:
                                                 else:
                                                     link = 'https://www.jbtp.or.kr/' + link
 
-                                            # 날짜 추출
-                                            date = ''
-                                            for col in cols:
-                                                text = col.get_text(strip=True)
-                                                if text and len(text) >= 10 and '-' in text:
-                                                    date = text
-                                                    break
+                                            # 마감일 추출 (컬럼 2)
+                                            deadline = cols[2].get_text(strip=True) if len(cols) > 2 else ''
 
-                                            # 상세 페이지 크롤링
-                                            detail_data = await self._fetch_jbtp_detail(session, link, rate_limiter)
+                                            # 작성일 추출 (컬럼 6)
+                                            posted_date = cols[6].get_text(strip=True) if len(cols) > 6 else ''
 
-                                            # Debug: 상세 정보 로깅
-                                            if detail_data:
-                                                print(f"[DEBUG] Detail data for '{title[:50]}': {list(detail_data.keys())}")
-                                            else:
-                                                print(f"[DEBUG] No detail data for '{title[:50]}'")
+                                            # 마감일 기준으로 날짜 체크 (작성일 대신 마감일 사용)
+                                            deadline_datetime = self._parse_date(deadline)
+                                            if deadline_datetime and deadline_datetime < cutoff_date:
+                                                found_old_notices = True
+                                                await self._send_event(callback, "log", {
+                                                    "source_id": source_id,
+                                                    "message": f"  → 마감일 {deadline}이 기준 날짜({cutoff_date.strftime('%Y-%m-%d')}) 이전, 수집 중단"
+                                                })
+                                                break
 
-                                            notice_data = {
+                                            notice_rows.append({
                                                 'title': title,
                                                 'link': link,
-                                                'date': date,
-                                                'board': board_name,
-                                                'source': 'JBTP',
-                                                'extracted_at': datetime.now().isoformat(),
-                                                'detail': detail_data  # 상세 정보 추가
-                                            }
-                                            notices.append(notice_data)
-
-                                            # 각 공고를 즉시 로그로 표시
-                                            await self._send_event(callback, "log", {
-                                                "source_id": source_id,
-                                                "message": f"  ✓ [{board_name}] {title[:60]}{'...' if len(title) > 60 else ''}"
+                                                'posted_date': posted_date,
+                                                'deadline': deadline
                                             })
+                                            page_notice_count += 1
 
-                        if notices:
-                            all_notices.extend(notices)
-                            self.crawlers_status[source_id]["success"] += 1
-
+                            # 페이지별 진행 로그
                             await self._send_event(callback, "log", {
                                 "source_id": source_id,
-                                "message": f"  → {len(notices)}개 공고 수집 완료"
+                                "message": f"  → 페이지 {page}: {page_notice_count}개 발견 (누적: {len(notice_rows)}개)"
+                            })
+
+                            # 페이지별 진행 상태 전송
+                            await self._send_event(callback, "page_progress", {
+                                "source_id": source_id,
+                                "board_name": board_name,
+                                "page": page,
+                                "page_count": page_notice_count,
+                                "accumulated": len(notice_rows)
+                            })
+
+                            # 공고가 없으면 다음 페이지 없음
+                            if page_notice_count == 0:
+                                await self._send_event(callback, "log", {
+                                    "source_id": source_id,
+                                    "message": f"  → 페이지 {page}에 공고 없음, 수집 중단"
+                                })
+                                break
+
+                            # 기준 날짜 이전 공고를 만났으면 수집 중단
+                            if found_old_notices:
+                                break
+
+                            # Rate limiting between pages
+                            rate_limiter.wait()
+                            await asyncio.sleep(0)  # WebSocket flush
+
+                            # 페이지 증가
+                            page += 1
+
+                        except Exception as e:
+                            await self._send_event(callback, "log", {
+                                "source_id": source_id,
+                                "message": f"  ✗ 페이지 {page} 수집 실패: {str(e)}"
+                            })
+                            break
+
+                    # 모든 페이지 수집 완료 후 처리
+                    total_notices = len(notice_rows)
+
+                    # 2단계: 중복 체크 및 통계 생성
+                    if total_notices > 0:
+                        await self._send_event(callback, "log", {
+                            "source_id": source_id,
+                            "message": f"\n  → 총 {total_notices}개 공고 수집 완료. 중복 체크 중...\n"
+                        })
+
+                        # 중복 체크: 게시됨 vs 대기 중 vs 신규
+                        from src.models.notice import Notice
+                        stats_already_published = 0
+                        stats_in_queue = 0
+                        stats_new = 0
+                        stats_matched = 0
+                        stats_unmatched = 0
+
+                        new_notices = []  # 신규 공고만 따로 저장
+
+                        for notice_row in notice_rows:
+                            title = notice_row['title']
+
+                            # 1) 이미 게시됨?
+                            published = db.query(Notice).filter(
+                                Notice.title == title,
+                                Notice.status == 'published'
+                            ).first()
+                            if published:
+                                stats_already_published += 1
+                                continue
+
+                            # 2) 대기 중?
+                            in_queue = db.query(CrawlQueue).filter(
+                                CrawlQueue.crawler_source_id == source_id,
+                                CrawlQueue.title == title
+                            ).first()
+                            if in_queue:
+                                stats_in_queue += 1
+                                continue
+
+                            # 3) 신규!
+                            stats_new += 1
+
+                            # 키워드 매칭 확인
+                            matched_keywords = self._match_keywords(title, keywords) if keywords else []
+                            if matched_keywords:
+                                stats_matched += 1
+                            else:
+                                stats_unmatched += 1
+
+                            new_notices.append({
+                                **notice_row,
+                                'matched_keywords': matched_keywords
+                            })
+
+                        # 통계 출력
+                        await self._send_event(callback, "statistics", {
+                            "source_id": source_id,
+                            "board_name": board_name,
+                            "total": total_notices,
+                            "already_published": stats_already_published,
+                            "in_queue": stats_in_queue,
+                            "new_items": stats_new,
+                            "matched": stats_matched,
+                            "unmatched": stats_unmatched
+                        })
+
+                        await self._send_event(callback, "log", {
+                            "source_id": source_id,
+                            "message": f"""  📊 중복 체크 완료:
+    • 총 {total_notices}개
+    • 이미 게시됨: {stats_already_published}개
+    • 대기 중: {stats_in_queue}개
+    • 🆕 신규: {stats_new}개
+    • 🔍 키워드 매칭: {stats_matched}개
+    • ❌ 매칭 없음: {stats_unmatched}개
+"""
+                        })
+
+                        # 전체 공고 개수 업데이트 (신규만)
+                        self.crawlers_status[source_id]["total"] += stats_new
+
+                        # 3단계: 신규 공고만 상세 페이지 크롤링
+                        if stats_new > 0:
+                            await self._send_event(callback, "log", {
+                                "source_id": source_id,
+                                "message": f"\n  → {stats_new}개 신규 공고 상세 정보 크롤링 시작...\n"
+                            })
+
+                            # 수집 완료 이벤트 전송
+                            await self._send_event(callback, "collection_complete", {
+                                "source_id": source_id,
+                                "board_name": board_name,
+                                "total_collected": stats_new
+                            })
+
+                            for notice_row in new_notices:
+                                board_checked_count += 1
+
+                                # 상세 페이지 크롤링
+                                detail_data = await self._fetch_jbtp_detail(session, notice_row['link'], rate_limiter)
+
+                                notice_data = {
+                                    'title': notice_row['title'],
+                                    'link': notice_row['link'],
+                                    'posted_date': notice_row['posted_date'],
+                                    'deadline': notice_row['deadline'],
+                                    'board': board_name,
+                                    'source': 'JBTP',
+                                    'extracted_at': datetime.now().isoformat(),
+                                    'detail': detail_data
+                                }
+
+                                # 키워드 매칭된 항목만 DB에 저장
+                                matched_keywords = notice_row['matched_keywords']
+                                if matched_keywords:
+                                    status, _ = self._save_single_notice(
+                                        source_id, notice_data, keywords, db
+                                    )
+                                    if status == 'added' or status == 'updated':
+                                        board_saved_count += 1
+                                        total_saved += 1
+                                        total_matched += 1
+
+                                    # 로그 출력 (매칭된 경우만)
+                                    keyword_str = ', '.join(matched_keywords)
+                                    log_msg = f"  ✓ [매칭: {keyword_str}] {notice_row['title'][:50]}{'...' if len(notice_row['title']) > 50 else ''}"
+
+                                    await self._send_event(callback, "log", {
+                                        "source_id": source_id,
+                                        "message": log_msg
+                                    })
+
+                                # DB 커밋 (즉시 저장)
+                                db.commit()
+
+                                # progress 상태 업데이트
+                                self.crawlers_status[source_id]["progress"] += 1
+
+                                # progress 이벤트 전송 (전체 진행률)
+                                await self._send_event(callback, "progress", {
+                                    "source_id": source_id,
+                                    "progress": self.crawlers_status[source_id]["progress"],
+                                    "total": self.crawlers_status[source_id]["total"],
+                                    "success": board_saved_count,
+                                    "failed": board_checked_count - board_saved_count,
+                                    "percentage": int((self.crawlers_status[source_id]["progress"] / self.crawlers_status[source_id]["total"]) * 100) if self.crawlers_status[source_id]["total"] > 0 else 0
+                                })
+
+                                # 0.5초 대기 + WebSocket flush
+                                rate_limiter.wait()
+                                await asyncio.sleep(0)
+
+                            # 게시판 완료 요약
+                            self.crawlers_status[source_id]["success"] += 1
+                            await self._send_event(callback, "log", {
+                                "source_id": source_id,
+                                "message": f"  → [{board_name}] 완료: {board_checked_count}개 확인, {board_saved_count}개 저장\n"
                             })
                         else:
-                            self.crawlers_status[source_id]["failed"] += 1
                             await self._send_event(callback, "log", {
                                 "source_id": source_id,
-                                "message": f"  ✗ 공고를 찾을 수 없습니다"
+                                "message": f"  → 신규 공고 없음 (모두 중복)\n"
                             })
                     else:
                         self.crawlers_status[source_id]["failed"] += 1
                         await self._send_event(callback, "log", {
                             "source_id": source_id,
-                            "message": f"  ✗ HTTP {response.status_code} 오류"
+                            "message": f"  ✗ 공고를 찾을 수 없습니다\n"
                         })
 
-                except Exception as e:
-                    self.crawlers_status[source_id]["failed"] += 1
-                    await self._send_event(callback, "log", {
-                        "source_id": source_id,
-                        "message": f"  ✗ 오류: {str(e)}"
-                    })
+                    # 게시판별 완료는 board_progress로만 표시 (progress 이벤트 제거)
 
-                # Progress update
-                self.crawlers_status[source_id]["progress"] = idx + 1
-                await self._send_event(callback, "progress", {
+                # 최종 요약
+                await self._send_event(callback, "log", {
                     "source_id": source_id,
-                    "progress": idx + 1,
-                    "total": len(board_urls),
-                    "percentage": int((idx + 1) / len(board_urls) * 100),
-                    "success": self.crawlers_status[source_id]["success"],
-                    "failed": self.crawlers_status[source_id]["failed"]
+                    "message": f"\n✓ 전체 저장 완료: {total_saved}개 공고 (키워드 매칭: {total_matched}개)"
                 })
 
-            # DB에서 키워드 로드
-            keywords = self._get_keywords(source_id)
+                # 완료
+                self.crawlers_status[source_id]["status"] = CrawlerStatus.COMPLETED
+                await self._send_event(callback, "complete", {
+                    "source_id": source_id,
+                    "message": "JBTP 크롤링이 완료되었습니다.",
+                    "total_collected": total_saved,
+                    "total_matched": total_matched,
+                    "success": self.crawlers_status[source_id]["success"],
+                    "failed": self.crawlers_status[source_id]["failed"],
+                    "rate_limit_stats": rate_limiter.get_stats()
+                })
 
-            # DB에 저장 (JSON 파일 저장 제거)
-            self._save_results(source_id, all_notices, keywords)
-
-            # 키워드 매칭 통계
-            keyword_matched_count = sum(1 for notice in all_notices if self._match_keywords(notice['title'], keywords))
-
-            await self._send_event(callback, "log", {
-                "source_id": source_id,
-                "message": f"결과 저장 완료: {len(all_notices)}개 공고 (키워드 매칭: {keyword_matched_count}개)"
-            })
-
-            # 완료
-            self.crawlers_status[source_id]["status"] = CrawlerStatus.COMPLETED
-            await self._send_event(callback, "complete", {
-                "source_id": source_id,
-                "message": "JBTP 크롤링이 완료되었습니다.",
-                "total_collected": len(all_notices),
-                "success": self.crawlers_status[source_id]["success"],
-                "failed": self.crawlers_status[source_id]["failed"],
-                "rate_limit_stats": rate_limiter.get_stats()
-            })
+            except Exception as e:
+                db.rollback()
+                raise e
+            finally:
+                db.close()
 
         except Exception as e:
             self.crawlers_status[source_id]["status"] = CrawlerStatus.ERROR
@@ -1047,13 +1365,26 @@ class CrawlerManager:
                 "message": "페이지 로드 완료. 전북 지역 선택 중..."
             })
 
-            # 전북 지역 선택 (JavaScript 함수 호출)
-            driver.execute_script("fncSelectArea('063');")
+            # 지역 설정 로드 (DB에서)
+            region_configs = self._load_binet_configs()
+            if not region_configs:
+                raise Exception("설정된 지역이 없습니다")
+
+            # 첫 번째 지역 선택 (현재는 전북만 지원)
+            region_name, region_code = region_configs[0]
+
+            await self._send_event(callback, "log", {
+                "source_id": source_id,
+                "message": f"{region_name} 지역 선택 중..."
+            })
+
+            # 지역 선택 (JavaScript 함수 호출)
+            driver.execute_script(f"fncSelectArea('{region_code}');")
             await asyncio.sleep(3)
 
             await self._send_event(callback, "log", {
                 "source_id": source_id,
-                "message": "전북 지역 데이터 로드 완료. BI 센터 파싱 중..."
+                "message": f"{region_name} 지역 데이터 로드 완료. BI 센터 파싱 중..."
             })
 
             # 두 번째 테이블이 센터 목록 (첫 번째는 통계)

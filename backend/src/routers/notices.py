@@ -65,6 +65,11 @@ class PublishRequest(BaseModel):
     tags: List[str] = []
 
 
+class BulkDeleteRequest(BaseModel):
+    """Schema for bulk deleting notices"""
+    notice_ids: List[int]
+
+
 # ============================================
 # 1. GET /api/notices - List notices with filters
 # ============================================
@@ -99,7 +104,7 @@ async def get_notices(
         query = query.filter(Notice.status == status)
 
     if source_id:
-        query = query.filter(Notice.source_id == source_id)
+        query = query.filter(Notice.crawler_source_id == source_id)
 
     if tag:
         # JSON array contains operation
@@ -165,8 +170,8 @@ async def create_manual_notice(
         title=data.title,
         content=data.content,
         link=data.link,
-        source_type='manual',
-        source_id='manual',
+        origin_type='manual',
+        crawler_source_id='manual',
         category=data.category,
         tags=data.tags,
         status='published',
@@ -309,6 +314,46 @@ async def delete_notice(notice_id: int, db: Session = Depends(get_db)):
 
 
 # ============================================
+# 5-1. POST /api/notices/bulk-delete - Bulk delete notices
+# ============================================
+
+@router.post("/bulk-delete")
+async def bulk_delete_notices(
+    data: BulkDeleteRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Bulk delete (archive) notices
+
+    - **notice_ids**: List of notice IDs to delete
+    """
+
+    archived_ids = []
+    not_found_ids = []
+
+    for notice_id in data.notice_ids:
+        notice = db.query(Notice).filter(Notice.id == notice_id).first()
+
+        if not notice:
+            not_found_ids.append(notice_id)
+            continue
+
+        # Archive instead of hard delete
+        notice.status = 'archived'
+        notice.updated_at = datetime.now()
+        archived_ids.append(notice_id)
+
+    db.commit()
+
+    return {
+        "archived": len(archived_ids),
+        "not_found": len(not_found_ids),
+        "archived_ids": archived_ids,
+        "not_found_ids": not_found_ids
+    }
+
+
+# ============================================
 # 6. WebSocket /api/notices/crawl/{source_id} - Real-time crawling
 # ============================================
 
@@ -354,8 +399,7 @@ async def crawl_source(websocket: WebSocket, source_id: str):
 
 @router.get("/crawl-queue/list")
 async def get_crawl_queue(
-    source_id: Optional[List[str]] = Query(None, description="Filter by source(s)"),
-    processed: bool = Query(False, description="Include processed items"),
+    source_id: Optional[str] = Query(None, description="Filter by source"),
     limit: int = Query(100, le=500),
     offset: int = Query(0),
     db: Session = Depends(get_db)
@@ -363,23 +407,18 @@ async def get_crawl_queue(
     """
     Get items in the crawl queue (pending review)
 
-    - **source_id**: Filter by 'jbtp', 'ntis', 'bizinfo' (can provide multiple)
-    - **processed**: Include already processed items
+    - **source_id**: Filter by 'jbtp', 'ntis', 'bizinfo'
 
     Returns items with `already_exists` flag if title already in notices table
     """
     query = db.query(CrawlQueue)
 
-    # Filter by source (support multiple source_ids)
+    # Filter by source
     if source_id:
-        query = query.filter(CrawlQueue.source_id.in_(source_id))
+        query = query.filter(CrawlQueue.crawler_source_id == source_id)
 
-    # Filter by processed status
-    if not processed:
-        query = query.filter(CrawlQueue.processed == False)
-
-    # Order by extracted_at desc
-    query = query.order_by(desc(CrawlQueue.extracted_at))
+    # Order by crawler_extracted_at desc
+    query = query.order_by(desc(CrawlQueue.crawler_extracted_at))
 
     # Get total count
     total = query.count()
@@ -439,35 +478,44 @@ async def publish_from_queue(
             failed_ids.append({"id": queue_id, "reason": "Not found"})
             continue
 
-        if queue_item.processed:
-            failed_ids.append({"id": queue_id, "reason": "Already processed"})
-            continue
+        # Extract deadline from raw_data
+        deadline = None
+        if queue_item.raw_data and isinstance(queue_item.raw_data, dict):
+            detail = queue_item.raw_data.get('detail', {})
+            if isinstance(detail, dict):
+                deadline_str = detail.get('deadline')
+                if deadline_str:
+                    try:
+                        # Parse deadline string to datetime
+                        from dateutil import parser
+                        deadline = parser.parse(deadline_str)
+                    except:
+                        pass
 
         # Create notice from queue item
         notice = Notice(
             title=queue_item.title,
             link=queue_item.link,
-            source_type='crawled',
-            source_id=queue_item.source_id,
-            board=queue_item.board,
+            origin_type='crawled',
+            crawler_source_id=queue_item.crawler_source_id,
+            source_board_name=queue_item.source_board_name,
             category=data.category,
             tags=data.tags,
             status='published',
             published_at=datetime.now(),
-            original_date=queue_item.date,
-            crawled_at=queue_item.extracted_at,
+            deadline=deadline,
+            source_date_string=queue_item.source_date_string,
+            crawler_extracted_at=queue_item.crawler_extracted_at,
             created_at=datetime.now()
         )
 
         db.add(notice)
         db.flush()  # Get the notice ID
 
-        # Mark queue item as processed
-        queue_item.processed = True
-        queue_item.notice_id = notice.id
-        queue_item.processed_at = datetime.now()
-
         published_ids.append(notice.id)
+
+        # Delete queue item (no longer need is_processed)
+        db.delete(queue_item)
 
     db.commit()
 
@@ -534,7 +582,7 @@ async def clear_processed_queue(db: Session = Depends(get_db)):
     """Clear all processed items from crawl queue"""
 
     deleted_count = db.query(CrawlQueue).filter(
-        CrawlQueue.processed == True
+        CrawlQueue.is_processed == True
     ).delete()
 
     db.commit()
