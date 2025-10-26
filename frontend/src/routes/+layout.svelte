@@ -8,7 +8,16 @@
 
 	const navItems = [
 		{ path: '/', label: '대시보드' },
-		{ path: '/contents', label: '콘텐츠' },
+		{
+			label: 'JB지원사업 공고',
+			children: [
+				{ path: '/notices/government', label: '정부/지자체' },
+				{ path: '/notices/business', label: '기업 맞춤형 지원사업' },
+				{ path: '/notices/rnd', label: '연구개발(R&D)' },
+				{ path: '/notices/startup', label: '창업 및 기술이전' },
+				{ path: '/notices/latest', label: '최신공고 모아보기' }
+			]
+		},
 		{ path: '/organizations', label: '기업·기관' },
 		{ path: '/analytics', label: '통계' },
 		{ path: '/settings', label: '설정' }
@@ -40,14 +49,30 @@
 		<!-- Sidebar Navigation -->
 		<nav class="sidebar" aria-label="Main navigation">
 			{#each navItems as item}
-				<a
-					href={item.path}
-					class="sidebar-item"
-					class:active={$page.url.pathname === item.path}
-					aria-current={$page.url.pathname === item.path ? 'page' : undefined}
-				>
-					{item.label}
-				</a>
+				{#if item.children}
+					<div class="sidebar-group">
+						<div class="sidebar-group-label">{item.label}</div>
+						{#each item.children as child}
+							<a
+								href={child.path}
+								class="sidebar-item sidebar-item-child"
+								class:active={$page.url.pathname === child.path}
+								aria-current={$page.url.pathname === child.path ? 'page' : undefined}
+							>
+								{child.label}
+							</a>
+						{/each}
+					</div>
+				{:else}
+					<a
+						href={item.path}
+						class="sidebar-item"
+						class:active={$page.url.pathname === item.path}
+						aria-current={$page.url.pathname === item.path ? 'page' : undefined}
+					>
+						{item.label}
+					</a>
+				{/if}
 			{/each}
 		</nav>
 
@@ -200,6 +225,28 @@
 	.sidebar-item:focus-visible {
 		outline: var(--focus-ring-width) solid var(--focus-black);
 		outline-offset: -2px;
+	}
+
+	/* Sidebar Group */
+	.sidebar-group {
+		display: flex;
+		flex-direction: column;
+	}
+
+	.sidebar-group-label {
+		padding: var(--space-4) var(--space-6);
+		font-size: var(--text-xs);
+		font-weight: var(--font-semibold);
+		color: var(--fg);
+		text-transform: uppercase;
+		letter-spacing: var(--tracking-wide);
+		background-color: var(--surface-1);
+		border-bottom: var(--border-width) solid var(--hair);
+	}
+
+	.sidebar-item-child {
+		padding-left: var(--space-8);
+		font-size: var(--text-sm);
 	}
 
 	/* ========================================

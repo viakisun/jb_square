@@ -45,6 +45,31 @@
 		class: className = ''
 	}: CrawlingStatusProps = $props();
 
+	// 현재 진행 단계 추적
+	let currentStep = $derived.by(() => {
+		if (status === 'idle') return '대기중';
+		if (status === 'error') return '오류 발생';
+		if (status === 'stopped') return '중단됨';
+		if (status === 'completed') return '완료';
+
+		// running 상태일 때 로그에서 현재 단계 파악
+		if (logs.length === 0) return '크롤링 시작 중...';
+
+		const lastLog = logs[logs.length - 1];
+		const msg = lastLog.message;
+
+		// 상세 정보 수집 중
+		if (msg.includes('✓')) return `상세 정보 수집 중 (${progress}/${total})`;
+		if (msg.includes('공고 수집')) return `목록 크롤링 중 (${progress}/${total})`;
+		if (msg.includes('저장')) return '데이터 저장 중...';
+		if (msg.includes('시작')) return '크롤링 초기화 중...';
+
+		return `진행 중 (${progress}/${total})`;
+	});
+
+	// 진행률 계산
+	let percentage = $derived(total > 0 ? Math.round((progress / total) * 100) : 0);
+
 	function getStatusBadgeVariant(
 		status: string
 	): 'success' | 'error' | 'warning' | 'info' | 'default' {
@@ -86,7 +111,25 @@
 			<h3 class="status-title">{sourceName}</h3>
 			<Badge variant={getStatusBadgeVariant(status)}>{getStatusText(status)}</Badge>
 		</div>
+		{#if status === 'running'}
+			<div class="spinner"></div>
+		{/if}
 	</div>
+
+	<!-- 현재 진행 단계 표시 -->
+	{#if status === 'running' || status === 'completed'}
+		<div class="current-step">
+			<div class="step-indicator">
+				{#if status === 'running'}
+					<span class="step-pulse"></span>
+				{/if}
+				<span class="step-text">{currentStep}</span>
+			</div>
+			{#if total > 0}
+				<div class="step-percentage">{percentage}%</div>
+			{/if}
+		</div>
+	{/if}
 
 	{#if status === 'running' || status === 'completed'}
 		<div class="status-progress">
@@ -159,6 +202,82 @@
 		color: var(--fg);
 		letter-spacing: var(--tracking-tight);
 		margin: 0;
+	}
+
+	/* ========================================
+     SPINNER (LOADING ANIMATION)
+     ======================================== */
+
+	.spinner {
+		width: 20px;
+		height: 20px;
+		border: 2px solid var(--hair);
+		border-top-color: var(--fg);
+		border-radius: 50%;
+		animation: spin 0.8s linear infinite;
+	}
+
+	@keyframes spin {
+		to {
+			transform: rotate(360deg);
+		}
+	}
+
+	/* ========================================
+     CURRENT STEP INDICATOR
+     ======================================== */
+
+	.current-step {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: var(--space-4);
+		background-color: var(--surface-1);
+		border: var(--border-width) solid var(--hair);
+		margin-top: var(--space-2);
+	}
+
+	.step-indicator {
+		display: flex;
+		align-items: center;
+		gap: var(--space-3);
+	}
+
+	.step-pulse {
+		width: 8px;
+		height: 8px;
+		background-color: var(--fg);
+		border-radius: 50%;
+		animation: pulse 1.5s ease-in-out infinite;
+	}
+
+	@keyframes pulse {
+		0%,
+		100% {
+			opacity: 1;
+			transform: scale(1);
+		}
+		50% {
+			opacity: 0.5;
+			transform: scale(1.2);
+		}
+	}
+
+	.step-text {
+		font-size: var(--text-sm);
+		font-weight: var(--font-medium);
+		color: var(--fg);
+		letter-spacing: var(--tracking-tight);
+	}
+
+	.step-percentage {
+		font-size: var(--text-xl);
+		font-weight: var(--font-bold);
+		color: var(--fg);
+		font-variant-numeric: tabular-nums;
+		letter-spacing: var(--tracking-tight);
+		min-width: 60px;
+		text-align: right;
 	}
 
 	/* ========================================

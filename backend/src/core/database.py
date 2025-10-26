@@ -10,8 +10,10 @@ from sqlalchemy import create_engine, Column, Integer, String, Text, Boolean, Da
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-# .env 파일 로드
-load_dotenv(Path(__file__).parent.parent / '.env')
+# .env 파일 로드 (backend 루트에서 찾기)
+env_path = Path(__file__).parent.parent.parent / '.env'
+load_dotenv(env_path)
+print(f"Loading .env from: {env_path}")
 
 # 데이터베이스 설정
 DB_HOST = os.getenv('AWS_DB_HOST')
@@ -98,4 +100,7 @@ class CrawlResult(Base):
 # 테이블 생성
 def init_db():
     """데이터베이스 테이블 생성"""
+    # Import models to register them with Base
+    from src.models.notice import Notice, CrawlQueue
+
     Base.metadata.create_all(bind=engine)
