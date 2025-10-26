@@ -101,6 +101,5 @@ class CrawlResult(Base):
 def init_db():
     """데이터베이스 테이블 생성"""
     # Import models to register them with Base
-    from src.models.notice import Notice, CrawlQueue
-
+    # Models are imported in main.py before calling init_db
     Base.metadata.create_all(bind=engine)
