@@ -37,8 +37,14 @@
 
 	// Auto-scroll to bottom when new logs arrive
 	$effect(() => {
+		// Track logs.length to trigger scroll on new logs
+		logs.length;
+
 		if (autoScroll && logContainer) {
-			logContainer.scrollTop = logContainer.scrollHeight;
+			// Use setTimeout to ensure DOM is updated
+			setTimeout(() => {
+				logContainer.scrollTop = logContainer.scrollHeight;
+			}, 0);
 		}
 	});
 

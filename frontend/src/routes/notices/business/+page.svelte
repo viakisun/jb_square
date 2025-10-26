@@ -3,7 +3,7 @@
 	import { Panel } from '$lib/components/layout';
 	import { Button } from '$lib/components/ui/buttons';
 	import CrawlQueueTable from '$lib/components/notices/CrawlQueueTable.svelte';
-	import { CrawlingStatus } from '$lib/components/crawling';
+	import { CrawlingStatus, CrawlerConfigCard } from '$lib/components/crawling';
 
 	const API_BASE = 'http://localhost:8000/api';
 
@@ -190,14 +190,19 @@
 			<p class="page-subtitle">기업마당 API 데이터 수집 및 공고 관리</p>
 		</div>
 		<div class="header-actions">
-			<Button variant="primary" onclick={crawlBizinfo} disabled={loading}>
-				기업마당 데이터 수집
-			</Button>
 			<Button variant="primary" onclick={publishSelected} disabled={selectedIds.length === 0 || loading}>
 				선택 항목 게시 ({selectedIds.length})
 			</Button>
 		</div>
 	</div>
+
+	<!-- Crawler Config Card -->
+	<CrawlerConfigCard
+		sourceType="bizinfo"
+		sourceName="기업마당 BizInfo"
+		onCrawl={crawlBizinfo}
+		crawling={loading}
+	/>
 
 	{#if crawlStatus !== 'idle'}
 		<Panel title="데이터 수집 진행 상황">

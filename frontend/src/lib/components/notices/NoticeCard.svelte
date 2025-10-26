@@ -5,26 +5,56 @@
 	 */
 
 	import { Badge } from '$lib/components/feedback';
+	import { Button } from '$lib/components/ui/buttons';
+	import { Checkbox } from '$lib/components/ui/forms';
+	import NoticePreviewModal from './NoticePreviewModal.svelte';
 
 	type Notice = {
 		id: number;
 		title: string;
 		content: string | null;
 		link: string | null;
-		source_type: string;
-		source_id: string;
+		origin_type: string;
+		crawler_source_id: string;
 		category: string;
 		tags: string[];
 		organization: string | null;
 		published_at: string | null;
 		deadline: string | null;
+		matched_keywords?: string[];
 	};
 
 	type Props = {
 		notice: Notice;
+		selectable?: boolean;
+		selected?: boolean;
+		onSelect?: (id: number) => void;
 	};
 
-	let { notice }: Props = $props();
+	let { notice, selectable = false, selected = false, onSelect }: Props = $props();
+
+	let showPreview = $state(false);
+
+	function openPreview(event: Event) {
+		event.stopPropagation();
+		showPreview = true;
+	}
+
+	function closePreview() {
+		showPreview = false;
+	}
+
+	function handleCardClick() {
+		if (selectable && onSelect) {
+			onSelect(notice.id);
+		}
+	}
+
+	function handleCheckboxChange() {
+		if (onSelect) {
+			onSelect(notice.id);
+		}
+	}
 
 	function formatDate(dateString: string | null): string {
 		if (!dateString) return '-';
@@ -66,40 +96,56 @@
 	const daysLeft = $derived(getDaysUntilDeadline(notice.deadline));
 </script>
 
-<article class="notice-card">
+<article class="notice-card" class:selectable onclick={handleCardClick}>
+	{#if selectable}
+		<div class="checkbox-column">
+			<Checkbox checked={selected} onchange={handleCheckboxChange} />
+		</div>
+	{/if}
+
+	<div class="card-content-wrapper">
 	<!-- Header -->
 	<div class="card-header">
 		<div class="header-left">
-			<span class="source-badge">{getSourceLabel(notice.source_id)}</span>
+			<span class="source-badge">{getSourceLabel(notice.crawler_source_id)}</span>
 			{#if notice.organization}
 				<span class="organization">{notice.organization}</span>
 			{/if}
 		</div>
 		<div class="header-right">
-			{#if daysLeft !== null}
-				<span class="deadline" class:urgent={daysLeft <= 7}>
-					{#if daysLeft > 0}
-						D-{daysLeft}
-					{:else if daysLeft === 0}
-						오늘 마감
-					{:else}
-						마감
+			{#if notice.deadline}
+				<div class="deadline-info">
+					<span class="deadline-date">{formatDate(notice.deadline)}</span>
+					{#if daysLeft !== null}
+						{#if daysLeft < 0}
+							<span class="deadline-badge closed">마감</span>
+						{:else if daysLeft === 0}
+							<span class="deadline-badge urgent">오늘 마감</span>
+						{:else if daysLeft <= 7}
+							<span class="deadline-badge urgent">D-{daysLeft}</span>
+						{:else}
+							<span class="deadline-badge">D-{daysLeft}</span>
+						{/if}
 					{/if}
-				</span>
+				</div>
 			{/if}
 		</div>
 	</div>
 
-	<!-- Title -->
-	<h3 class="card-title">
-		{#if notice.link}
-			<a href={notice.link} target="_blank" rel="noopener noreferrer" class="title-link">
-				{notice.title}
-			</a>
-		{:else}
+	<!-- Title with matched keywords -->
+	<div class="title-section">
+		<h3 class="card-title">
 			{notice.title}
+		</h3>
+		{#if notice.matched_keywords && notice.matched_keywords.length > 0}
+			<div class="matched-keywords">
+				<span class="keywords-label">매칭:</span>
+				{#each notice.matched_keywords as keyword}
+					<Badge variant="outline" class="keyword-badge">{keyword}</Badge>
+				{/each}
+			</div>
 		{/if}
-	</h3>
+	</div>
 
 	<!-- Content Preview -->
 	{#if notice.content}
@@ -119,12 +165,32 @@
 
 	<!-- Footer -->
 	<div class="card-footer">
-		<span class="date">게시일: {formatDate(notice.published_at)}</span>
-		{#if notice.deadline}
-			<span class="date">마감일: {formatDate(notice.deadline)}</span>
-		{/if}
+		<div class="footer-left">
+			<span class="date">게시일: {formatDate(notice.published_at)}</span>
+		</div>
+		<div class="footer-right">
+			<Button variant="outline" size="sm" onclick={openPreview}>바로보기</Button>
+			{#if notice.link}
+				<Button
+					variant="outline"
+					size="sm"
+					onclick={(e: Event) => {
+						e.stopPropagation();
+						window.open(notice.link!, '_blank');
+					}}
+				>
+					바로가기
+				</Button>
+			{/if}
+		</div>
+	</div>
 	</div>
 </article>
+
+<!-- Preview Modal -->
+{#if showPreview}
+	<NoticePreviewModal notice={notice} onClose={closePreview} />
+{/if}
 
 <style>
 	/* ========================================
@@ -133,17 +199,39 @@
 
 	.notice-card {
 		display: flex;
-		flex-direction: column;
-		gap: var(--space-3);
+		gap: var(--space-4);
 		padding: var(--space-6);
 		border: var(--border-width) solid var(--hair);
 		background-color: var(--bg);
 		transition: all var(--duration-base) var(--ease-out);
 	}
 
-	.notice-card:hover {
+	.notice-card.selectable {
+		cursor: pointer;
+	}
+
+	.notice-card.selectable:hover {
+		border-color: var(--fg);
+	}
+
+	.notice-card:not(.selectable):hover {
 		border-color: var(--fg);
 		box-shadow: 4px 4px 0 var(--fg);
+	}
+
+	.checkbox-column {
+		display: flex;
+		align-items: flex-start;
+		padding-top: var(--space-2);
+		flex-shrink: 0;
+	}
+
+	.card-content-wrapper {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-3);
+		flex: 1;
+		min-width: 0;
 	}
 
 	/* ========================================
@@ -189,22 +277,52 @@
 		white-space: nowrap;
 	}
 
-	.deadline {
+	.deadline-info {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+		flex-direction: column;
+		align-items: flex-end;
+	}
+
+	.deadline-date {
+		font-size: var(--text-xs);
+		color: var(--muted);
+		font-weight: var(--font-medium);
+		text-transform: uppercase;
+		letter-spacing: var(--tracking-wide);
+	}
+
+	.deadline-badge {
 		font-size: var(--text-sm);
 		font-weight: var(--font-medium);
 		color: var(--fg);
 		padding: var(--space-1) var(--space-2);
 		border: var(--border-width) solid var(--fg);
+		white-space: nowrap;
 	}
 
-	.deadline.urgent {
+	.deadline-badge.urgent {
 		background-color: var(--fg);
 		color: var(--bg);
+	}
+
+	.deadline-badge.closed {
+		background-color: var(--muted);
+		color: var(--bg);
+		border-color: var(--muted);
+		opacity: 0.7;
 	}
 
 	/* ========================================
      TITLE
      ======================================== */
+
+	.title-section {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-2);
+	}
 
 	.card-title {
 		font-size: var(--text-lg);
@@ -214,14 +332,25 @@
 		margin: 0;
 	}
 
-	.title-link {
-		color: inherit;
-		text-decoration: none;
-		transition: opacity var(--duration-base) var(--ease-out);
+	.matched-keywords {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+		flex-wrap: wrap;
 	}
 
-	.title-link:hover {
-		opacity: 0.7;
+	.keywords-label {
+		font-size: var(--text-xs);
+		font-weight: var(--font-medium);
+		color: var(--muted);
+		text-transform: uppercase;
+		letter-spacing: var(--tracking-wide);
+	}
+
+	.keyword-badge {
+		background-color: var(--fg);
+		color: var(--bg);
+		border: none;
 	}
 
 	/* ========================================
@@ -252,11 +381,27 @@
 	.card-footer {
 		display: flex;
 		align-items: center;
+		justify-content: space-between;
 		gap: var(--space-4);
 		padding-top: var(--space-3);
 		border-top: var(--border-width) solid var(--hair);
 		font-size: var(--text-xs);
 		color: var(--muted);
+		flex-wrap: wrap;
+	}
+
+	.footer-left {
+		display: flex;
+		align-items: center;
+		gap: var(--space-4);
+		flex: 1;
+	}
+
+	.footer-right {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+		flex-shrink: 0;
 	}
 
 	.date {

@@ -11,7 +11,8 @@
 		{
 			label: 'JB지원사업 공고',
 			children: [
-				{ path: '/notices/government', label: '정부/지자체' },
+				{ path: '/notices/ntis', label: '정부 공고 (NTIS)' },
+				{ path: '/notices/local', label: '지자체 공고 (JBTP)' },
 				{ path: '/notices/business', label: '기업 맞춤형 지원사업' },
 				{ path: '/notices/rnd', label: '연구개발(R&D)' },
 				{ path: '/notices/startup', label: '창업 및 기술이전' },
@@ -19,8 +20,7 @@
 			]
 		},
 		{ path: '/organizations', label: '기업·기관' },
-		{ path: '/analytics', label: '통계' },
-		{ path: '/settings', label: '설정' }
+		{ path: '/analytics', label: '통계' }
 	];
 </script>
 

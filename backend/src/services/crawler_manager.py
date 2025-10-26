@@ -179,6 +179,52 @@ class CrawlerManager:
         finally:
             db.close()
 
+    def _parse_jbtp_data(self, notice: dict) -> dict:
+        """
+        Parse JBTP raw_data and extract typed fields.
+
+        Returns dict with parsed deadline, published_date, organization, etc.
+        """
+        import re
+        from datetime import datetime, date
+        from dateutil import parser
+
+        parsed = {}
+
+        # Get detail dict from raw_data
+        detail = notice.get('detail', {}) if isinstance(notice, dict) else {}
+
+        # 1. Parse deadline (remove D-day suffix)
+        deadline_str = detail.get('deadline')
+        if deadline_str:
+            try:
+                # Remove "-D-X" suffix: "2025-11-04 16:00-D-8" -> "2025-11-04 16:00"
+                clean_deadline = re.sub(r'-D-\d+$', '', deadline_str).strip()
+                parsed['deadline'] = parser.parse(clean_deadline)
+            except:
+                parsed['deadline'] = None
+        else:
+            parsed['deadline'] = None
+
+        # 2. Parse published_date
+        published_date_str = detail.get('published_date')
+        if published_date_str:
+            try:
+                parsed['published_date'] = date.fromisoformat(published_date_str)
+            except:
+                parsed['published_date'] = None
+        else:
+            parsed['published_date'] = None
+
+        # 3. Extract other fields
+        parsed['organization'] = detail.get('writer')  # JBTP uses 'writer'
+        parsed['department'] = None  # Not available in JBTP
+        parsed['contact'] = None  # Not available in JBTP
+        parsed['views'] = detail.get('views', 0)
+        parsed['status'] = detail.get('status')  # '접수중', '마감'
+
+        return parsed
+
     def _save_single_notice(self, source_id: str, notice: dict, keywords: List[str], db) -> tuple[str, List[str]]:
         """
         단일 공고를 notice_crawl_queue에 저장합니다.
@@ -200,6 +246,9 @@ class CrawlerManager:
         if keywords:
             matched_keywords = self._match_keywords(title, keywords)
 
+        # Parse structured data from raw_data
+        parsed_data = self._parse_jbtp_data(notice) if source_id == 'jbtp' else {}
+
         # 1. 이미 존재하는지 확인 (title + crawler_source_id로 중복 체크)
         existing = db.query(CrawlQueue).filter(
             CrawlQueue.crawler_source_id == source_id,
@@ -214,13 +263,19 @@ class CrawlerManager:
             # 3. 아직 처리되지 않았으면 데이터 업데이트 (최신 정보 반영)
             if not existing.is_processed:
                 existing.link = notice.get('link')
-                existing.posted_date = notice.get('posted_date')
-                existing.deadline = notice.get('deadline')
                 existing.source_date_string = notice.get('date')  # 하위 호환성 유지
                 existing.source_board_name = notice.get('board')
                 existing.raw_data = notice
                 existing.matched_keywords = matched_keywords
                 existing.crawler_extracted_at = datetime.now()
+                # Update parsed fields
+                existing.deadline = parsed_data.get('deadline')
+                existing.published_date = parsed_data.get('published_date')
+                existing.organization = parsed_data.get('organization')
+                existing.department = parsed_data.get('department')
+                existing.contact = parsed_data.get('contact')
+                existing.views = parsed_data.get('views', 0)
+                existing.status = parsed_data.get('status')
                 return ('updated', matched_keywords)
             else:
                 # 이미 처리된 항목은 스킵
@@ -231,8 +286,6 @@ class CrawlerManager:
                 crawler_source_id=source_id,
                 title=title,
                 link=notice.get('link'),
-                posted_date=notice.get('posted_date'),
-                deadline=notice.get('deadline'),
                 source_date_string=notice.get('date'),  # 하위 호환성 유지
                 source_board_name=notice.get('board'),
                 raw_data=notice,
@@ -240,7 +293,15 @@ class CrawlerManager:
                 crawler_extracted_at=datetime.now(),
                 is_selected=False,
                 is_processed=False,
-                rejection_status=None  # NULL = pending review
+                rejection_status=None,  # NULL = pending review
+                # Structured fields
+                deadline=parsed_data.get('deadline'),
+                published_date=parsed_data.get('published_date'),
+                organization=parsed_data.get('organization'),
+                department=parsed_data.get('department'),
+                contact=parsed_data.get('contact'),
+                views=parsed_data.get('views', 0),
+                status=parsed_data.get('status')
             )
             db.add(queue_item)
             return ('added', matched_keywords)

@@ -23,9 +23,9 @@
 		id: number;
 		title: string;
 		link?: string;
-		source_id: string;
-		board?: string;
-		date?: string;
+		crawler_source_id: string;
+		source_board_name?: string;
+		source_date_string?: string;
 		raw_data?: {
 			detail?: NoticeDetail;
 		};
@@ -69,9 +69,9 @@
 			<!-- Header -->
 			<div class="modal-header">
 				<div class="header-top">
-					<span class="source-badge">{getSourceLabel(item.source_id)}</span>
-					{#if item.board}
-						<span class="board-label">{item.board}</span>
+					<span class="source-badge">{getSourceLabel(item.crawler_source_id)}</span>
+					{#if item.source_board_name}
+						<span class="board-label">{item.source_board_name}</span>
 					{/if}
 				</div>
 				<h2 class="modal-title">{detail?.full_title || item.title}</h2>

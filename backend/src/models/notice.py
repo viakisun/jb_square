@@ -17,7 +17,7 @@ class Notice(Base):
     """
     Published notices (both crawled and manually entered)
     """
-    __tablename__ = 'notices'
+    __tablename__ = 'support_notices'
 
     # Primary Key
     id = Column(Integer, primary_key=True)
@@ -28,13 +28,13 @@ class Notice(Base):
     link = Column(Text)
 
     # Source Tracking
-    source_type = Column(
+    origin_type = Column(
         String(20),
         nullable=False,
         # 'crawled' or 'manual'
     )
-    source_id = Column(String(50))  # 'jbtp', 'ntis', 'bizinfo', 'manual'
-    board = Column(String(100))     # Original board name
+    crawler_source_id = Column(String(50))  # 'jbtp', 'ntis', 'bizinfo', 'manual'
+    source_board_name = Column(String(100))     # Original board name
 
     # Categorization
     category = Column(
@@ -59,8 +59,8 @@ class Notice(Base):
     announcement_date = Column(Date)
 
     # Crawling Metadata
-    crawled_at = Column(DateTime)
-    original_date = Column(String(100))  # Date string from source
+    crawler_extracted_at = Column(DateTime)
+    source_date_string = Column(String(100))  # Date string from source
 
     # Additional Details
     organization = Column(String(200))  # Organizing institution
@@ -80,8 +80,8 @@ class Notice(Base):
     # Check constraints
     __table_args__ = (
         CheckConstraint(
-            "source_type IN ('crawled', 'manual')",
-            name='check_source_type'
+            "origin_type IN ('crawled', 'manual')",
+            name='check_origin_type'
         ),
         CheckConstraint(
             "category IN ('government', 'business', 'rnd', 'startup')",
@@ -100,9 +100,9 @@ class Notice(Base):
             'title': self.title,
             'content': self.content,
             'link': self.link,
-            'source_type': self.source_type,
-            'source_id': self.source_id,
-            'board': self.board,
+            'origin_type': self.origin_type,
+            'crawler_source_id': self.crawler_source_id,
+            'source_board_name': self.source_board_name,
             'category': self.category,
             'tags': self.tags or [],
             'status': self.status,
@@ -111,8 +111,8 @@ class Notice(Base):
             'application_start': self.application_start.isoformat() if self.application_start else None,
             'application_end': self.application_end.isoformat() if self.application_end else None,
             'announcement_date': self.announcement_date.isoformat() if self.announcement_date else None,
-            'crawled_at': self.crawled_at.isoformat() if self.crawled_at else None,
-            'original_date': self.original_date,
+            'crawler_extracted_at': self.crawler_extracted_at.isoformat() if self.crawler_extracted_at else None,
+            'source_date_string': self.source_date_string,
             'organization': self.organization,
             'department': self.department,
             'contact': self.contact,
@@ -128,25 +128,35 @@ class CrawlQueue(Base):
     """
     Temporary storage for crawled items before publishing
     """
-    __tablename__ = 'crawl_queue'
+    __tablename__ = 'notice_crawl_queue'
 
     # Primary Key
     id = Column(Integer, primary_key=True)
 
     # Source Information
-    source_id = Column(String(50), nullable=False)  # 'jbtp', 'ntis', 'bizinfo'
-    board = Column(String(100))                     # Board name
+    crawler_source_id = Column(String(50), nullable=False)  # 'jbtp', 'ntis', 'bizinfo'
+    source_board_name = Column(String(100))                     # Board name
 
     # Crawled Data
     title = Column(Text, nullable=False)
     link = Column(Text)
-    date = Column(String(100))  # Original date string
-    extracted_at = Column(DateTime, default=datetime.now)
+    source_date_string = Column(String(100))  # Original date string (deprecated)
+
+    # Structured Data (parsed from raw_data)
+    deadline = Column(DateTime)  # Application deadline (마감일)
+    published_date = Column(Date)  # Published date from source
+    organization = Column(String(255))  # Organization name
+    department = Column(String(255))  # Department name
+    contact = Column(String(255))  # Contact information
+    views = Column(Integer, default=0)  # View count from source
+    status = Column(String(50))  # Status from source (접수중, 마감, etc)
+
+    crawler_extracted_at = Column(DateTime, default=datetime.now)
 
     # Processing State
-    selected = Column(Boolean, default=False)   # User selected for publishing
-    processed = Column(Boolean, default=False)  # Already published/discarded
-    notice_id = Column(Integer, ForeignKey('notices.id', ondelete='SET NULL'))
+    is_selected = Column(Boolean, default=False)   # User selected for publishing
+    is_processed = Column(Boolean, default=False)  # Already published/discarded
+    notice_id = Column(Integer, ForeignKey('support_notices.id', ondelete='SET NULL'))
 
     # Rejection/Hidden State (prevents re-crawling unwanted items)
     rejection_status = Column(String(20))  # NULL (pending), 'rejected' (hidden), 'kept' (to publish)
@@ -156,29 +166,38 @@ class CrawlQueue(Base):
 
     # Additional Metadata
     raw_data = Column(JSON)  # Full crawled data
+    matched_keywords = Column(JSON, default=list)  # Keywords that matched this notice
 
     # Timestamps
     created_at = Column(DateTime, default=datetime.now)
-    processed_at = Column(DateTime)
+    published_at = Column(DateTime)
 
     def to_dict(self) -> dict:
         """Convert to dictionary for JSON serialization"""
         return {
             'id': self.id,
-            'source_id': self.source_id,
-            'board': self.board,
+            'crawler_source_id': self.crawler_source_id,
+            'source_board_name': self.source_board_name,
             'title': self.title,
             'link': self.link,
-            'date': self.date,
-            'extracted_at': self.extracted_at.isoformat() if self.extracted_at else None,
-            'selected': self.selected,
-            'processed': self.processed,
+            'source_date_string': self.source_date_string,
+            'deadline': self.deadline.isoformat() if self.deadline else None,
+            'published_date': self.published_date.isoformat() if self.published_date else None,
+            'organization': self.organization,
+            'department': self.department,
+            'contact': self.contact,
+            'views': self.views,
+            'status': self.status,
+            'crawler_extracted_at': self.crawler_extracted_at.isoformat() if self.crawler_extracted_at else None,
+            'is_selected': self.is_selected,
+            'is_processed': self.is_processed,
             'notice_id': self.notice_id,
             'rejection_status': self.rejection_status,
             'rejection_reason': self.rejection_reason,
             'rejected_at': self.rejected_at.isoformat() if self.rejected_at else None,
             'rejected_by': self.rejected_by,
             'raw_data': self.raw_data,
+            'matched_keywords': self.matched_keywords or [],
             'created_at': self.created_at.isoformat() if self.created_at else None,
-            'processed_at': self.processed_at.isoformat() if self.processed_at else None,
+            'published_at': self.published_at.isoformat() if self.published_at else None,
         }

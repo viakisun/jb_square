@@ -7,19 +7,21 @@
 	import { Button } from '$lib/components/ui/buttons';
 	import { Checkbox } from '$lib/components/ui/forms';
 	import NoticePreviewModal from './NoticePreviewModal.svelte';
+	import { toast } from '$lib/stores/toast';
 
 	type QueueItem = {
 		id: number;
-		source_id: string;
-		board: string | null;
+		crawler_source_id: string;
+		source_board_name: string | null;
 		title: string;
 		link: string | null;
-		date: string | null;
-		extracted_at: string;
-		selected: boolean;
-		processed: boolean;
+		source_date_string: string | null;
+		crawler_extracted_at: string;
+		is_selected: boolean;
+		is_processed: boolean;
 		already_exists?: boolean;
 		existing_notice_id?: number;
+		matched_keywords?: string[];
 		raw_data?: {
 			detail?: {
 				writer?: string;
@@ -41,30 +43,91 @@
 
 	let { items = $bindable([]), onSelectionChange, onRefresh }: Props = $props();
 
+	const API_BASE = 'http://localhost:8000/api';
+
 	let selectedIds = $state<Set<number>>(new Set());
 	let allSelected = $state(false);
 	let expandedRows = $state<Set<number>>(new Set());
 	let previewItem = $state<QueueItem | null>(null);
 	let showPreview = $state(false);
+	let deleting = $state(false);
 
 	function toggleAll() {
 		if (allSelected) {
-			selectedIds.clear();
+			selectedIds = new Set();
+			allSelected = false;
 		} else {
 			selectedIds = new Set(items.map((item) => item.id));
+			allSelected = true;
 		}
-		allSelected = !allSelected;
 		onSelectionChange?.(Array.from(selectedIds));
 	}
 
 	function toggleItem(id: number) {
-		if (selectedIds.has(id)) {
-			selectedIds.delete(id);
+		const newSelectedIds = new Set(selectedIds);
+		if (newSelectedIds.has(id)) {
+			newSelectedIds.delete(id);
 		} else {
-			selectedIds.add(id);
+			newSelectedIds.add(id);
 		}
-		allSelected = selectedIds.size === items.length;
+		selectedIds = newSelectedIds;
+		allSelected = selectedIds.size === items.length && items.length > 0;
 		onSelectionChange?.(Array.from(selectedIds));
+	}
+
+	async function deleteSelected() {
+		if (selectedIds.size === 0) return;
+
+		if (!confirm(`선택한 ${selectedIds.size}개 항목을 삭제하시겠습니까?`)) {
+			return;
+		}
+
+		deleting = true;
+		const idsToDelete = Array.from(selectedIds);
+		let successCount = 0;
+		let failCount = 0;
+
+		try {
+			// Delete all selected items in parallel
+			const deletePromises = idsToDelete.map(async (id) => {
+				try {
+					const res = await fetch(`${API_BASE}/notices/crawl-queue/${id}`, {
+						method: 'DELETE'
+					});
+					if (res.ok) {
+						successCount++;
+						return { id, success: true };
+					} else {
+						failCount++;
+						return { id, success: false };
+					}
+				} catch (error) {
+					failCount++;
+					return { id, success: false };
+				}
+			});
+
+			await Promise.all(deletePromises);
+
+			// Show result
+			if (successCount > 0) {
+				toast.success(`${successCount}개 항목이 삭제되었습니다`);
+			}
+			if (failCount > 0) {
+				toast.error(`${failCount}개 항목 삭제 실패`);
+			}
+
+			// Clear selection and refresh
+			selectedIds = new Set();
+			allSelected = false;
+			onSelectionChange?.([]);
+			onRefresh?.();
+		} catch (error) {
+			console.error('Delete failed:', error);
+			toast.error('삭제 중 오류가 발생했습니다');
+		} finally {
+			deleting = false;
+		}
 	}
 
 	function formatDate(dateString: string | null): string {
@@ -128,9 +191,16 @@
 				<span class="text-muted">항목을 선택하세요</span>
 			{/if}
 		</div>
-		{#if onRefresh}
-			<Button variant="outline" size="sm" onclick={onRefresh}>새로고침</Button>
-		{/if}
+		<div class="header-actions">
+			{#if selectedIds.size > 0}
+				<Button variant="outline" size="sm" onclick={deleteSelected} disabled={deleting}>
+					{deleting ? '삭제 중...' : '선택 삭제'}
+				</Button>
+			{/if}
+			{#if onRefresh}
+				<Button variant="outline" size="sm" onclick={onRefresh}>새로고침</Button>
+			{/if}
+		</div>
 	</div>
 
 	<!-- Table -->
@@ -139,7 +209,12 @@
 			<thead>
 				<tr>
 					<th class="col-checkbox">
-						<Checkbox checked={allSelected} onchange={toggleAll} />
+						<input
+							type="checkbox"
+							checked={allSelected}
+							onchange={toggleAll}
+							class="table-checkbox"
+						/>
 					</th>
 					<th class="col-source">출처</th>
 					<th class="col-board">게시판</th>
@@ -167,22 +242,34 @@
 							onclick={() => toggleItem(item.id)}
 						>
 							<td class="col-checkbox">
-								<Checkbox
+								<input
+									type="checkbox"
 									checked={selectedIds.has(item.id)}
 									onchange={() => toggleItem(item.id)}
+									class="table-checkbox"
+									onclick={(e) => e.stopPropagation()}
 								/>
 							</td>
 							<td class="col-source">
-								<span class="source-badge">{getSourceLabel(item.source_id)}</span>
+								<span class="source-badge">{getSourceLabel(item.crawler_source_id)}</span>
 							</td>
-							<td class="col-board">{item.board || '-'}</td>
+							<td class="col-board">{item.source_board_name || '-'}</td>
 							<td class="col-title">
-								<span class="title-text">{item.title}</span>
-								{#if item.already_exists}
-									<span class="duplicate-badge">등록됨</span>
-								{/if}
+								<div class="title-container">
+									<span class="title-text">{item.title}</span>
+									{#if item.matched_keywords && item.matched_keywords.length > 0}
+										<div class="keywords-badges">
+											{#each item.matched_keywords as keyword}
+												<span class="keyword-badge">{keyword}</span>
+											{/each}
+										</div>
+									{/if}
+									{#if item.already_exists}
+										<span class="duplicate-badge">등록됨</span>
+									{/if}
+								</div>
 							</td>
-							<td class="col-date">{formatDate(item.date)}</td>
+							<td class="col-date">{formatDate(item.source_date_string)}</td>
 							<td class="col-detail">
 								{#if hasDetailData(item)}
 									<button
@@ -241,6 +328,12 @@
 		align-items: center;
 		justify-content: space-between;
 		padding: var(--space-4) 0;
+	}
+
+	.header-actions {
+		display: flex;
+		gap: var(--space-2);
+		align-items: center;
 	}
 
 	.selected-count {
@@ -358,12 +451,36 @@
 		letter-spacing: var(--tracking-wide);
 	}
 
+	.title-container {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-2);
+	}
+
 	.title-text {
 		display: block;
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
 		max-width: 500px;
+	}
+
+	.keywords-badges {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--space-1);
+	}
+
+	.keyword-badge {
+		display: inline-block;
+		padding: var(--space-1) var(--space-2);
+		background-color: var(--fg);
+		color: var(--bg);
+		font-size: var(--text-xs);
+		font-weight: var(--font-medium);
+		text-transform: uppercase;
+		letter-spacing: var(--tracking-wide);
+		border: var(--border-width) solid var(--fg);
 	}
 
 	.duplicate-badge {
@@ -441,5 +558,16 @@
 
 	.no-detail {
 		color: var(--muted);
+	}
+
+	/* ========================================
+     TABLE CHECKBOX
+     ======================================== */
+
+	.table-checkbox {
+		width: 18px;
+		height: 18px;
+		cursor: pointer;
+		accent-color: var(--fg);
 	}
 </style>

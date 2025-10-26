@@ -10,6 +10,7 @@
 	import { Panel } from '$lib/components/layout';
 	import { DataTable, Pagination, EmptyState, type Column } from '$lib/components/ui/data';
 	import { Badge, Spinner } from '$lib/components/feedback';
+	import { CrawlingSourceInfo } from '$lib/components/crawling';
 
 	type Notice = {
 		id: string;
@@ -193,6 +194,9 @@
 			<Button variant="primary" iconLeft="+">공고 추가</Button>
 		</div>
 	</div>
+
+	<!-- Crawling Source Info -->
+	<CrawlingSourceInfo sourceIds={['jbtp', 'ntis', 'bizinfo']} />
 
 	<!-- Filters -->
 	<Panel>

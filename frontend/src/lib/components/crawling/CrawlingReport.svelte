@@ -18,14 +18,14 @@
 		id: number;
 		title: string;
 		link: string;
-		date: string;
-		board: string;
+		source_date_string: string;
+		source_board_name: string;
 		keywords_matched: string[];
-		crawled_at: string;
+		crawler_extracted_at: string;
 	}
 
 	interface ReportData {
-		source_id: string;
+		crawler_source_id: string;
 		total_collected: number;
 		keyword_matched: number;
 		board_distribution: Record<string, number>;
@@ -170,8 +170,8 @@
 											{result.title}
 										{/if}
 									</td>
-									<td class="result-board">{result.board || '-'}</td>
-									<td class="result-date">{result.date || '-'}</td>
+									<td class="result-board">{result.source_board_name || '-'}</td>
+									<td class="result-date">{result.source_date_string || '-'}</td>
 									<td class="result-keywords">
 										{#if result.keywords_matched && result.keywords_matched.length > 0}
 											<div class="keyword-badges">

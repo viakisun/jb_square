@@ -4,3 +4,6 @@ export { default as CrawlingStatus } from './CrawlingStatus.svelte';
 export { default as CrawlingCard } from './CrawlingCard.svelte';
 export { default as KeywordManager } from './KeywordManager.svelte';
 export { default as CrawlingReport } from './CrawlingReport.svelte';
+export { default as CrawlingSourceInfo } from './CrawlingSourceInfo.svelte';
+export { default as JBTPConfigInline } from './JBTPConfigInline.svelte';
+export { default as CrawlerConfigCard } from './CrawlerConfigCard.svelte';

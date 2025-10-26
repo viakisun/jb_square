@@ -478,21 +478,7 @@ async def publish_from_queue(
             failed_ids.append({"id": queue_id, "reason": "Not found"})
             continue
 
-        # Extract deadline from raw_data
-        deadline = None
-        if queue_item.raw_data and isinstance(queue_item.raw_data, dict):
-            detail = queue_item.raw_data.get('detail', {})
-            if isinstance(detail, dict):
-                deadline_str = detail.get('deadline')
-                if deadline_str:
-                    try:
-                        # Parse deadline string to datetime
-                        from dateutil import parser
-                        deadline = parser.parse(deadline_str)
-                    except:
-                        pass
-
-        # Create notice from queue item
+        # Create notice from queue item (use typed columns directly)
         notice = Notice(
             title=queue_item.title,
             link=queue_item.link,
@@ -503,7 +489,13 @@ async def publish_from_queue(
             tags=data.tags,
             status='published',
             published_at=datetime.now(),
-            deadline=deadline,
+            # Use structured fields from queue
+            deadline=queue_item.deadline,
+            announcement_date=queue_item.published_date,
+            organization=queue_item.organization,
+            department=queue_item.department,
+            contact=queue_item.contact,
+            # Legacy fields
             source_date_string=queue_item.source_date_string,
             crawler_extracted_at=queue_item.crawler_extracted_at,
             created_at=datetime.now()
