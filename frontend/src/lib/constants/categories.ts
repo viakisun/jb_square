@@ -5,7 +5,7 @@
 
 export type CategoryId = "government" | "business" | "rnd" | "startup";
 
-export type SourceId = "ntis" | "jbtp" | "bizinfo" | "manual";
+export type SourceId = "ntis" | "jbtp" | "jbtp_external" | "bizinfo" | "manual";
 
 export interface CategoryMetadata {
   id: CategoryId;
@@ -59,6 +59,7 @@ export const CATEGORY_METADATA: Record<CategoryId, CategoryMetadata> = {
 export const SOURCE_DEFAULT_CATEGORY: Record<SourceId, CategoryId> = {
   ntis: "government", // NTIS → 정부 공고
   jbtp: "government", // JBTP → 정부 공고 (지자체)
+  jbtp_external: "government", // JBTP 유관기관공고 → 정부 공고
   bizinfo: "business", // Bizinfo → 기업 지원
   manual: "government", // 수동 입력 기본값
 };
