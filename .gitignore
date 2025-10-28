@@ -69,3 +69,7 @@ coverage/
 tmp/
 temp/
 *.tmp
+
+# Test files
+backend/test_*.py
+**/test_*.py

@@ -9,8 +9,8 @@ WORKDIR /app
 # 패키지 파일 복사
 COPY package*.json ./
 
-# 의존성 설치
-RUN npm ci
+# 의존성 설치 (npm install로 유연성 확보)
+RUN npm install --production=false
 
 # 소스 코드 복사
 COPY . .
