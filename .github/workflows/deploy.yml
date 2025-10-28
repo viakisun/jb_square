@@ -6,9 +6,6 @@ on:
       - main
   workflow_dispatch:
 
-env:
-  DEPLOY_PATH: /home/ubuntu/jb2-backoffice
-
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -16,6 +13,10 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+
+      - name: Set deploy path
+        run: |
+          echo "DEPLOY_PATH=/home/${{ secrets.EC2_USER }}/jb_square" >> $GITHUB_ENV
 
       - name: Configure SSH
         run: |
