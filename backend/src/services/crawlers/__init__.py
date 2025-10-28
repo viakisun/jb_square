@@ -4,6 +4,7 @@ from .base_crawler import BaseCrawler, CrawlerStatus
 from .bi_center_crawler import BICenterCrawler
 from .bizinfo_crawler import BizinfoCrawler
 from .jbtp_crawler import JBTPCrawler
+from .jbtp_external_crawler import JBTPExternalCrawler
 from .ntis_crawler import NTISCrawler
 
 __all__ = [
@@ -12,5 +13,6 @@ __all__ = [
     'BICenterCrawler',
     'BizinfoCrawler',
     'JBTPCrawler',
+    'JBTPExternalCrawler',
     'NTISCrawler',
 ]
