@@ -106,14 +106,18 @@ jobs:
             echo ""
             echo "🔨 Building Docker images..."
             echo "   Backend build starting..."
-            docker-compose -f docker-compose.prod.yml build backend --no-cache 2>&1
+            cd backend
+            docker build -t jb2-backend:latest . 2>&1
+            cd ..
 
             echo "   Frontend build starting..."
-            docker-compose -f docker-compose.prod.yml build frontend --no-cache 2>&1
+            cd frontend
+            docker build -t jb2-frontend:latest . 2>&1
+            cd ..
 
             echo ""
             echo "🚀 Starting containers..."
-            docker-compose -f docker-compose.prod.yml up -d 2>&1
+            docker-compose -f docker-compose.prod.yml up -d --no-build 2>&1
 
             echo ""
             echo "⏳ Waiting 10 seconds for containers to start..."

@@ -1,5 +1,6 @@
 services:
   backend:
+    image: jb2-backend:latest
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -27,6 +28,7 @@ services:
       start_period: 40s
 
   frontend:
+    image: jb2-frontend:latest
     build:
       context: ./frontend
       dockerfile: Dockerfile
