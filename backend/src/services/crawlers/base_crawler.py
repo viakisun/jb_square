@@ -11,6 +11,7 @@ from typing import Callable, Dict, List, Optional
 from enum import Enum
 
 from src.core.database import SessionLocal, CrawlerConfig
+from src.models.notice import CrawlQueue
 from src.services.rate_limiter import RateLimiter
 from src.services.utils import match_keywords, parse_date
 
@@ -134,6 +135,78 @@ class BaseCrawler(ABC):
             datetime 객체 또는 None
         """
         return parse_date(date_str)
+
+    def save_results(self, notices: List[dict], keywords: List[str]):
+        """
+        크롤링 결과를 notice_crawl_queue에 저장합니다 (검토 대기).
+        중복 및 거부된 항목은 스킵합니다.
+        키워드 필터링: keywords가 있으면, 제목에 키워드가 포함된 공고만 저장합니다.
+
+        Args:
+            notices: 공고 리스트
+            keywords: 키워드 리스트
+        """
+        db = SessionLocal()
+        try:
+            skipped_rejected = 0
+            skipped_duplicates = 0
+            skipped_filtered = 0
+            added_new = 0
+            updated_existing = 0
+
+            for notice in notices:
+                title = notice['title']
+
+                # 0. 키워드 필터링 (키워드가 설정되어 있으면)
+                if keywords:
+                    matched = self.match_keywords(title, keywords)
+                    if not matched:
+                        skipped_filtered += 1
+                        continue  # 키워드 매칭 안되면 저장하지 않음
+
+                # 1. 이미 존재하는지 확인 (title + crawler_source_id로 중복 체크)
+                existing = db.query(CrawlQueue).filter(
+                    CrawlQueue.crawler_source_id == self.source_id,
+                    CrawlQueue.title == title
+                ).first()
+
+                if existing:
+                    # 2. 거부된 항목이면 스킵 (다시 추가하지 않음)
+                    if existing.rejection_status == 'rejected':
+                        skipped_rejected += 1
+                        continue
+
+                    # 3. 기존 항목이 있으면 데이터 업데이트 (최신 정보 반영)
+                    existing.link = notice.get('link')
+                    existing.source_board_name = notice.get('board')
+                    existing.raw_data = notice
+                    existing.crawler_extracted_at = datetime.now()
+                    updated_existing += 1
+                else:
+                    # 4. 새로운 항목 추가
+                    queue_item = CrawlQueue(
+                        crawler_source_id=self.source_id,
+                        title=title,
+                        link=notice.get('link'),
+                        source_board_name=notice.get('board'),
+                        raw_data=notice,
+                        crawler_extracted_at=datetime.now(),
+                        rejection_status=None  # NULL = pending review
+                    )
+                    db.add(queue_item)
+                    added_new += 1
+
+            db.commit()
+
+            # 통계 출력 (로깅용)
+            print(f"[{self.source_id}] 저장 완료: 신규={added_new}, 업데이트={updated_existing}, "
+                  f"키워드 필터={skipped_filtered}, 거부됨 스킵={skipped_rejected}, 중복 스킵={skipped_duplicates}")
+
+        except Exception as e:
+            print(f"Error saving crawl results: {str(e)}")
+            db.rollback()
+        finally:
+            db.close()
 
     @abstractmethod
     async def execute(self, callback: Optional[Callable] = None):
