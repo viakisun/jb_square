@@ -1608,17 +1608,19 @@ class CrawlerManager:
             db = SessionLocal()
 
             try:
-                ntis_config = db.query(NTISConfig).first()
+                # API 키는 환경변수에서만 읽기
+                api_key = os.getenv('NTIS_API_KEY', '').strip()
 
-                if not ntis_config or not ntis_config.api_key:
+                if not api_key:
                     raise ValueError(
                         "NTIS API 키가 설정되지 않았습니다. "
-                        "관리자 페이지에서 NTIS API 키를 입력해주세요. "
+                        ".env 파일에 NTIS_API_KEY를 입력해주세요. "
                         "API 키 신청: https://www.ntis.go.kr/rndopen/api/mng/apiMain.do"
                     )
 
-                api_key = ntis_config.api_key
-                search_keywords = ntis_config.search_keywords or []
+                # 검색 키워드는 DB에서 읽기 (UI로 관리)
+                ntis_config = db.query(NTISConfig).first()
+                search_keywords = ntis_config.search_keywords if ntis_config else []
 
                 if not search_keywords:
                     raise ValueError(
