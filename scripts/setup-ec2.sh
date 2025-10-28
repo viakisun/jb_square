@@ -125,7 +125,7 @@ if [[ "$OS" == "amzn" ]]; then
     if [[ "$VER" == "2023" ]]; then
         # Amazon Linux 2023 - use pip with ignore-installed flag
         yum install -y python3-pip augeas-libs
-        pip3 install --upgrade pip
+        # Skip pip upgrade to avoid rpm package conflicts
         pip3 install --ignore-installed certbot certbot-nginx
     else
         # Amazon Linux 2 - use EPEL repository
