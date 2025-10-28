@@ -164,25 +164,42 @@ docker-compose -f docker-compose.prod.yml logs -f frontend
 
 ---
 
-## 🔒 SSL/TLS 설정 (선택사항)
+## 🔒 도메인 및 SSL/TLS 설정
 
-도메인이 있는 경우:
+### 1. DNS 설정 (가비아, Route 53 등)
+
+도메인 등록업체에서 A 레코드 추가:
+
+```
+jb2.kr         A  <EC2-PUBLIC-IP>
+www.jb2.kr     A  <EC2-PUBLIC-IP>
+jb2.co.kr      A  <EC2-PUBLIC-IP>
+www.jb2.co.kr  A  <EC2-PUBLIC-IP>
+```
+
+### 2. SSL 인증서 자동 설정
 
 ```bash
-# EC2에서
-sudo certbot certonly --standalone -d your-domain.com
+# EC2에 SSH 접속
+ssh -i ~/.ssh/jb2-key.pem ec2-user@<EC2-PUBLIC-IP>
 
-# 인증서 복사
-sudo cp /etc/letsencrypt/live/your-domain.com/fullchain.pem ~/jb2-backoffice/nginx/ssl/
-sudo cp /etc/letsencrypt/live/your-domain.com/privkey.pem ~/jb2-backoffice/nginx/ssl/
-sudo chown ubuntu:ubuntu ~/jb2-backoffice/nginx/ssl/*
+# SSL 설정 스크립트 실행 (자동으로 인증서 발급 및 설정)
+cd ~/jb_square
+sudo bash scripts/setup-ssl.sh
+```
 
-# Nginx 설정 수정 (HTTPS 블록 주석 해제)
-nano ~/jb2-backoffice/nginx/conf.d/default.conf
+**스크립트가 자동으로 수행:**
+- ✅ Let's Encrypt SSL 인증서 발급 (jb2.kr, www.jb2.kr, jb2.co.kr, www.jb2.co.kr)
+- ✅ Nginx HTTPS 설정 활성화
+- ✅ HTTP → HTTPS 자동 리다이렉트 설정
+- ✅ 인증서 자동 갱신 설정 (60일마다)
 
-# 컨테이너 재시작
-cd ~/jb2-backoffice
-docker-compose -f docker-compose.prod.yml restart nginx
+### 3. 접속 확인
+
+```bash
+# HTTPS로 접속 (자동 리다이렉트됨)
+https://jb2.kr
+https://jb2.co.kr
 ```
 
 ---
