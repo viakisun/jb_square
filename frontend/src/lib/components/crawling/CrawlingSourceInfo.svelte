@@ -4,6 +4,7 @@
 	 * 각 페이지에 표시되는 크롤링 소스 정보
 	 */
 	import { onMount } from 'svelte';
+	import { API_BASE_URL } from '$lib/config/api';
 
 	interface Props {
 		sourceIds: string[]; // 표시할 소스 ID 배열 (예: ['jbtp', 'binet'])
@@ -18,8 +19,6 @@
 		configs: any[];
 		loading: boolean;
 	}
-
-	const API_BASE = 'http://localhost:8000/api';
 
 	let sources = $state<SourceInfo[]>([]);
 
@@ -40,19 +39,19 @@
 			// Load configs based on source type
 			try {
 				if (sourceId === 'jbtp') {
-					const res = await fetch(`${API_BASE}/crawling/configs/jbtp/configs`);
+					const res = await fetch(`${API_BASE_URL}/crawling/configs/jbtp/configs`);
 					const data = await res.json();
 					sourceInfo.configs = data.items;
 				} else if (sourceId === 'binet') {
-					const res = await fetch(`${API_BASE}/crawling/configs/binet/configs`);
+					const res = await fetch(`${API_BASE_URL}/crawling/configs/binet/configs`);
 					const data = await res.json();
 					sourceInfo.configs = data.items;
 				} else if (sourceId === 'ntis') {
-					const res = await fetch(`${API_BASE}/crawling/configs/ntis/config`);
+					const res = await fetch(`${API_BASE_URL}/crawling/configs/ntis/config`);
 					const data = await res.json();
 					sourceInfo.configs = [data];
 				} else if (sourceId === 'bizinfo') {
-					const res = await fetch(`${API_BASE}/crawling/configs/bizinfo/config`);
+					const res = await fetch(`${API_BASE_URL}/crawling/configs/bizinfo/config`);
 					const data = await res.json();
 					sourceInfo.configs = [data];
 				}

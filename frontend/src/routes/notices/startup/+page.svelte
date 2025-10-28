@@ -3,8 +3,7 @@
 	import { Panel } from '$lib/components/layout';
 	import { Button } from '$lib/components/ui/buttons';
 	import { CrawlingStatus } from '$lib/components/crawling';
-
-	const API_BASE = 'http://localhost:8000/api';
+	import { API_BASE_URL, WS_BASE_URL } from '$lib/config/api';
 
 	interface LogEntry {
 		timestamp: string;
@@ -158,7 +157,7 @@
 		errorMessage = '';
 
 		try {
-			const ws = new WebSocket(`ws://localhost:8000/api/crawling/ws/bi_center`);
+			const ws = new WebSocket(`${WS_BASE_URL}/api/crawling/ws/bi_center`);
 
 			ws.onmessage = (event) => {
 				const data = JSON.parse(event.data);

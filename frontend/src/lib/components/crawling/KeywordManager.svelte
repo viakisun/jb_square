@@ -8,6 +8,7 @@
 
 	import { Button } from '$lib/components/ui/buttons';
 	import { toast } from '$lib/stores/toast';
+	import { API_BASE_URL } from '$lib/config/api';
 
 	interface KeywordManagerProps {
 		sourceId: string;
@@ -34,7 +35,7 @@
 	async function loadKeywords() {
 		isLoading = true;
 		try {
-			const response = await fetch(`http://localhost:8000/api/crawling/keywords/${sourceId}`);
+			const response = await fetch(`${API_BASE_URL}/crawling/keywords/${sourceId}`);
 			const data = await response.json();
 			keywords = data.keywords || [];
 		} catch (error) {
@@ -48,7 +49,7 @@
 	async function saveKeywords() {
 		isLoading = true;
 		try {
-			const response = await fetch(`http://localhost:8000/api/crawling/keywords/${sourceId}`, {
+			const response = await fetch(`${API_BASE_URL}/crawling/keywords/${sourceId}`, {
 				method: 'PUT',
 				headers: {
 					'Content-Type': 'application/json'

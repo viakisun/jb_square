@@ -17,8 +17,7 @@
 	import { toast } from '$lib/stores/toast';
 	import JBTPConfigInline from '$lib/components/crawling/JBTPConfigInline.svelte';
 	import TagSelector from '$lib/components/contents/TagSelector.svelte';
-
-	const API_BASE = 'http://localhost:8000/api';
+	import { API_BASE_URL, WS_BASE_URL } from '$lib/config/api';
 
 	interface LogEntry {
 		timestamp: string;
@@ -93,7 +92,7 @@
 	async function loadBusinessQueue() {
 		businessLoading = true;
 		try {
-			const res = await fetch(`${API_BASE}/notices/crawl-queue/list?source_id=jbtp`);
+			const res = await fetch(`${API_BASE_URL}/notices/crawl-queue/list?source_id=jbtp`);
 			const data = await res.json();
 			businessQueueItems = data.items;
 		} catch (error) {
@@ -119,7 +118,7 @@
 		}, 100);
 
 		try {
-			const ws = new WebSocket(`ws://localhost:8000/api/notices/crawl/jbtp`);
+			const ws = new WebSocket(`${WS_BASE_URL}/api/notices/crawl/jbtp`);
 
 			ws.onmessage = (event) => {
 				const data = JSON.parse(event.data);
@@ -239,7 +238,7 @@
 
 		businessLoading = true;
 		try {
-			const res = await fetch(`${API_BASE}/notices/publish`, {
+			const res = await fetch(`${API_BASE_URL}/notices/publish`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
@@ -269,7 +268,7 @@
 	async function loadExternalQueue() {
 		externalLoading = true;
 		try {
-			const res = await fetch(`${API_BASE}/notices/crawl-queue/list?source_id=jbtp_external`);
+			const res = await fetch(`${API_BASE_URL}/notices/crawl-queue/list?source_id=jbtp_external`);
 			const data = await res.json();
 			externalQueueItems = data.items;
 		} catch (error) {
@@ -295,7 +294,7 @@
 		}, 100);
 
 		try {
-			const ws = new WebSocket(`ws://localhost:8000/api/notices/crawl/jbtp_external`);
+			const ws = new WebSocket(`${WS_BASE_URL}/api/notices/crawl/jbtp_external`);
 
 			ws.onmessage = (event) => {
 				const data = JSON.parse(event.data);
@@ -415,7 +414,7 @@
 
 		externalLoading = true;
 		try {
-			const res = await fetch(`${API_BASE}/notices/publish`, {
+			const res = await fetch(`${API_BASE_URL}/notices/publish`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({

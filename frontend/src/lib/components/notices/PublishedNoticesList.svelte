@@ -11,6 +11,7 @@
 	import { Spinner } from '$lib/components/feedback';
 	import { toast } from '$lib/stores/toast';
 	import type { CategoryId, SourceId } from '$lib/constants/categories';
+	import { API_BASE_URL } from '$lib/config/api';
 
 	interface Props {
 		sourceId: SourceId; // 'ntis' | 'jbtp' | 'bizinfo'
@@ -18,8 +19,6 @@
 	}
 
 	let { sourceId, category }: Props = $props();
-
-	const API_BASE = 'http://localhost:8000/api';
 
 	type Notice = {
 		id: number;
@@ -90,7 +89,7 @@
 				params.append('tag', selectedTag);
 			}
 
-			const res = await fetch(`${API_BASE}/notices?${params}`);
+			const res = await fetch(`${API_BASE_URL}/notices?${params}`);
 			const data = await res.json();
 
 			notices = data.items;
@@ -122,7 +121,7 @@
 
 		deleting = true;
 		try {
-			const res = await fetch(`${API_BASE}/notices/bulk-delete`, {
+			const res = await fetch(`${API_BASE_URL}/notices/bulk-delete`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({

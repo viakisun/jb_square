@@ -7,6 +7,7 @@
 	 */
 
 	import { toast } from '$lib/stores/toast';
+	import { API_BASE_URL } from '$lib/config/api';
 
 	interface Tag {
 		id: number;
@@ -61,7 +62,7 @@
 	async function loadTags() {
 		isLoading = true;
 		try {
-			const response = await fetch('http://localhost:8000/api/tags/active');
+			const response = await fetch(`${API_BASE_URL}/tags/active`);
 			const data = await response.json();
 			availableTags = data.tags || [];
 

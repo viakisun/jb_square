@@ -9,6 +9,7 @@
 	import { Button } from '$lib/components/ui/buttons';
 	import { Input } from '$lib/components/ui/forms';
 	import { toast } from '$lib/stores/toast';
+	import { API_BASE_URL } from '$lib/config/api';
 
 	interface Tag {
 		id: number;
@@ -63,7 +64,7 @@
 	async function loadTags() {
 		isLoading = true;
 		try {
-			const response = await fetch('http://localhost:8000/api/tags');
+			const response = await fetch('${API_BASE_URL}/tags');
 			const data = await response.json();
 			tags = data.tags || [];
 		} catch (error) {
@@ -76,7 +77,7 @@
 
 	async function loadCategories() {
 		try {
-			const response = await fetch('http://localhost:8000/api/tags/stats/categories');
+			const response = await fetch('${API_BASE_URL}/tags/stats/categories');
 			const data = await response.json();
 			categories = data.categories || [];
 		} catch (error) {
@@ -92,7 +93,7 @@
 
 		isLoading = true;
 		try {
-			const response = await fetch('http://localhost:8000/api/tags', {
+			const response = await fetch('${API_BASE_URL}/tags', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify(formData)
@@ -117,7 +118,7 @@
 	async function updateTag(tag: Tag) {
 		isLoading = true;
 		try {
-			const response = await fetch(`http://localhost:8000/api/tags/${tag.id}`, {
+			const response = await fetch(`${API_BASE_URL}/tags/${tag.id}`, {
 				method: 'PUT',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
@@ -151,7 +152,7 @@
 
 		isLoading = true;
 		try {
-			const response = await fetch(`http://localhost:8000/api/tags/${id}`, {
+			const response = await fetch(`${API_BASE_URL}/tags/${id}`, {
 				method: 'DELETE'
 			});
 

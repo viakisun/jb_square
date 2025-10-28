@@ -13,8 +13,7 @@
 		AddNoticeModal
 	} from '$lib/components/notices';
 	import { toast } from '$lib/stores/toast';
-
-	const API_BASE = 'http://localhost:8000/api';
+	import { API_BASE_URL, WS_BASE_URL } from '$lib/config/api';
 
 	interface LogEntry {
 		timestamp: string;
@@ -47,7 +46,7 @@
 	async function loadQueue() {
 		loading = true;
 		try {
-			const res = await fetch(`${API_BASE}/notices/crawl-queue/list?source_id=ntis`);
+			const res = await fetch(`${API_BASE_URL}/notices/crawl-queue/list?source_id=ntis`);
 			const data = await res.json();
 			queueItems = data.items;
 		} catch (error) {
@@ -66,7 +65,7 @@
 		errorMessage = '';
 
 		try {
-			const ws = new WebSocket(`ws://localhost:8000/api/crawling/ws/ntis`);
+			const ws = new WebSocket(`${WS_BASE_URL}/api/crawling/ws/ntis`);
 
 			ws.onmessage = (event) => {
 				const data = JSON.parse(event.data);
@@ -144,7 +143,7 @@
 
 		loading = true;
 		try {
-			const res = await fetch(`${API_BASE}/notices/publish`, {
+			const res = await fetch(`${API_BASE_URL}/notices/publish`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({

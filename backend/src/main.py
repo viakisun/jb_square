@@ -2,6 +2,7 @@
 전북 바이오 플랫폼 백오피스 API
 FastAPI 메인 애플리케이션
 """
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from src.routers import dashboard, contents, organizations, analytics, settings, crawling, notices, bi_centers, crawling_config, tags
@@ -22,10 +23,15 @@ app = FastAPI(
 #     except Exception as e:
 #         print(f"Warning: Could not initialize database: {str(e)}")
 
-# CORS 설정 (Svelte 개발 서버용)
+# CORS 설정 (환경변수에서 허용 도메인 읽기)
+cors_origins = os.getenv(
+    "CORS_ALLOWED_ORIGINS",
+    "http://localhost:5173,http://localhost:5174,http://localhost:5175"
+).split(",")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:5174", "http://localhost:5175"],  # Svelte dev server
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

@@ -4,8 +4,7 @@
 	import { Button } from '$lib/components/ui/buttons';
 	import CrawlQueueTable from '$lib/components/notices/CrawlQueueTable.svelte';
 	import { CrawlingStatus, CrawlerConfigCard } from '$lib/components/crawling';
-
-	const API_BASE = 'http://localhost:8000/api';
+	import { API_BASE_URL, WS_BASE_URL } from '$lib/config/api';
 
 	interface LogEntry {
 		timestamp: string;
@@ -30,7 +29,7 @@
 	async function loadQueue() {
 		loading = true;
 		try {
-			const res = await fetch(`${API_BASE}/notices/crawl-queue/list?source_id=bizinfo`);
+			const res = await fetch(`${API_BASE_URL}/notices/crawl-queue/list?source_id=bizinfo`);
 			const data = await res.json();
 			queueItems = data.items;
 		} catch (error) {
@@ -48,7 +47,7 @@
 		errorMessage = '';
 
 		try {
-			const ws = new WebSocket(`ws://localhost:8000/api/notices/crawl/bizinfo`);
+			const ws = new WebSocket(`${WS_BASE_URL}/api/notices/crawl/bizinfo`);
 
 			ws.onmessage = (event) => {
 				const data = JSON.parse(event.data);
@@ -154,7 +153,7 @@
 
 		loading = true;
 		try {
-			const res = await fetch(`${API_BASE}/notices/publish`, {
+			const res = await fetch(`${API_BASE_URL}/notices/publish`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({

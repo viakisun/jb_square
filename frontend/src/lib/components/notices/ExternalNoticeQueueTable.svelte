@@ -8,6 +8,7 @@
 	import { Checkbox } from '$lib/components/ui/forms';
 	import NoticePreviewModal from './NoticePreviewModal.svelte';
 	import { toast } from '$lib/stores/toast';
+	import { API_BASE_URL } from '$lib/config/api';
 
 	type QueueItem = {
 		id: number;
@@ -36,8 +37,6 @@
 	};
 
 	let { items = $bindable([]), onSelectionChange, onRefresh }: Props = $props();
-
-	const API_BASE = 'http://localhost:8000/api';
 
 	let selectedIds = $state<Set<number>>(new Set());
 	let allSelected = $state(false);
@@ -84,7 +83,7 @@
 			// Delete all selected items in parallel
 			const deletePromises = idsToDelete.map(async (id) => {
 				try {
-					const res = await fetch(`${API_BASE}/notices/crawl-queue/${id}`, {
+					const res = await fetch(`${API_BASE_URL}/notices/crawl-queue/${id}`, {
 						method: 'DELETE'
 					});
 					if (res.ok) {

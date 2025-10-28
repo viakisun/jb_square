@@ -7,6 +7,7 @@
 	 */
 
 	import { Badge } from '$lib/components/feedback';
+	import { API_BASE_URL } from '$lib/config/api';
 
 	interface CrawlingReportProps {
 		sourceId: string;
@@ -49,7 +50,7 @@
 		error = null;
 
 		try {
-			const response = await fetch(`http://localhost:8000/api/crawling/report/${sourceId}`);
+			const response = await fetch(`${API_BASE_URL}/crawling/report/${sourceId}`);
 
 			if (!response.ok) {
 				throw new Error('Failed to load report');

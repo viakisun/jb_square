@@ -6,8 +6,7 @@
 
 	import { onMount } from 'svelte';
 	import { toast } from '$lib/stores/toast';
-
-	const API_BASE = 'http://localhost:8000/api';
+	import { API_BASE_URL } from '$lib/config/api';
 
 	interface JBTPConfig {
 		id: number;
@@ -36,7 +35,7 @@
 	async function loadConfigs() {
 		loading = true;
 		try {
-			const res = await fetch(`${API_BASE}/crawling/configs/jbtp/configs?config_type=${configType}`);
+			const res = await fetch(`${API_BASE_URL}/crawling/configs/jbtp/configs?config_type=${configType}`);
 			if (!res.ok) {
 				throw new Error(`HTTP ${res.status}`);
 			}
@@ -67,7 +66,7 @@
 		const updatedKeywords = [...config.keywords, keyword];
 
 		try {
-			const res = await fetch(`${API_BASE}/crawling/configs/jbtp/configs/${configId}`, {
+			const res = await fetch(`${API_BASE_URL}/crawling/configs/jbtp/configs/${configId}`, {
 				method: 'PUT',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ keywords: updatedKeywords })
@@ -95,7 +94,7 @@
 		const updatedKeywords = config.keywords.filter((k) => k !== keyword);
 
 		try {
-			const res = await fetch(`${API_BASE}/crawling/configs/jbtp/configs/${configId}`, {
+			const res = await fetch(`${API_BASE_URL}/crawling/configs/jbtp/configs/${configId}`, {
 				method: 'PUT',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ keywords: updatedKeywords })
@@ -116,7 +115,7 @@
 
 	async function updateDateRange(configId: number, days: number) {
 		try {
-			const res = await fetch(`${API_BASE}/crawling/configs/jbtp/configs/${configId}`, {
+			const res = await fetch(`${API_BASE_URL}/crawling/configs/jbtp/configs/${configId}`, {
 				method: 'PUT',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ date_range_days: days })

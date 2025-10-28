@@ -7,6 +7,7 @@
 	import { onMount } from 'svelte';
 	import { Button } from '$lib/components/ui/buttons';
 	import { toast } from '$lib/stores/toast';
+	import { API_BASE_URL } from '$lib/config/api';
 
 	interface Props {
 		sourceType: 'jbtp' | 'ntis' | 'bizinfo';
@@ -16,8 +17,6 @@
 	}
 
 	let { sourceType, sourceName, onCrawl, crawling = false }: Props = $props();
-
-	const API_BASE = 'http://localhost:8000/api';
 
 	interface JBTPConfig {
 		id: number;
@@ -41,11 +40,11 @@
 		try {
 			let endpoint = '';
 			if (sourceType === 'jbtp') {
-				endpoint = `${API_BASE}/crawling/configs/jbtp/configs`;
+				endpoint = `${API_BASE_URL}/crawling/configs/jbtp/configs`;
 			} else if (sourceType === 'ntis') {
-				endpoint = `${API_BASE}/crawling/configs/ntis/config`;
+				endpoint = `${API_BASE_URL}/crawling/configs/ntis/config`;
 			} else if (sourceType === 'bizinfo') {
-				endpoint = `${API_BASE}/crawling/configs/bizinfo/config`;
+				endpoint = `${API_BASE_URL}/crawling/configs/bizinfo/config`;
 			}
 
 			const res = await fetch(endpoint);
@@ -84,11 +83,11 @@
 		try {
 			let endpoint = '';
 			if (sourceType === 'jbtp') {
-				endpoint = `${API_BASE}/crawling/configs/jbtp/configs/${configId}`;
+				endpoint = `${API_BASE_URL}/crawling/configs/jbtp/configs/${configId}`;
 			} else if (sourceType === 'ntis') {
-				endpoint = `${API_BASE}/crawling/configs/ntis/config`;
+				endpoint = `${API_BASE_URL}/crawling/configs/ntis/config`;
 			} else if (sourceType === 'bizinfo') {
-				endpoint = `${API_BASE}/crawling/configs/bizinfo/config`;
+				endpoint = `${API_BASE_URL}/crawling/configs/bizinfo/config`;
 			}
 
 			const body =
@@ -130,11 +129,11 @@
 		try {
 			let endpoint = '';
 			if (sourceType === 'jbtp') {
-				endpoint = `${API_BASE}/crawling/configs/jbtp/configs/${configId}`;
+				endpoint = `${API_BASE_URL}/crawling/configs/jbtp/configs/${configId}`;
 			} else if (sourceType === 'ntis') {
-				endpoint = `${API_BASE}/crawling/configs/ntis/config`;
+				endpoint = `${API_BASE_URL}/crawling/configs/ntis/config`;
 			} else if (sourceType === 'bizinfo') {
-				endpoint = `${API_BASE}/crawling/configs/bizinfo/config`;
+				endpoint = `${API_BASE_URL}/crawling/configs/bizinfo/config`;
 			}
 
 			const body =

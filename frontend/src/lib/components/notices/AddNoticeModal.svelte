@@ -6,6 +6,7 @@
 	import { Button } from '$lib/components/ui/buttons';
 	import { Input } from '$lib/components/ui/forms';
 	import { toast } from '$lib/stores/toast';
+	import { API_BASE_URL } from '$lib/config/api';
 
 	interface Props {
 		category: string;
@@ -15,8 +16,6 @@
 	}
 
 	let { category, sourceId, onClose, onSuccess }: Props = $props();
-
-	const API_BASE = 'http://localhost:8000/api';
 
 	// Form state
 	let formData = $state({
@@ -48,7 +47,7 @@
 		submitting = true;
 
 		try {
-			const res = await fetch(`${API_BASE}/notices/manual`, {
+			const res = await fetch(`${API_BASE_URL}/notices/manual`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({

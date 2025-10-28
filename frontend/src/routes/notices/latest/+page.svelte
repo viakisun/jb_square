@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import NoticeCard from '$lib/components/notices/NoticeCard.svelte';
+	import { API_BASE_URL } from '$lib/config/api';
 
 	type Notice = {
 		id: number;
@@ -17,15 +18,13 @@
 		matched_keywords?: string[];
 	};
 
-	const API_BASE = 'http://localhost:8000/api';
-
 	let notices = $state<Notice[]>([]);
 	let loading = $state(true);
 
 	async function loadLatestNotices() {
 		loading = true;
 		try {
-			const res = await fetch(`${API_BASE}/notices/latest/list?limit=15`);
+			const res = await fetch(`${API_BASE_URL}/notices/latest/list?limit=15`);
 			const data = await res.json();
 			notices = data.items;
 		} catch (error) {

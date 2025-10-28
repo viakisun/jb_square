@@ -8,6 +8,7 @@
 	import { Button } from '$lib/components/ui/buttons';
 	import { Panel, Card } from '$lib/components/layout';
 	import { DataTable, type Column } from '$lib/components/ui/data';
+	import { API_BASE_URL } from '$lib/config/api';
 
 	let summary = $state({
 		notices: { total: 0, bio_related: 0, today_collected: 0, published: 0 },
@@ -82,14 +83,12 @@
 	];
 
 	onMount(async () => {
-		const API_BASE = 'http://localhost:8000/api';
-
 		try {
 			const [summaryRes, urgentRes, orgRes, logsRes] = await Promise.all([
-				fetch(`${API_BASE}/dashboard/summary`),
-				fetch(`${API_BASE}/dashboard/urgent-notices`),
-				fetch(`${API_BASE}/dashboard/recent-organizations`),
-				fetch(`${API_BASE}/dashboard/recent-logs`)
+				fetch(`${API_BASE_URL}/dashboard/summary`),
+				fetch(`${API_BASE_URL}/dashboard/urgent-notices`),
+				fetch(`${API_BASE_URL}/dashboard/recent-organizations`),
+				fetch(`${API_BASE_URL}/dashboard/recent-logs`)
 			]);
 
 			summary = await summaryRes.json();

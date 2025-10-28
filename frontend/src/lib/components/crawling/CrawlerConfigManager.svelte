@@ -8,8 +8,7 @@
 	import { Input } from '$lib/components/ui/forms';
 	import { toast } from '$lib/stores/toast';
 	import JBTPConfigInline from './JBTPConfigInline.svelte';
-
-	const API_BASE = 'http://localhost:8000/api';
+	import { API_BASE_URL } from '$lib/config/api';
 
 	interface JBTPConfig {
 		id: number;
@@ -74,7 +73,7 @@
 	async function loadJBTPConfigs() {
 		jbtpLoading = true;
 		try {
-			const res = await fetch(`${API_BASE}/crawling/configs/jbtp/configs`);
+			const res = await fetch(`${API_BASE_URL}/crawling/configs/jbtp/configs`);
 			const data = await res.json();
 			jbtpConfigs = data.items;
 		} catch (error) {
@@ -91,7 +90,7 @@
 		}
 
 		try {
-			const res = await fetch(`${API_BASE}/crawling/configs/jbtp/configs`, {
+			const res = await fetch(`${API_BASE_URL}/crawling/configs/jbtp/configs`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
@@ -117,7 +116,7 @@
 
 	async function updateJBTPKeywords(id: number, keywords: string[]) {
 		try {
-			const res = await fetch(`${API_BASE}/crawling/configs/jbtp/configs/${id}`, {
+			const res = await fetch(`${API_BASE_URL}/crawling/configs/jbtp/configs/${id}`, {
 				method: 'PUT',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ keywords })
@@ -138,7 +137,7 @@
 		if (!confirm('정말 삭제하시겠습니까?')) return;
 
 		try {
-			const res = await fetch(`${API_BASE}/crawling/configs/jbtp/configs/${id}`, {
+			const res = await fetch(`${API_BASE_URL}/crawling/configs/jbtp/configs/${id}`, {
 				method: 'DELETE'
 			});
 
@@ -160,7 +159,7 @@
 	async function loadBinetConfigs() {
 		binetLoading = true;
 		try {
-			const res = await fetch(`${API_BASE}/crawling/configs/binet/configs`);
+			const res = await fetch(`${API_BASE_URL}/crawling/configs/binet/configs`);
 			const data = await res.json();
 			binetConfigs = data.items;
 		} catch (error) {
@@ -177,7 +176,7 @@
 		}
 
 		try {
-			const res = await fetch(`${API_BASE}/crawling/configs/binet/configs`, {
+			const res = await fetch(`${API_BASE_URL}/crawling/configs/binet/configs`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
@@ -204,7 +203,7 @@
 		if (!confirm('정말 삭제하시겠습니까?')) return;
 
 		try {
-			const res = await fetch(`${API_BASE}/crawling/configs/binet/configs/${id}`, {
+			const res = await fetch(`${API_BASE_URL}/crawling/configs/binet/configs/${id}`, {
 				method: 'DELETE'
 			});
 
@@ -226,7 +225,7 @@
 	async function loadNTISConfig() {
 		ntisLoading = true;
 		try {
-			const res = await fetch(`${API_BASE}/crawling/configs/ntis/config`);
+			const res = await fetch(`${API_BASE_URL}/crawling/configs/ntis/config`);
 			const data = await res.json();
 			ntisConfig = data;
 			ntisKeywords = data.search_keywords?.join(', ') || '';
@@ -239,7 +238,7 @@
 
 	async function updateNTISConfig() {
 		try {
-			const res = await fetch(`${API_BASE}/crawling/configs/ntis/config`, {
+			const res = await fetch(`${API_BASE_URL}/crawling/configs/ntis/config`, {
 				method: 'PUT',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
@@ -267,7 +266,7 @@
 	async function loadBizinfoConfig() {
 		bizinfoLoading = true;
 		try {
-			const res = await fetch(`${API_BASE}/crawling/configs/bizinfo/config`);
+			const res = await fetch(`${API_BASE_URL}/crawling/configs/bizinfo/config`);
 			const data = await res.json();
 			bizinfoConfig = data;
 			bizinfoKeywords = data.search_keywords?.join(', ') || '';
@@ -280,7 +279,7 @@
 
 	async function updateBizinfoConfig() {
 		try {
-			const res = await fetch(`${API_BASE}/crawling/configs/bizinfo/config`, {
+			const res = await fetch(`${API_BASE_URL}/crawling/configs/bizinfo/config`, {
 				method: 'PUT',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
