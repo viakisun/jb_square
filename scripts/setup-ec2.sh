@@ -123,10 +123,13 @@ echo "🔒 Installing Certbot..."
 if [[ "$OS" == "amzn" ]]; then
     # Amazon Linux
     if [[ "$VER" == "2023" ]]; then
-        yum install -y python3-pip
-        pip3 install certbot certbot-nginx
+        # Amazon Linux 2023 - use pip with ignore-installed flag
+        yum install -y python3-pip augeas-libs
+        pip3 install --upgrade pip
+        pip3 install --ignore-installed certbot certbot-nginx
     else
-        # Amazon Linux 2
+        # Amazon Linux 2 - use EPEL repository
+        amazon-linux-extras install epel -y || yum install -y epel-release
         yum install -y certbot python2-certbot-nginx || yum install -y certbot
     fi
 elif [[ "$OS" == "ubuntu" ]]; then
