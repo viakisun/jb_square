@@ -79,6 +79,7 @@ class NTISConfig(Base):
             'api_key': '***' if self.api_key else '',  # 보안을 위해 마스킹
             'api_key_length': len(self.api_key) if self.api_key else 0,
             'search_keywords': self.search_keywords or [],
+            'keywords': self.search_keywords or [],  # 프론트엔드 호환성을 위한 별칭
             'enabled': self.enabled,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
@@ -102,6 +103,7 @@ class BizinfoConfig(Base):
             'api_key': '***' if self.api_key else '',  # 보안을 위해 마스킹
             'api_key_length': len(self.api_key) if self.api_key else 0,
             'search_keywords': self.search_keywords or [],
+            'keywords': self.search_keywords or [],  # 프론트엔드 호환성을 위한 별칭
             'enabled': self.enabled,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,

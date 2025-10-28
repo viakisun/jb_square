@@ -66,7 +66,7 @@
 		errorMessage = '';
 
 		try {
-			const ws = new WebSocket(`ws://localhost:8000/api/notices/crawl/ntis`);
+			const ws = new WebSocket(`ws://localhost:8000/api/crawling/ws/ntis`);
 
 			ws.onmessage = (event) => {
 				const data = JSON.parse(event.data);

@@ -6,6 +6,7 @@ Crawler Manager
 import asyncio
 import json
 import requests
+import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Callable, Dict, Optional, List
@@ -1435,26 +1436,202 @@ class CrawlerManager:
         NTIS API를 통해 R&D 공고를 수집합니다.
 
         Note: NTIS는 웹 크롤링을 금지하고 있으며, 공식 OpenAPI를 제공합니다.
-        API 키는 .env 파일의 NTIS_API_KEY에 설정해야 합니다.
+        올바른 API 엔드포인트: https://www.ntis.go.kr/rndopen/openApi/public_project
 
         API 신청: https://www.ntis.go.kr/rndopen/api/mng/apiMain.do
-        또는: https://www.data.go.kr/data/15077315/openapi.do
         """
         source_id = "ntis"
         self._reset_status(source_id)
 
+        def get_xml_text(element, tag, default=''):
+            """XML 요소에서 텍스트 추출"""
+            child = element.find(tag)
+            if child is None:
+                return default
+            # HTML 태그 제거 (예: <span class="search_word">)
+            text = child.text if child.text else ''
+            for subchild in child:
+                if subchild.text:
+                    text += subchild.text
+                if subchild.tail:
+                    text += subchild.tail
+            return text.strip() if text else default
+
+        def parse_project_hit(hit):
+            """단일 과제 HIT 파싱"""
+            try:
+                # ProjectTitle에서 한글/영문 제목 추출
+                title_elem = hit.find('ProjectTitle')
+                title_korean = ''
+                title_english = ''
+                if title_elem is not None:
+                    title_korean = get_xml_text(title_elem, 'Korean', '')
+                    title_english = get_xml_text(title_elem, 'English', '')
+
+                # Manager 정보
+                manager_name = ''
+                manager_elem = hit.find('Manager')
+                if manager_elem is not None:
+                    manager_name = get_xml_text(manager_elem, 'Name', '')
+
+                # 키워드 추출
+                keyword_korean = ''
+                keyword_english = ''
+                keyword_elem = hit.find('Keyword')
+                if keyword_elem is not None:
+                    keyword_korean = get_xml_text(keyword_elem, 'Korean', '')
+                    keyword_english = get_xml_text(keyword_elem, 'English', '')
+
+                # 연구기관
+                research_agency = ''
+                research_elem = hit.find('ResearchAgency')
+                if research_elem is not None:
+                    research_agency = get_xml_text(research_elem, 'Name', '')
+
+                # 관리기관
+                manage_agency = ''
+                manage_elem = hit.find('ManageAgency')
+                if manage_elem is not None:
+                    manage_agency = get_xml_text(manage_elem, 'Name', '')
+
+                # 부처
+                ministry = ''
+                ministry_elem = hit.find('Ministry')
+                if ministry_elem is not None:
+                    ministry = get_xml_text(ministry_elem, 'Name', '')
+
+                # 기간 정보
+                start_date = ''
+                end_date = ''
+                period_elem = hit.find('ProjectPeriod')
+                if period_elem is not None:
+                    start_date = get_xml_text(period_elem, 'Start', '')
+                    end_date = get_xml_text(period_elem, 'End', '')
+
+                # 지역
+                region = get_xml_text(hit, 'Region', '')
+
+                # 연구비
+                gov_funds = get_xml_text(hit, 'GovernmentFunds', '')
+                total_funds = get_xml_text(hit, 'TotalFunds', '')
+
+                # Goal, Abstract, Effect
+                goal_full = ''
+                goal_elem = hit.find('Goal')
+                if goal_elem is not None:
+                    goal_full = get_xml_text(goal_elem, 'Full', '')
+
+                abstract_full = ''
+                abstract_elem = hit.find('Abstract')
+                if abstract_elem is not None:
+                    abstract_full = get_xml_text(abstract_elem, 'Full', '')
+
+                effect_full = ''
+                effect_elem = hit.find('Effect')
+                if effect_elem is not None:
+                    effect_full = get_xml_text(effect_elem, 'Full', '')
+
+                project = {
+                    'title': title_korean or title_english or 'N/A',
+                    'title_korean': title_korean,
+                    'title_english': title_english,
+                    'project_number': get_xml_text(hit, 'ProjectNumber', ''),
+                    'project_manager': manager_name,
+                    'research_agency': research_agency,
+                    'manage_agency': manage_agency,
+                    'ministry': ministry,
+                    'project_year': get_xml_text(hit, 'ProjectYear', ''),
+                    'start_date': start_date,
+                    'end_date': end_date,
+                    'region': region,
+                    'government_funds': gov_funds,
+                    'total_funds': total_funds,
+                    'keywords_korean': keyword_korean,
+                    'keywords_english': keyword_english,
+                    'goal': goal_full,
+                    'abstract': abstract_full,
+                    'effect': effect_full,
+                    'six_technology': get_xml_text(hit, 'SixTechnology', ''),
+                    'business_name': get_xml_text(hit, 'BusinessName', ''),
+                }
+
+                return project
+
+            except Exception as e:
+                print(f"✗ 과제 HIT 파싱 중 오류: {e}")
+                return None
+
+        def filter_bio_projects(projects):
+            """바이오 관련 과제 필터링"""
+            bio_keywords = [
+                '바이오', '생명', '의료', '제약', '헬스케어', '유전', '건강', '보건',
+                '임상', '진단', '치료', '병원', '질병', '의약', '신약', '백신',
+                '항체', '세포', '줄기세포', '유전자', '게놈', 'DNA', 'RNA',
+                '단백질', '효소', '미생물', '발효', '배양',
+                '의료기기', '의료장비', '진단기기', '헬스',
+                '식품', '건강기능식품', '뷰티', '화장품', '천연물',
+                '농생명', '동물', '수의', '축산',
+                'bio', 'Bio', 'BIO', 'biotech', 'Biotech',
+                'health', 'Health', 'medical', 'Medical',
+                'pharma', 'Pharma', 'drug', 'Drug',
+                'clinical', 'Clinical', 'diagnosis', 'Diagnosis',
+                'therapy', 'Therapy', 'vaccine', 'Vaccine',
+                'antibody', 'cell', 'Cell', 'stem', 'Stem',
+                'gene', 'Gene', 'genome', 'Genome',
+                'protein', 'Protein', 'enzyme', 'Enzyme'
+            ]
+
+            filtered = []
+            for project in projects:
+                search_text = ' '.join([
+                    project.get('title', ''),
+                    project.get('title_korean', ''),
+                    project.get('title_english', ''),
+                    project.get('keywords_korean', ''),
+                    project.get('keywords_english', ''),
+                    project.get('goal', ''),
+                    project.get('abstract', ''),
+                    project.get('effect', '')
+                ])
+
+                matched_keywords = [kw for kw in bio_keywords if kw in search_text]
+
+                if matched_keywords:
+                    project['matched_keywords'] = matched_keywords
+                    filtered.append(project)
+
+            return filtered
+
         try:
-            import os
+            # DB에서 NTIS 설정 로드
+            from src.models.crawler_config import NTISConfig
+            db = SessionLocal()
 
-            # API 키 확인
-            api_key = os.getenv('NTIS_API_KEY', '').strip()
+            try:
+                ntis_config = db.query(NTISConfig).first()
 
-            if not api_key:
-                raise ValueError(
-                    "NTIS API 키가 설정되지 않았습니다. "
-                    ".env 파일에 NTIS_API_KEY를 입력해주세요. "
-                    "API 키 신청: https://www.ntis.go.kr/rndopen/api/mng/apiMain.do"
-                )
+                if not ntis_config or not ntis_config.api_key:
+                    raise ValueError(
+                        "NTIS API 키가 설정되지 않았습니다. "
+                        "관리자 페이지에서 NTIS API 키를 입력해주세요. "
+                        "API 키 신청: https://www.ntis.go.kr/rndopen/api/mng/apiMain.do"
+                    )
+
+                api_key = ntis_config.api_key
+                search_keywords = ntis_config.search_keywords or []
+
+                if not search_keywords:
+                    raise ValueError(
+                        "검색 키워드가 설정되지 않았습니다. "
+                        "관리자 페이지에서 NTIS 검색 키워드를 추가해주세요."
+                    )
+
+                await self._send_event(callback, "log", {
+                    "source_id": source_id,
+                    "message": f"NTIS 설정 로드 완료 (검색 키워드: {len(search_keywords)}개)"
+                })
+            finally:
+                db.close()
 
             await self._send_event(callback, "start", {
                 "source_id": source_id,
@@ -1462,26 +1639,12 @@ class CrawlerManager:
             })
 
             rate_limiter = RateLimiter(0.5)
-            all_notices = []
+            all_projects = []
 
-            # NTIS OpenAPI 엔드포인트
-            # TODO: 실제 API 엔드포인트와 파라미터는 API 문서 확인 후 수정 필요
-            api_endpoints = [
-                {
-                    "name": "R&D 공고",
-                    "url": "https://www.ntis.go.kr/openapi/service/getRnDTaskList",
-                    "params": {
-                        "serviceKey": api_key,
-                        "numOfRows": 100,
-                        "pageNo": 1,
-                        "_type": "json"  # 또는 "xml"
-                    }
-                }
-            ]
+            # 키워드별로 API 호출
+            self.crawlers_status[source_id]["total"] = len(search_keywords)
 
-            self.crawlers_status[source_id]["total"] = len(api_endpoints)
-
-            for idx, endpoint in enumerate(api_endpoints):
+            for idx, keyword in enumerate(search_keywords):
                 # 중단 체크
                 if self.stop_flags[source_id]:
                     await self._send_event(callback, "stopped", {
@@ -1495,74 +1658,97 @@ class CrawlerManager:
 
                 await self._send_event(callback, "log", {
                     "source_id": source_id,
-                    "message": f"[{endpoint['name']}] API 호출 중..."
+                    "message": f"\n[키워드: {keyword}] API 호출 중..."
                 })
 
                 try:
+                    # 올바른 NTIS OpenAPI 엔드포인트
                     response = requests.get(
-                        endpoint["url"],
-                        params=endpoint["params"],
+                        "https://www.ntis.go.kr/rndopen/openApi/public_project",
+                        params={
+                            "apprvKey": api_key,
+                            "collection": "project",
+                            "SRWR": keyword,
+                            "searchFd": "BI",  # 전체 검색
+                            "searchRnkn": "DATE/DESC",  # 최신순
+                            "startPosition": 1,
+                            "displayCnt": 50  # 키워드당 최대 50개
+                        },
                         timeout=30
                     )
 
                     if response.status_code == 200:
-                        # JSON 응답 파싱
+                        # XML 응답 파싱
                         try:
-                            data = response.json()
+                            root = ET.fromstring(response.text)
 
-                            # TODO: 실제 응답 구조에 맞게 파싱 로직 수정 필요
-                            # 예시 구조 (실제와 다를 수 있음):
-                            items = data.get('response', {}).get('body', {}).get('items', {}).get('item', [])
+                            # 에러 응답 체크
+                            if root.tag == 'RESULT':
+                                error = root.find('error')
+                                if error is not None:
+                                    self.crawlers_status[source_id]["failed"] += 1
+                                    await self._send_event(callback, "log", {
+                                        "source_id": source_id,
+                                        "message": f"  ✗ API 오류: {error.text}"
+                                    })
+                                    continue
 
-                            if not isinstance(items, list):
-                                items = [items] if items else []
+                                error = root.find('ERROR')
+                                if error is not None:
+                                    error_code = error.find('CODE')
+                                    error_msg = error.find('MESSAGE')
+                                    code_text = error_code.text if error_code is not None else 'Unknown'
+                                    msg_text = error_msg.text if error_msg is not None else 'Unknown error'
+                                    self.crawlers_status[source_id]["failed"] += 1
+                                    await self._send_event(callback, "log", {
+                                        "source_id": source_id,
+                                        "message": f"  ✗ API 오류: [코드 {code_text}] {msg_text}"
+                                    })
+                                    continue
 
-                            notices = []
-                            for item in items:
-                                notice = {
-                                    'title': item.get('taskName', item.get('title', '')),
-                                    'link': item.get('link', ''),
-                                    'date': item.get('startDate', item.get('regDate', '')),
-                                    'board': endpoint['name'],
-                                    'source': 'NTIS',
-                                    'extracted_at': datetime.now().isoformat(),
-                                    'raw_data': {
-                                        'detail': {
-                                            'organization': item.get('organization', ''),
-                                            'department': item.get('department', ''),
-                                            'budget': item.get('budget', ''),
-                                            'period': item.get('period', '')
-                                        }
-                                    }
-                                }
-                                notices.append(notice)
-
+                            # 정상 응답 파싱
+                            total_hits = root.find('TOTALHITS')
+                            if total_hits is not None:
                                 await self._send_event(callback, "log", {
                                     "source_id": source_id,
-                                    "message": f"  ✓ [{notice['board']}] {notice['title'][:60]}{'...' if len(notice['title']) > 60 else ''}"
+                                    "message": f"  총 {total_hits.text}건의 과제를 찾았습니다."
                                 })
 
-                            if notices:
-                                all_notices.extend(notices)
+                            # RESULTSET에서 HIT 추출
+                            resultset = root.find('RESULTSET')
+                            if resultset is None:
+                                await self._send_event(callback, "log", {
+                                    "source_id": source_id,
+                                    "message": f"  ⚠ 검색 결과 없음"
+                                })
+                                continue
+
+                            projects = []
+                            for hit in resultset.findall('HIT'):
+                                project = parse_project_hit(hit)
+                                if project:
+                                    project['search_keyword'] = keyword
+                                    projects.append(project)
+
+                            if projects:
+                                all_projects.extend(projects)
                                 self.crawlers_status[source_id]["success"] += 1
 
                                 await self._send_event(callback, "log", {
                                     "source_id": source_id,
-                                    "message": f"  → {len(notices)}개 공고 수집 완료"
+                                    "message": f"  → {len(projects)}개 과제 수집 완료"
                                 })
                             else:
-                                self.crawlers_status[source_id]["failed"] += 1
                                 await self._send_event(callback, "log", {
                                     "source_id": source_id,
-                                    "message": f"  ⚠ 데이터가 없습니다"
+                                    "message": f"  ⚠ 파싱된 과제 없음"
                                 })
 
-                        except (ValueError, KeyError) as e:
-                            # JSON 파싱 오류
+                        except ET.ParseError as e:
                             self.crawlers_status[source_id]["failed"] += 1
                             await self._send_event(callback, "log", {
                                 "source_id": source_id,
-                                "message": f"  ✗ API 응답 파싱 오류: {str(e)}"
+                                "message": f"  ✗ XML 파싱 오류: {str(e)}"
                             })
                     else:
                         self.crawlers_status[source_id]["failed"] += 1
@@ -1595,24 +1781,47 @@ class CrawlerManager:
                 await self._send_event(callback, "progress", {
                     "source_id": source_id,
                     "progress": idx + 1,
-                    "total": len(api_endpoints),
-                    "percentage": int((idx + 1) / len(api_endpoints) * 100),
+                    "total": len(search_keywords),
+                    "percentage": int((idx + 1) / len(search_keywords) * 100),
                     "success": self.crawlers_status[source_id]["success"],
                     "failed": self.crawlers_status[source_id]["failed"]
                 })
 
-            # DB에서 키워드 로드
-            keywords = self._get_keywords(source_id)
+            # 바이오 필터링 적용
+            await self._send_event(callback, "log", {
+                "source_id": source_id,
+                "message": f"\n바이오 키워드 필터링 중... (총 {len(all_projects)}개 과제)"
+            })
 
-            # DB에 저장
-            self._save_results(source_id, all_notices, keywords)
-
-            # 키워드 매칭 통계
-            keyword_matched_count = sum(1 for notice in all_notices if self._match_keywords(notice['title'], keywords))
+            filtered_projects = filter_bio_projects(all_projects)
 
             await self._send_event(callback, "log", {
                 "source_id": source_id,
-                "message": f"결과 저장 완료: {len(all_notices)}개 공고 (키워드 매칭: {keyword_matched_count}개)"
+                "message": f"바이오 관련 과제: {len(filtered_projects)}개"
+            })
+
+            # Notice 형식으로 변환하여 DB 저장
+            notices = []
+            for project in filtered_projects:
+                notice = {
+                    'title': project['title'],
+                    'link': f"https://www.ntis.go.kr/project/pjtInfo.do?pjtId={project.get('project_number', '')}",
+                    'date': project.get('start_date', ''),
+                    'board': f"R&D 과제 (키워드: {project.get('search_keyword', '')})",
+                    'source': 'NTIS',
+                    'extracted_at': datetime.now().isoformat(),
+                    'raw_data': {
+                        'detail': project
+                    }
+                }
+                notices.append(notice)
+
+            # DB에 저장
+            self._save_results(source_id, notices, search_keywords)
+
+            await self._send_event(callback, "log", {
+                "source_id": source_id,
+                "message": f"\n결과 저장 완료: {len(notices)}개 바이오 과제"
             })
 
             # 완료
@@ -1620,7 +1829,7 @@ class CrawlerManager:
             await self._send_event(callback, "complete", {
                 "source_id": source_id,
                 "message": "NTIS API 데이터 수집이 완료되었습니다.",
-                "total_collected": len(all_notices),
+                "total_collected": len(notices),
                 "success": self.crawlers_status[source_id]["success"],
                 "failed": self.crawlers_status[source_id]["failed"],
                 "rate_limit_stats": rate_limiter.get_stats()
