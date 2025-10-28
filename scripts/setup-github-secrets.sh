@@ -72,9 +72,9 @@ echo ""
 echo "📝 EC2 Public IP를 입력하세요:"
 read -r EC2_HOST
 
-echo "📝 EC2 사용자명을 입력하세요 (기본값: ubuntu):"
+echo "📝 EC2 사용자명을 입력하세요 (Amazon Linux: ec2-user, Ubuntu: ubuntu, 기본값: ec2-user):"
 read -r EC2_USER
-EC2_USER=${EC2_USER:-ubuntu}
+EC2_USER=${EC2_USER:-ec2-user}
 
 echo ""
 echo "입력된 정보:"

@@ -24,13 +24,15 @@ gh auth login
 
 ### 2. EC2 인스턴스 생성
 
-- **AMI**: Ubuntu Server 22.04 LTS
+- **AMI**: Amazon Linux 2023 (또는 Ubuntu Server 22.04 LTS)
 - **인스턴스 타입**: t3.medium (권장)
 - **키 페어**: 생성 및 다운로드 (예: `jb2-key.pem`)
 - **보안 그룹**:
   - SSH (22) - My IP
   - HTTP (80) - 0.0.0.0/0
   - HTTPS (443) - 0.0.0.0/0
+
+> **참고**: Amazon Linux는 기본 사용자가 `ec2-user`, Ubuntu는 `ubuntu`입니다.
 
 ---
 
@@ -52,7 +54,7 @@ bash scripts/setup-github-secrets.sh
 **스크립트가 물어보는 것:**
 1. EC2 SSH 키 파일 경로 (예: `~/.ssh/jb2-key.pem`)
 2. EC2 Public IP (예: `52.79.123.456`)
-3. EC2 사용자명 (기본값: `ubuntu`)
+3. EC2 사용자명 (Amazon Linux: `ec2-user`, Ubuntu: `ubuntu`)
 
 **자동으로 설정되는 Secrets:**
 - ✅ EC2_HOST, EC2_USER, EC2_SSH_KEY
@@ -64,19 +66,20 @@ bash scripts/setup-github-secrets.sh
 ### Step 2: EC2 초기 설정
 
 ```bash
-# EC2에 SSH 접속
-ssh -i ~/.ssh/jb2-key.pem ubuntu@<EC2-PUBLIC-IP>
+# EC2에 SSH 접속 (Amazon Linux: ec2-user, Ubuntu: ubuntu)
+ssh -i ~/.ssh/jb2-key.pem ec2-user@<EC2-PUBLIC-IP>
 
 # 프로젝트 클론
 git clone https://github.com/your-username/jb_square.git jb2-backoffice
 cd jb2-backoffice
 
 # 초기 설정 스크립트 실행 (Docker, Nginx 등 설치)
+# 스크립트가 자동으로 OS를 감지합니다 (Amazon Linux 2023, Amazon Linux 2, Ubuntu)
 sudo bash scripts/setup-ec2.sh
 
 # 재로그인 (docker 그룹 적용)
 exit
-ssh -i ~/.ssh/jb2-key.pem ubuntu@<EC2-PUBLIC-IP>
+ssh -i ~/.ssh/jb2-key.pem ec2-user@<EC2-PUBLIC-IP>
 ```
 
 ### Step 3: .env 파일 생성 (EC2에서)
@@ -93,8 +96,8 @@ nano .env
 
 **또는 로컬에서 파일 전송:**
 ```bash
-# 로컬에서 실행
-scp -i ~/.ssh/jb2-key.pem .env ubuntu@<EC2-IP>:~/jb2-backoffice/.env
+# 로컬에서 실행 (사용자명은 ec2-user 또는 ubuntu)
+scp -i ~/.ssh/jb2-key.pem .env ec2-user@<EC2-IP>:~/jb2-backoffice/.env
 ```
 
 ---
@@ -120,7 +123,7 @@ git push origin main
 
 ```bash
 # EC2 접속
-ssh -i ~/.ssh/jb2-key.pem ubuntu@<EC2-IP>
+ssh -i ~/.ssh/jb2-key.pem ec2-user@<EC2-IP>
 cd ~/jb2-backoffice
 
 # 배포 스크립트 실행
@@ -245,7 +248,7 @@ gh secret delete SECRET_NAME
 
 2. **EC2에서 수동 배포 시도**
    ```bash
-   ssh -i ~/.ssh/jb2-key.pem ubuntu@<EC2-IP>
+   ssh -i ~/.ssh/jb2-key.pem ec2-user@<EC2-IP>
    cd ~/jb2-backoffice
    bash scripts/deploy.sh
    ```
