@@ -1,0 +1,106 @@
+name: Deploy to EC2
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  DEPLOY_PATH: /home/ubuntu/jb2-backoffice
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Create .env file
+        run: |
+          cat > .env << EOF
+          AWS_REGION=${{ secrets.AWS_REGION }}
+          AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_S3_BUCKET_NAME=${{ secrets.AWS_S3_BUCKET_NAME }}
+          AWS_S3_REGION=${{ secrets.AWS_S3_REGION }}
+          AWS_DB_HOST=${{ secrets.AWS_DB_HOST }}
+          AWS_DB_PORT=${{ secrets.AWS_DB_PORT }}
+          AWS_DB_NAME=${{ secrets.AWS_DB_NAME }}
+          AWS_DB_USER=${{ secrets.AWS_DB_USER }}
+          AWS_DB_PASSWORD=${{ secrets.AWS_DB_PASSWORD }}
+          FLASK_ENV=production
+          FLASK_SECRET_KEY=${{ secrets.FLASK_SECRET_KEY }}
+          EOF
+
+      - name: Copy files to EC2
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "mkdir -p ${{ env.DEPLOY_PATH }}"
+          rsync -avz --delete \
+            -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" \
+            --exclude='.git' \
+            --exclude='node_modules' \
+            --exclude='venv' \
+            --exclude='__pycache__' \
+            --exclude='.env.local' \
+            ./ ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:${{ env.DEPLOY_PATH }}/
+
+      - name: Copy .env file
+        run: |
+          scp -i ~/.ssh/deploy_key .env ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:${{ env.DEPLOY_PATH }}/.env
+
+      - name: Deploy with Docker Compose
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+            cd ${{ env.DEPLOY_PATH }}
+
+            # Pull latest images and rebuild
+            docker-compose -f docker-compose.prod.yml pull
+            docker-compose -f docker-compose.prod.yml build
+
+            # Stop and remove old containers
+            docker-compose -f docker-compose.prod.yml down
+
+            # Start new containers
+            docker-compose -f docker-compose.prod.yml up -d
+
+            # Clean up old images
+            docker image prune -af
+          EOF
+
+      - name: Health Check
+        run: |
+          sleep 30
+          ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+            # Check if containers are running
+            docker-compose -f ${{ env.DEPLOY_PATH }}/docker-compose.prod.yml ps
+
+            # Check backend health
+            curl -f http://localhost:8000/health || exit 1
+
+            echo "✅ Deployment successful!"
+          EOF
+
+      - name: Cleanup
+        if: always()
+        run: |
+          rm -f ~/.ssh/deploy_key
+          rm -f .env
+
+      - name: Notify on success
+        if: success()
+        run: |
+          echo "🚀 Deployment to EC2 completed successfully!"
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "❌ Deployment failed. Check the logs for details."
