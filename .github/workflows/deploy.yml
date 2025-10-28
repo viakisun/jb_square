@@ -48,6 +48,10 @@ jobs:
           AWS_DB_PASSWORD=${{ secrets.AWS_DB_PASSWORD }}
           FLASK_ENV=production
           FLASK_SECRET_KEY=${{ secrets.FLASK_SECRET_KEY }}
+          CORS_ALLOWED_ORIGINS=${{ secrets.CORS_ALLOWED_ORIGINS }}
+          NTIS_API_KEY=${{ secrets.NTIS_API_KEY }}
+          BIZINFO_API_KEY=${{ secrets.BIZINFO_API_KEY }}
+          JBTP_API_KEY=${{ secrets.JBTP_API_KEY }}
           EOF
           echo "✅ .env file created with $(wc -l < .env) lines"
 
