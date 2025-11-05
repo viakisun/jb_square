@@ -143,8 +143,15 @@ jobs:
             docker-compose -f docker-compose.prod.yml up -d --no-build --force-recreate 2>&1
 
             echo ""
-            echo "⏳ Waiting 10 seconds for containers to start..."
-            sleep 10
+            echo "⏳ Waiting for backend to be healthy..."
+            for i in {1..30}; do
+              if docker exec jb2-backend-prod curl -f http://localhost:8000/health 2>/dev/null; then
+                echo "✅ Backend is healthy"
+                break
+              fi
+              echo "Waiting for backend... ($i/30)"
+              sleep 2
+            done
 
             echo ""
             echo "📊 Container status:"
