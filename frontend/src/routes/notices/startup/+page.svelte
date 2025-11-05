@@ -377,7 +377,18 @@
 			<div class="centers-list">
 				{#each filteredCenters as center (center.id)}
 					<div class="center-card">
-						<div class="center-header" role="button" tabindex="0" onclick={() => toggleCenter(center.id)}>
+						<div
+							class="center-header"
+							role="button"
+							tabindex="0"
+							onclick={() => toggleCenter(center.id)}
+							onkeydown={(e) => {
+								if (e.key === 'Enter' || e.key === ' ') {
+									e.preventDefault();
+									toggleCenter(center.id);
+								}
+							}}
+						>
 							<div class="center-info">
 								<h3 class="center-name">{center.center_name}</h3>
 								<p class="org-name">{center.org_name}</p>

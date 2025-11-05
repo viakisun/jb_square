@@ -367,15 +367,19 @@
 								<td>
 									<button
 										class="status-badge"
-										class:active={editingTag.is_active}
-										onclick={() => (editingTag.is_active = !editingTag.is_active)}
+										class:active={editingTag?.is_active}
+										onclick={() => {
+											if (editingTag) {
+												editingTag.is_active = !editingTag.is_active;
+											}
+										}}
 									>
-										{editingTag.is_active ? '활성' : '비활성'}
+										{editingTag?.is_active ? '활성' : '비활성'}
 									</button>
 								</td>
 								<td>
 									<div class="action-buttons">
-										<Button size="sm" variant="primary" onclick={() => updateTag(editingTag)}>
+										<Button size="sm" variant="primary" onclick={() => editingTag && updateTag(editingTag)}>
 											저장
 										</Button>
 										<Button size="sm" variant="outline" onclick={cancelEdit}>취소</Button>

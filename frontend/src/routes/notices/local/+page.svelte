@@ -47,8 +47,8 @@
 	let businessErrorMessage = $state('');
 
 	// Reference for scrolling
-	let businessCrawlingStatusRef: HTMLElement | null = null;
-	let businessQueueSectionRef: HTMLElement | null = null;
+	let businessCrawlingStatusRef = $state<HTMLElement | null>(null);
+	let businessQueueSectionRef = $state<HTMLElement | null>(null);
 
 	// ============================================
 	// Section 2: 유관기관공고 (External Notices)
@@ -72,8 +72,8 @@
 	let externalErrorMessage = $state('');
 
 	// Reference for scrolling
-	let externalCrawlingStatusRef: HTMLElement | null = null;
-	let externalQueueSectionRef: HTMLElement | null = null;
+	let externalCrawlingStatusRef = $state<HTMLElement | null>(null);
+	let externalQueueSectionRef = $state<HTMLElement | null>(null);
 
 	// ============================================
 	// Modal state

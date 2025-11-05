@@ -50,6 +50,14 @@
 		}
 	}
 
+	function handleKeyDown(event: KeyboardEvent) {
+		// Handle Enter or Space key for keyboard accessibility
+		if (event.key === 'Enter' || event.key === ' ') {
+			event.preventDefault();
+			handleCardClick();
+		}
+	}
+
 	function handleCheckboxChange() {
 		if (onSelect) {
 			onSelect(notice.id);
@@ -97,7 +105,14 @@
 	const daysLeft = $derived(getDaysUntilDeadline(notice.deadline));
 </script>
 
-<article class="notice-card" class:selectable onclick={handleCardClick}>
+<article
+	class="notice-card"
+	class:selectable
+	onclick={handleCardClick}
+	onkeydown={handleKeyDown}
+	tabindex={selectable ? 0 : undefined}
+	role={selectable ? "button" : undefined}
+>
 	{#if selectable}
 		<div class="checkbox-column">
 			<Checkbox checked={selected} onchange={handleCheckboxChange} />
