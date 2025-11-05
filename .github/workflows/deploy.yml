@@ -99,22 +99,42 @@ jobs:
             ls -la
 
             echo ""
-            echo "🔍 Checking Docker..."
+            echo "🔍 Checking Docker and Docker Compose versions..."
             docker --version
-            docker-compose --version
+            docker compose version
 
             echo ""
             echo "🛑 Stopping and removing old containers..."
             # Force remove existing containers to prevent name conflicts
             docker rm -f jb2-backend-prod jb2-frontend-prod jb2-nginx-prod 2>/dev/null || true
-            # Clean stop with docker-compose
-            docker-compose -f docker-compose.prod.yml down --remove-orphans 2>&1
+            # Clean stop with docker compose v2
+            docker compose -f docker-compose.prod.yml down --remove-orphans 2>&1
 
             echo ""
             echo "🔨 Building and starting Docker containers..."
-            # Use 'up' with --build flag to build and start in one command
-            # This avoids the buildx version requirement
-            docker-compose -f docker-compose.prod.yml up -d --build --force-recreate 2>&1
+            # Try docker compose v2 first (without hyphen)
+            if docker compose -f docker-compose.prod.yml up -d --build --force-recreate 2>&1; then
+              echo "✅ Docker Compose v2 build successful"
+            else
+              echo "⚠️ Docker Compose build failed, trying fallback method..."
+              echo "Building images individually..."
+
+              # Build backend
+              echo "Building backend..."
+              cd backend
+              docker build -t jb2-backend:latest . 2>&1
+              cd ..
+
+              # Build frontend
+              echo "Building frontend..."
+              cd frontend
+              docker build -t jb2-frontend:latest . 2>&1
+              cd ..
+
+              # Start containers without building
+              echo "Starting containers..."
+              docker compose -f docker-compose.prod.yml up -d --no-build --force-recreate 2>&1
+            fi
 
             echo ""
             echo "⏳ Waiting 10 seconds for containers to start..."
@@ -122,20 +142,32 @@ jobs:
 
             echo ""
             echo "📊 Container status:"
-            docker-compose -f docker-compose.prod.yml ps 2>&1
+            docker compose -f docker-compose.prod.yml ps 2>&1
+
+            echo ""
+            echo "🔍 Verifying each container is running..."
+            for container in jb2-backend-prod jb2-frontend-prod jb2-nginx-prod; do
+              if docker ps | grep -q $container; then
+                echo "✅ $container is running"
+              else
+                echo "❌ $container is NOT running"
+                echo "Checking logs for $container:"
+                docker logs $container --tail=20 2>&1 || echo "No logs available"
+              fi
+            done
 
             echo ""
             echo "📝 Recent container logs:"
             echo "--- Backend logs (last 20 lines) ---"
-            docker-compose -f docker-compose.prod.yml logs --tail=20 backend 2>&1 || echo "Cannot get backend logs"
+            docker compose -f docker-compose.prod.yml logs --tail=20 backend 2>&1 || echo "Cannot get backend logs"
 
             echo ""
             echo "--- Frontend logs (last 20 lines) ---"
-            docker-compose -f docker-compose.prod.yml logs --tail=20 frontend 2>&1 || echo "Cannot get frontend logs"
+            docker compose -f docker-compose.prod.yml logs --tail=20 frontend 2>&1 || echo "Cannot get frontend logs"
 
             echo ""
             echo "--- Nginx logs (last 20 lines) ---"
-            docker-compose -f docker-compose.prod.yml logs --tail=20 nginx 2>&1 || echo "Cannot get nginx logs"
+            docker compose -f docker-compose.prod.yml logs --tail=20 nginx 2>&1 || echo "Cannot get nginx logs"
 
             echo ""
             echo "🧹 Cleaning up unused images..."
@@ -163,7 +195,7 @@ jobs:
 
             echo ""
             echo "📊 Final container status:"
-            docker-compose -f docker-compose.prod.yml ps 2>&1
+            docker compose -f docker-compose.prod.yml ps 2>&1
 
             echo ""
             echo "🔍 Checking running containers:"
@@ -180,7 +212,7 @@ jobs:
             else
               echo "❌ Backend health check failed!"
               echo "Backend logs (last 50 lines):"
-              docker-compose -f docker-compose.prod.yml logs --tail=50 backend 2>&1
+              docker compose -f docker-compose.prod.yml logs --tail=50 backend 2>&1
               exit 1
             fi
 
@@ -215,15 +247,15 @@ jobs:
             echo ""
             echo "📝 Full container logs:"
             echo "========== Backend Logs =========="
-            docker-compose -f docker-compose.prod.yml logs backend 2>&1 || echo "No backend logs"
+            docker compose -f docker-compose.prod.yml logs backend 2>&1 || echo "No backend logs"
 
             echo ""
             echo "========== Frontend Logs =========="
-            docker-compose -f docker-compose.prod.yml logs frontend 2>&1 || echo "No frontend logs"
+            docker compose -f docker-compose.prod.yml logs frontend 2>&1 || echo "No frontend logs"
 
             echo ""
             echo "========== Nginx Logs =========="
-            docker-compose -f docker-compose.prod.yml logs nginx 2>&1 || echo "No nginx logs"
+            docker compose -f docker-compose.prod.yml logs nginx 2>&1 || echo "No nginx logs"
 
             echo ""
             echo "💾 Disk space:"
