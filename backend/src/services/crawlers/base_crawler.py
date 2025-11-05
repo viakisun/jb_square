@@ -179,19 +179,42 @@ class BaseCrawler(ABC):
                     # 3. 기존 항목이 있으면 데이터 업데이트 (최신 정보 반영)
                     existing.link = notice.get('link')
                     existing.source_board_name = notice.get('board')
-                    existing.raw_data = notice
+                    # notice에 raw_data 키가 있으면 그 값만 저장, 없으면 notice 전체 저장
+                    existing.raw_data = notice.get('raw_data', notice)
                     existing.crawler_extracted_at = datetime.now()
+                    # 구조화된 필드 업데이트
+                    deadline_dt = self.parse_date(notice.get('deadline')) if notice.get('deadline') else None
+                    existing.deadline = deadline_dt.date() if deadline_dt else None
+                    published_dt = self.parse_date(notice.get('published_date')) if notice.get('published_date') else None
+                    existing.published_date = published_dt.date() if published_dt else None
+                    existing.organization = notice.get('organization')
+                    existing.department = notice.get('department')
+                    existing.contact = notice.get('contact')
+                    existing.views = notice.get('views', 0)
+                    existing.status = notice.get('status')
                     updated_existing += 1
                 else:
                     # 4. 새로운 항목 추가
+                    deadline_dt = self.parse_date(notice.get('deadline')) if notice.get('deadline') else None
+                    published_dt = self.parse_date(notice.get('published_date')) if notice.get('published_date') else None
+
                     queue_item = CrawlQueue(
                         crawler_source_id=self.source_id,
                         title=title,
                         link=notice.get('link'),
                         source_board_name=notice.get('board'),
-                        raw_data=notice,
+                        # notice에 raw_data 키가 있으면 그 값만 저장, 없으면 notice 전체 저장
+                        raw_data=notice.get('raw_data', notice),
                         crawler_extracted_at=datetime.now(),
-                        rejection_status=None  # NULL = pending review
+                        rejection_status=None,  # NULL = pending review
+                        # 구조화된 필드 추가
+                        deadline=deadline_dt.date() if deadline_dt else None,
+                        published_date=published_dt.date() if published_dt else None,
+                        organization=notice.get('organization'),
+                        department=notice.get('department'),
+                        contact=notice.get('contact'),
+                        views=notice.get('views', 0),
+                        status=notice.get('status')
                     )
                     db.add(queue_item)
                     added_new += 1

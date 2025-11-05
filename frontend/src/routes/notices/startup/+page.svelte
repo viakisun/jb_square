@@ -66,7 +66,7 @@
 	async function loadCenters() {
 		loading = true;
 		try {
-			const res = await fetch(`${API_BASE}/bi-centers/list`);
+			const res = await fetch(`${API_BASE_URL}/bi-centers/list`);
 			const data = await res.json();
 			allCenters = data.items;
 			applyFilters();
@@ -79,7 +79,7 @@
 
 	async function loadStats() {
 		try {
-			const res = await fetch(`${API_BASE}/bi-centers/stats/overview`);
+			const res = await fetch(`${API_BASE_URL}/bi-centers/stats/overview`);
 			stats = await res.json();
 		} catch (error) {
 			console.error('Failed to load stats:', error);
@@ -93,7 +93,7 @@
 		}
 
 		try {
-			const res = await fetch(`${API_BASE}/bi-centers/${centerId}/companies`);
+			const res = await fetch(`${API_BASE_URL}/bi-centers/${centerId}/companies`);
 			const data = await res.json();
 			companies[centerId] = data.items;
 		} catch (error) {

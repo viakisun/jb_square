@@ -56,7 +56,17 @@
 				configs = (data.items || []).filter((c: JBTPConfig) => c.name !== '채용공고');
 			} else {
 				// NTIS and Bizinfo return single config object, wrap in array
-				configs = data ? [data] : [];
+				// Add name and board_url for display compatibility
+				if (data) {
+					const configWithDisplay = {
+						...data,
+						name: sourceType === 'ntis' ? 'NTIS API 검색' : 'K-Startup API 검색',
+						board_url: sourceType === 'ntis' ? 'https://www.ntis.go.kr' : 'https://www.k-startup.go.kr'
+					};
+					configs = [configWithDisplay];
+				} else {
+					configs = [];
+				}
 			}
 		} catch (error) {
 			console.error('Failed to load configs:', error);

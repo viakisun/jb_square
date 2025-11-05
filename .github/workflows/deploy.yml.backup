@@ -104,19 +104,24 @@ jobs:
             docker-compose --version
 
             echo ""
-            echo "🛑 Stopping and removing old containers..."
-            # Force remove existing containers to prevent name conflicts
-            docker rm -f jb2-backend-prod jb2-frontend-prod jb2-nginx-prod 2>/dev/null || true
-            # Clean stop with docker-compose
-            docker-compose -f docker-compose.prod.yml down --remove-orphans 2>&1
+            echo "🛑 Stopping old containers..."
+            docker-compose -f docker-compose.prod.yml down 2>&1 || echo "No containers to stop"
 
             echo ""
-            echo "🔨 Building Docker images with docker-compose..."
-            docker-compose -f docker-compose.prod.yml build --no-cache 2>&1
+            echo "🔨 Building Docker images..."
+            echo "   Backend build starting..."
+            cd backend
+            docker build -t jb2-backend:latest . 2>&1
+            cd ..
+
+            echo "   Frontend build starting..."
+            cd frontend
+            docker build -t jb2-frontend:latest . 2>&1
+            cd ..
 
             echo ""
-            echo "🚀 Starting containers with force-recreate..."
-            docker-compose -f docker-compose.prod.yml up -d --force-recreate 2>&1
+            echo "🚀 Starting containers..."
+            docker-compose -f docker-compose.prod.yml up -d --no-build 2>&1
 
             echo ""
             echo "⏳ Waiting 10 seconds for containers to start..."

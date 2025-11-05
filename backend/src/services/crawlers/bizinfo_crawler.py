@@ -3,7 +3,6 @@ Bizinfo Crawler
 기업마당 API 크롤러
 """
 
-import os
 import requests
 from datetime import datetime
 from typing import Callable, Optional
@@ -22,161 +21,212 @@ class BizinfoCrawler(BaseCrawler):
     def __init__(self):
         super().__init__("bizinfo")
 
+    def _parse_date_range(self, date_str: str):
+        """접수기간 파싱 (예: '2025-10-27 ~ 2025-11-04')"""
+        try:
+            if '~' in date_str:
+                parts = date_str.split('~')
+                start_date = parts[0].strip()
+                end_date = parts[1].strip() if len(parts) > 1 else start_date
+                return start_date, end_date
+            return date_str.strip(), date_str.strip()
+        except Exception:
+            return '', ''
+
     async def execute(self, callback: Optional[Callable] = None):
         """크롤링 실행"""
         try:
-            # API 키 확인
-            api_key = os.getenv('BIZINFO_API_KEY', '').strip()
-
-            if not api_key:
-                raise ValueError(
-                    "기업마당 API 키가 설정되지 않았습니다. "
-                    ".env 파일에 BIZINFO_API_KEY를 입력해주세요. "
-                    "API 키 신청: https://www.bizinfo.go.kr/web/lay1/program/S1T175C174/apiDetail.do"
-                )
+            await self.send_event(callback, "log", {
+                "source_id": self.source_id,
+                "message": "기업마당 설정 로드 완료"
+            })
 
             await self.send_event(callback, "start", {
                 "source_id": self.source_id,
-                "message": "기업마당 API 데이터 수집을 시작합니다..."
+                "message": "기업마당 웹 크롤링을 시작합니다..."
             })
 
             rate_limiter = RateLimiter(0.5)
             all_notices = []
 
-            # 기업마당 API 엔드포인트
-            api_url = "https://www.bizinfo.go.kr/uss/rss/bizinfoApi.do"
+            # 기업마당 웹 페이지 URL
+            base_url = "https://www.bizinfo.go.kr/web/lay1/bbs/S1T122C128/AS/74/list.do"
 
-            # API 파라미터
-            # crtfcKey는 필수 파라미터, 미입력 시 XML 형태로 반환, 조회건수 미입력시 전체 조회
+            # 크롤링 파라미터
             params = {
-                "crtfcKey": api_key
+                'rows': '100',  # 페이지당 100개
+                'cpage': '1',
+                'schAreaDetailCodes': '6450000',  # 전북
+                'schEndAt': 'N',  # 진행 중인 공고만
             }
 
-            self.status["total"] = 1
+            # 최대 5페이지까지 크롤링
+            max_pages = 5
+            self.status["total"] = max_pages
 
-            # 중단 체크
-            if self.stop_flag:
-                await self.send_event(callback, "stopped", {
+            for page in range(1, max_pages + 1):
+                # 중단 체크
+                if self.stop_flag:
+                    await self.send_event(callback, "stopped", {
+                        "source_id": self.source_id,
+                        "message": "데이터 수집이 사용자에 의해 중단되었습니다."
+                    })
+                    self.status["status"] = CrawlerStatus.STOPPED
+                    return
+
+                rate_limiter.wait()
+
+                params['cpage'] = str(page)
+
+                await self.send_event(callback, "log", {
                     "source_id": self.source_id,
-                    "message": "데이터 수집이 사용자에 의해 중단되었습니다."
+                    "message": f"페이지 {page} 크롤링 중..."
                 })
-                self.status["status"] = CrawlerStatus.STOPPED
-                return
 
-            rate_limiter.wait()
+                try:
+                    response = requests.get(base_url, params=params, timeout=30)
 
-            await self.send_event(callback, "log", {
-                "source_id": self.source_id,
-                "message": "API 호출 중..."
-            })
-
-            try:
-                response = requests.get(api_url, params=params, timeout=30)
-
-                if response.status_code == 200:
-                    # 응답 파싱 (XML/RSS 형식)
-                    try:
+                    if response.status_code == 200:
                         from bs4 import BeautifulSoup
 
-                        soup = BeautifulSoup(response.text, 'xml')
+                        soup = BeautifulSoup(response.text, 'html.parser')
 
-                        # 에러 체크
-                        req_err = soup.find('reqErr')
-                        if req_err and req_err.get_text(strip=True):
-                            error_msg = req_err.get_text(strip=True)
-                            raise ValueError(f"API 인증 오류: {error_msg}")
+                        # tbody에서 tr 찾기
+                        tbody = soup.find('tbody')
+                        if not tbody:
+                            await self.send_event(callback, "log", {
+                                "source_id": self.source_id,
+                                "message": f"  ⚠ 페이지 {page}: 데이터 없음 (크롤링 종료)"
+                            })
+                            break
 
-                        # RSS item 파싱
-                        items = soup.find_all('item')
+                        rows = tbody.find_all('tr')
+                        if not rows:
+                            await self.send_event(callback, "log", {
+                                "source_id": self.source_id,
+                                "message": f"  ⚠ 페이지 {page}: 공고 없음 (크롤링 종료)"
+                            })
+                            break
 
-                        notices = []
-                        for item in items:
-                            title = item.find('title')
-                            link = item.find('link')
-                            pub_date = item.find('pubDate')
-                            description = item.find('description')
-                            category = item.find('category')
+                        page_notices = []
+                        for row in rows:
+                            try:
+                                cells = row.find_all('td')
+                                if len(cells) < 8:
+                                    continue
 
-                            notice = {
-                                'title': title.get_text(strip=True) if title else '',
-                                'link': link.get_text(strip=True) if link else '',
-                                'date': pub_date.get_text(strip=True) if pub_date else '',
-                                'board': category.get_text(strip=True) if category else '지원사업',
-                                'source': 'Bizinfo',
-                                'extracted_at': datetime.now().isoformat(),
-                                'raw_data': {
-                                    'detail': {
-                                        'description': description.get_text(strip=True) if description else ''
+                                # 컬럼 파싱
+                                category = cells[1].get_text(strip=True)
+                                title_cell = cells[2]
+                                title_link = title_cell.find('a')
+                                date_range = cells[3].get_text(strip=True)
+                                ministry = cells[4].get_text(strip=True)
+                                organization = cells[5].get_text(strip=True)
+                                published = cells[6].get_text(strip=True)
+                                views = cells[7].get_text(strip=True)
+
+                                if not title_link:
+                                    continue
+
+                                title = title_link.get_text(strip=True)
+                                link_href = title_link.get('href', '')
+
+                                # 상대 경로를 절대 경로로 변환
+                                if link_href and not link_href.startswith('http'):
+                                    link_href = f"https://www.bizinfo.go.kr/web/lay1/bbs/S1T122C128/AS/74/{link_href}"
+
+                                # 접수기간 파싱
+                                start_date, end_date = self._parse_date_range(date_range)
+
+                                # 디버깅: 첫 번째 공고의 날짜 정보 로그
+                                if len(page_notices) == 0:
+                                    await self.send_event(callback, "log", {
+                                        "source_id": self.source_id,
+                                        "message": f"  [DEBUG] published='{published}', date_range='{date_range}', end_date='{end_date}'"
+                                    })
+
+                                notice = {
+                                    'title': title,
+                                    'link': link_href,
+                                    'date': end_date,  # 마감일을 대표 날짜로
+                                    'board': category,
+                                    'source': 'Bizinfo',
+                                    'extracted_at': datetime.now().isoformat(),
+                                    # 구조화된 필드 추가
+                                    'deadline': end_date if end_date else None,
+                                    'published_date': published if published else None,
+                                    'organization': organization if organization else None,
+                                    'department': ministry if ministry else None,  # 부처명을 department로
+                                    'views': int(views) if views and views.isdigit() else 0,
+                                    'status': '접수중',  # schEndAt=N이므로 진행 중인 공고만
+                                    'raw_data': {
+                                        'detail': {
+                                            'category': category,
+                                            'date_range': date_range,
+                                            'start_date': start_date,
+                                            'end_date': end_date,
+                                            'ministry': ministry,
+                                            'organization': organization,
+                                            'published_date': published,
+                                            'views': views,
+                                        }
                                     }
                                 }
-                            }
 
-                            if notice['title']:  # 제목이 있는 경우만 추가
-                                notices.append(notice)
+                                page_notices.append(notice)
 
+                            except Exception as e:
                                 await self.send_event(callback, "log", {
                                     "source_id": self.source_id,
-                                    "message": f"  ✓ [{notice['board']}] {notice['title'][:60]}{'...' if len(notice['title']) > 60 else ''}"
+                                    "message": f"  ⚠ 행 파싱 오류: {str(e)}"
                                 })
+                                continue
 
-                        if notices:
-                            all_notices.extend(notices)
+                        if page_notices:
+                            all_notices.extend(page_notices)
                             self.status["success"] += 1
 
                             await self.send_event(callback, "log", {
                                 "source_id": self.source_id,
-                                "message": f"  → {len(notices)}개 공고 수집 완료"
+                                "message": f"  ✓ 페이지 {page}: {len(page_notices)}개 공고 수집 완료"
                             })
                         else:
-                            self.status["failed"] += 1
                             await self.send_event(callback, "log", {
                                 "source_id": self.source_id,
-                                "message": f"  ⚠ 데이터가 없습니다"
+                                "message": f"  ⚠ 페이지 {page}: 공고 없음 (크롤링 종료)"
                             })
+                            break
 
-                    except (ValueError, KeyError) as e:
-                        # 파싱 오류
+                    else:
                         self.status["failed"] += 1
                         await self.send_event(callback, "log", {
                             "source_id": self.source_id,
-                            "message": f"  ✗ API 응답 파싱 오류: {str(e)}"
+                            "message": f"  ✗ 페이지 {page}: HTTP {response.status_code} 오류"
                         })
-                else:
+
+                except requests.exceptions.Timeout:
                     self.status["failed"] += 1
                     await self.send_event(callback, "log", {
                         "source_id": self.source_id,
-                        "message": f"  ✗ HTTP {response.status_code} 오류"
+                        "message": f"  ✗ 페이지 {page}: 요청 시간 초과"
+                    })
+                except Exception as e:
+                    self.status["failed"] += 1
+                    await self.send_event(callback, "log", {
+                        "source_id": self.source_id,
+                        "message": f"  ✗ 페이지 {page}: {str(e)}"
                     })
 
-            except requests.exceptions.Timeout:
-                self.status["failed"] += 1
-                await self.send_event(callback, "log", {
+                # Progress update
+                self.status["progress"] = page
+                await self.send_event(callback, "progress", {
                     "source_id": self.source_id,
-                    "message": f"  ✗ API 요청 시간 초과"
+                    "progress": page,
+                    "total": max_pages,
+                    "percentage": int((page / max_pages) * 100),
+                    "success": self.status["success"],
+                    "failed": self.status["failed"]
                 })
-            except requests.exceptions.RequestException as e:
-                self.status["failed"] += 1
-                await self.send_event(callback, "log", {
-                    "source_id": self.source_id,
-                    "message": f"  ✗ 네트워크 오류: {str(e)}"
-                })
-            except Exception as e:
-                self.status["failed"] += 1
-                await self.send_event(callback, "log", {
-                    "source_id": self.source_id,
-                    "message": f"  ✗ 오류: {str(e)}"
-                })
-
-            # Progress update
-            self.status["progress"] = 1
-            await self.send_event(callback, "progress", {
-                "source_id": self.source_id,
-                "progress": 1,
-                "total": 1,
-                "percentage": 100,
-                "success": self.status["success"],
-                "failed": self.status["failed"]
-            })
 
             # DB에서 키워드 로드
             keywords = self.get_keywords()
@@ -201,16 +251,6 @@ class BizinfoCrawler(BaseCrawler):
                 "success": self.status["success"],
                 "failed": self.status["failed"],
                 "rate_limit_stats": rate_limiter.get_stats()
-            })
-
-        except ValueError as e:
-            # API 키 누락 오류
-            self.status["status"] = CrawlerStatus.ERROR
-            self.status["error_message"] = str(e)
-
-            await self.send_event(callback, "error", {
-                "source_id": self.source_id,
-                "message": str(e)
             })
 
         except Exception as e:
