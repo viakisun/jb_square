@@ -61,7 +61,18 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    return {"status": "healthy"}
+    """헬스체크 엔드포인트 - 데이터베이스 연결 확인"""
+    from src.core.database import engine
+    from sqlalchemy import text
+    try:
+        # 데이터베이스 연결 테스트
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        return {"status": "healthy", "database": "connected"}
+    except Exception as e:
+        # 데이터베이스 연결 실패해도 서버는 실행 중이므로 200 반환
+        # 하지만 상태는 degraded로 표시
+        return {"status": "degraded", "database": "disconnected", "error": str(e)}
 
 
 @app.post("/init-db")

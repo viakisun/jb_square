@@ -10,10 +10,15 @@ from sqlalchemy import create_engine, Column, Integer, String, Text, Boolean, Da
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-# .env 파일 로드 (backend 루트에서 찾기)
-env_path = Path(__file__).parent.parent.parent / '.env'
-load_dotenv(env_path)
-print(f"Loading .env from: {env_path}")
+# .env 파일 로드 (로컬 개발 환경용)
+# Docker 환경에서는 환경 변수가 이미 설정되어 있음
+if not os.getenv('AWS_DB_HOST'):
+    env_path = Path(__file__).parent.parent.parent / '.env'
+    if env_path.exists():
+        load_dotenv(env_path)
+        print(f"Loading .env from: {env_path}")
+    else:
+        print("No .env file found, using environment variables")
 
 # 데이터베이스 설정
 DB_HOST = os.getenv('AWS_DB_HOST')
@@ -22,7 +27,17 @@ DB_NAME = os.getenv('AWS_DB_NAME')
 DB_USER = os.getenv('AWS_DB_USER')
 DB_PASSWORD = os.getenv('AWS_DB_PASSWORD')
 
+# 데이터베이스 연결 검증
+if not all([DB_HOST, DB_NAME, DB_USER, DB_PASSWORD]):
+    print(f"Missing database configuration:")
+    print(f"  DB_HOST: {'✓' if DB_HOST else '✗'}")
+    print(f"  DB_NAME: {'✓' if DB_NAME else '✗'}")
+    print(f"  DB_USER: {'✓' if DB_USER else '✗'}")
+    print(f"  DB_PASSWORD: {'✓' if DB_PASSWORD else '✗'}")
+    raise ValueError("Database configuration incomplete. Please check environment variables.")
+
 DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+print(f"Connecting to database at {DB_HOST}:{DB_PORT}/{DB_NAME}")
 
 # SQLAlchemy 엔진 생성
 engine = create_engine(
