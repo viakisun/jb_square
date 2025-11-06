@@ -30,8 +30,10 @@ RUN adduser -S nextjs -u 1001
 # Copy necessary files from builder
 COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/public ./public
 COPY --from=builder /app/node_modules ./node_modules
+
+# Create public folder if it doesn't exist
+RUN mkdir -p ./public
 
 # Change ownership to nextjs user
 RUN chown -R nextjs:nodejs /app
