@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 
 interface FeedbackMemoProps {
   pagePath: string;
@@ -15,8 +15,8 @@ interface Memo {
 
 const FeedbackMemo: React.FC<FeedbackMemoProps> = ({ pagePath, pageTitle }) => {
   const [memos, setMemos] = useState<Memo[]>([]);
-  const [newMemo, setNewMemo] = useState('');
-  const [author, setAuthor] = useState('');
+  const [newMemo, setNewMemo] = useState("");
+  const [author, setAuthor] = useState("");
   const [isExpanded, setIsExpanded] = useState(false);
 
   // 로컬 스토리지에서 메모 불러오기
@@ -35,26 +35,28 @@ const FeedbackMemo: React.FC<FeedbackMemoProps> = ({ pagePath, pageTitle }) => {
       id: Date.now().toString(),
       content: newMemo,
       author: author,
-      timestamp: new Date().toLocaleString('ko-KR'),
-      pagePath: pagePath
+      timestamp: new Date().toLocaleString("ko-KR"),
+      pagePath: pagePath,
     };
 
     const updatedMemos = [...memos, memo];
     setMemos(updatedMemos);
     localStorage.setItem(`memos_${pagePath}`, JSON.stringify(updatedMemos));
-    
+
     // 실시간 알림을 위한 커스텀 이벤트 발생
-    window.dispatchEvent(new CustomEvent('newFeedback', { 
-      detail: { ...memo, pageTitle } 
-    }));
-    
-    setNewMemo('');
-    setAuthor('');
+    window.dispatchEvent(
+      new CustomEvent("newFeedback", {
+        detail: { ...memo, pageTitle },
+      }),
+    );
+
+    setNewMemo("");
+    setAuthor("");
   };
 
   // 메모 삭제
   const deleteMemo = (id: string) => {
-    const updatedMemos = memos.filter(memo => memo.id !== id);
+    const updatedMemos = memos.filter((memo) => memo.id !== id);
     setMemos(updatedMemos);
     localStorage.setItem(`memos_${pagePath}`, JSON.stringify(updatedMemos));
   };
@@ -70,7 +72,7 @@ const FeedbackMemo: React.FC<FeedbackMemoProps> = ({ pagePath, pageTitle }) => {
             onClick={() => setIsExpanded(!isExpanded)}
             className="border border-gray-300 px-3 py-1 bg-white hover:bg-gray-100 text-sm"
           >
-            {isExpanded ? '접기' : '펼치기'} ({memos.length})
+            {isExpanded ? "접기" : "펼치기"} ({memos.length})
           </button>
         </div>
 
@@ -119,7 +121,10 @@ const FeedbackMemo: React.FC<FeedbackMemoProps> = ({ pagePath, pageTitle }) => {
                 </div>
               ) : (
                 memos.map((memo) => (
-                  <div key={memo.id} className="border border-gray-300 bg-white p-4">
+                  <div
+                    key={memo.id}
+                    className="border border-gray-300 bg-white p-4"
+                  >
                     <div className="flex justify-between items-start mb-2">
                       <div className="flex items-center space-x-2">
                         <span className="font-medium text-gray-800 text-sm">
@@ -147,8 +152,9 @@ const FeedbackMemo: React.FC<FeedbackMemoProps> = ({ pagePath, pageTitle }) => {
             {/* 안내 메시지 */}
             <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded">
               <p className="text-sm text-blue-800">
-                💡 <strong>피드백 가이드:</strong> 이 페이지의 디자인, 기능, 사용성에 대한 의견을 자유롭게 남겨주세요. 
-                "이랬으면 좋겠다", "저랬으면 좋겠다" 같은 구체적인 제안도 환영합니다!
+                💡 <strong>피드백 가이드:</strong> 이 페이지의 디자인, 기능,
+                사용성에 대한 의견을 자유롭게 남겨주세요. "이랬으면 좋겠다",
+                "저랬으면 좋겠다" 같은 구체적인 제안도 환영합니다!
               </p>
             </div>
           </>
