@@ -50,7 +50,7 @@
 			sortable: true,
 			width: '25%',
 			align: 'right',
-			render: (value) => `D-${value}`
+			render: (value: any) => `D-${value}`
 		}
 	];
 
@@ -63,7 +63,7 @@
 			sortable: true,
 			width: '30%',
 			align: 'right',
-			render: (value) => `${value}개`
+			render: (value: any) => `${value}개`
 		}
 	];
 
@@ -76,7 +76,7 @@
 			sortable: true,
 			width: '15%',
 			align: 'right',
-			render: (value) => `${value}건`
+			render: (value: any) => `${value}건`
 		},
 		{ key: 'timestamp', label: '실행 시간', sortable: true, width: '25%' },
 		{ key: 'duration', label: '소요 시간', sortable: true, width: '25%', align: 'right' }

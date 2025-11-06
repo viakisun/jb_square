@@ -21,6 +21,7 @@
 		},
 		{ path: '/contents', label: '콘텐츠 관리' },
 		{ path: '/organizations', label: '기업·기관' },
+		{ path: '/ksic', label: 'KSIC 코드' },
 		{ path: '/analytics', label: '통계' }
 	];
 </script>

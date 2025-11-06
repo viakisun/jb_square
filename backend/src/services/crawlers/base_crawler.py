@@ -148,6 +148,11 @@ class BaseCrawler(ABC):
         """
         db = SessionLocal()
         try:
+            # DEBUG: Log what we're processing
+            print(f"\n[{self.source_id}] save_results 시작")
+            print(f"  - 공고 개수: {len(notices)}")
+            print(f"  - 키워드: {keywords}")
+
             skipped_rejected = 0
             skipped_duplicates = 0
             skipped_filtered = 0
@@ -157,10 +162,14 @@ class BaseCrawler(ABC):
             for notice in notices:
                 title = notice['title']
 
+                # DEBUG: Log each notice being processed
+                print(f"\n  처리 중: {title[:50]}...")
+
                 # 0. 키워드 필터링 (키워드가 설정되어 있으면)
                 if keywords:
                     matched = self.match_keywords(title, keywords)
                     if not matched:
+                        print(f"    → 키워드 매칭 안됨, 스킵")
                         skipped_filtered += 1
                         continue  # 키워드 매칭 안되면 저장하지 않음
 
@@ -172,36 +181,92 @@ class BaseCrawler(ABC):
                     CrawlQueue.notice_id.is_(None)
                 ).first()
 
+                # DEBUG: Log existence check result
+                print(f"    → 기존 항목 존재 여부: {existing is not None}")
+
                 if existing:
                     # 2. 거부된 항목이면 스킵 (다시 추가하지 않음)
                     if existing.rejection_status == 'rejected':
+                        print(f"    → 거부된 항목, 스킵")
                         skipped_rejected += 1
                         continue
 
                     # 3. 기존 항목이 있으면 데이터 업데이트 (최신 정보 반영)
+                    print(f"    → 기존 항목 업데이트 (ID: {existing.id})")
                     existing.link = notice.get('link')
                     existing.source_board_name = notice.get('board')
                     # notice에 raw_data 키가 있으면 그 값만 저장, 없으면 notice 전체 저장
                     existing.raw_data = notice.get('raw_data', notice)
                     existing.crawler_extracted_at = datetime.now()
                     # 구조화된 필드 업데이트
-                    deadline_dt = self.parse_date(notice.get('deadline')) if notice.get('deadline') else None
-                    existing.deadline = deadline_dt.date() if deadline_dt else None
-                    published_dt = self.parse_date(notice.get('published_date')) if notice.get('published_date') else None
-                    existing.published_date = published_dt.date() if published_dt else None
+                    # deadline 처리: 이미 datetime 객체이거나 문자열일 수 있음
+                    deadline_value = notice.get('deadline')
+                    if deadline_value:
+                        if isinstance(deadline_value, datetime):
+                            existing.deadline = deadline_value
+                        else:
+                            existing.deadline = self.parse_date(deadline_value)
+                    else:
+                        existing.deadline = None
+
+                    # published_date 처리: 이미 datetime 객체이거나 문자열일 수 있음
+                    published_value = notice.get('published_date')
+                    if published_value:
+                        if isinstance(published_value, datetime):
+                            existing.published_date = published_value.date()
+                        else:
+                            parsed = self.parse_date(published_value)
+                            existing.published_date = parsed.date() if parsed else None
+                    else:
+                        existing.published_date = None
                     existing.organization = notice.get('organization')
                     existing.department = notice.get('department')
                     existing.contact = notice.get('contact')
-                    existing.views = notice.get('views', 0)
+                    # views 필드 안전하게 처리
+                    views_value = notice.get('views', 0)
+                    try:
+                        existing.views = int(views_value) if views_value else 0
+                    except (ValueError, TypeError):
+                        existing.views = 0
                     existing.status = notice.get('status')
                     updated_existing += 1
                 else:
                     # 4. 새로운 항목 추가 (데이터베이스 트리거가 중복 체크 및 업데이트 처리)
                     # 트리거가 자동으로 중복 감지 시 기존 항목 업데이트하므로 try-except 사용
                     try:
-                        deadline_dt = self.parse_date(notice.get('deadline')) if notice.get('deadline') else None
-                        published_dt = self.parse_date(notice.get('published_date')) if notice.get('published_date') else None
+                        print(f"    → 신규 항목 추가 시도")
 
+                        # deadline 처리: 이미 datetime 객체이거나 문자열일 수 있음
+                        deadline_value = notice.get('deadline')
+                        if deadline_value:
+                            if isinstance(deadline_value, datetime):
+                                deadline_dt = deadline_value
+                            else:
+                                deadline_dt = self.parse_date(deadline_value)
+                        else:
+                            deadline_dt = None
+
+                        # published_date 처리: 이미 datetime 객체이거나 문자열일 수 있음
+                        published_value = notice.get('published_date')
+                        if published_value:
+                            if isinstance(published_value, datetime):
+                                published_dt = published_value
+                            else:
+                                published_dt = self.parse_date(published_value)
+                        else:
+                            published_dt = None
+
+                        # views 필드 안전하게 처리 (문자열일 경우 정수로 변환)
+                        views_value = notice.get('views', 0)
+                        print(f"    → views_value 원본: {repr(views_value)} (타입: {type(views_value)})")
+                        try:
+                            views_int = int(views_value) if views_value else 0
+                            print(f"    → views_int 변환 후: {views_int}")
+                        except (ValueError, TypeError) as ve:
+                            print(f"    → views 변환 실패: {ve}")
+                            views_int = 0
+
+                        print(f"    → CrawlQueue 객체 생성 시작...")
                         queue_item = CrawlQueue(
                             crawler_source_id=self.source_id,
                             title=title,
@@ -212,25 +277,29 @@ class BaseCrawler(ABC):
                             crawler_extracted_at=datetime.now(),
                             rejection_status=None,  # NULL = pending review
                             # 구조화된 필드 추가
-                            deadline=deadline_dt.date() if deadline_dt else None,
+                            deadline=deadline_dt if deadline_dt else None,  # Keep as datetime
                             published_date=published_dt.date() if published_dt else None,
                             organization=notice.get('organization'),
                             department=notice.get('department'),
                             contact=notice.get('contact'),
-                            views=notice.get('views', 0),
+                            views=views_int,
                             status=notice.get('status')
                         )
                         db.add(queue_item)
                         db.flush()  # 즉시 실행하여 트리거 동작 확인
+                        print(f"    → 신규 항목 추가 성공!")
                         added_new += 1
                     except Exception as e:
                         # 트리거에 의한 중복 업데이트인 경우 무시
+                        print(f"    → 예외 발생: {str(e)}")
                         db.rollback()
                         # logger.debug(f"Item likely updated by trigger: {title[:50]}...")
                         updated_existing += 1
                         continue
 
+            print(f"\n  commit 전 상태: 신규={added_new}, 업데이트={updated_existing}")
             db.commit()
+            print(f"  commit 성공!")
 
             # 통계 출력 (로깅용)
             print(f"[{self.source_id}] 저장 완료: 신규={added_new}, 업데이트={updated_existing}, "

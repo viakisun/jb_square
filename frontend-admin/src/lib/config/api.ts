@@ -64,4 +64,13 @@ export const API = {
   notices: {
     base: `${API_BASE_URL}/notices`,
   },
+
+  // KSIC Codes
+  ksicCodes: {
+    base: `${API_BASE_URL}/ksic-codes`,
+    stats: `${API_BASE_URL}/ksic-codes/stats`,
+    bioCodes: `${API_BASE_URL}/ksic-codes/bio-codes`,
+    withCounts: `${API_BASE_URL}/ksic-codes/with-company-counts`,
+    byCode: (code: string) => `${API_BASE_URL}/ksic-codes/${code}`,
+  },
 };
