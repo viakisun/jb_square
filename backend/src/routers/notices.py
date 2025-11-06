@@ -120,9 +120,9 @@ async def get_notices(
             )
         )
 
-    # Order by published_at desc, then created_at desc
+    # Order by deadline desc (latest deadline first), then created_at desc
     query = query.order_by(
-        desc(Notice.published_at),
+        desc(Notice.deadline),
         desc(Notice.created_at)
     )
 
