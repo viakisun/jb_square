@@ -51,14 +51,14 @@ def parse_date(date_str: str) -> Optional[datetime]:
     normalized = date_str.replace('.', '-').replace('/', '-')
 
     date_formats = [
-        '%Y-%m-%d',
         '%Y-%m-%d %H:%M:%S',
         '%Y-%m-%d %H:%M',
+        '%Y-%m-%d',
     ]
 
     for fmt in date_formats:
         try:
-            return datetime.strptime(normalized[:len(fmt)], fmt)
+            return datetime.strptime(normalized.strip(), fmt)
         except ValueError:
             continue
 

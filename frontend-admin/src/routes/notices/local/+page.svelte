@@ -94,7 +94,11 @@
 		try {
 			const res = await fetch(`${API_BASE_URL}/notices/crawl-queue/list?source_id=jbtp`);
 			const data = await res.json();
-			businessQueueItems = data.items;
+			// Remove duplicates by ID (defensive programming)
+			const uniqueItems = Array.from(
+				new Map(data.items.map((item: any) => [item.id, item])).values()
+			);
+			businessQueueItems = uniqueItems;
 		} catch (error) {
 			console.error('Failed to load business queue:', error);
 			toast.error('사업공고 대기열 로드 실패');
@@ -270,7 +274,11 @@
 		try {
 			const res = await fetch(`${API_BASE_URL}/notices/crawl-queue/list?source_id=jbtp_external`);
 			const data = await res.json();
-			externalQueueItems = data.items;
+			// Remove duplicates by ID (defensive programming)
+			const uniqueItems = Array.from(
+				new Map(data.items.map((item: any) => [item.id, item])).values()
+			);
+			externalQueueItems = uniqueItems;
 		} catch (error) {
 			console.error('Failed to load external queue:', error);
 			toast.error('유관기관공고 대기열 로드 실패');

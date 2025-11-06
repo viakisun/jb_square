@@ -64,7 +64,7 @@
 	async function loadTags() {
 		isLoading = true;
 		try {
-			const response = await fetch('${API_BASE_URL}/tags');
+			const response = await fetch(`${API_BASE_URL}/tags`);
 			const data = await response.json();
 			tags = data.tags || [];
 		} catch (error) {
@@ -77,7 +77,7 @@
 
 	async function loadCategories() {
 		try {
-			const response = await fetch('${API_BASE_URL}/tags/stats/categories');
+			const response = await fetch(`${API_BASE_URL}/tags/stats/categories`);
 			const data = await response.json();
 			categories = data.categories || [];
 		} catch (error) {
@@ -93,7 +93,7 @@
 
 		isLoading = true;
 		try {
-			const response = await fetch('${API_BASE_URL}/tags', {
+			const response = await fetch(`${API_BASE_URL}/tags`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify(formData)

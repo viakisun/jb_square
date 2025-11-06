@@ -9,7 +9,8 @@ from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisco
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
-from sqlalchemy import desc, or_, and_
+from sqlalchemy import desc, or_, and_, cast, func
+from sqlalchemy.dialects.postgresql import JSONB
 
 from src.core.database import get_db
 from src.models.notice import Notice, CrawlQueue
@@ -107,8 +108,8 @@ async def get_notices(
         query = query.filter(Notice.crawler_source_id == source_id)
 
     if tag:
-        # JSON array contains operation
-        query = query.filter(Notice.tags.contains([tag]))
+        # JSON array contains operation using PostgreSQL @> operator
+        query = query.filter(cast(Notice.tags, JSONB).contains([tag]))
 
     if search:
         # Search in title and content

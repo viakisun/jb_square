@@ -369,18 +369,29 @@ class JBTPCrawler(BaseCrawler):
 
                     await self.send_event(callback, "log", {
                         "source_id": self.source_id,
-                        "message": f"\n[{board_name}] 수집 시작 (마감일이 미래인 모든 공고)... (대기: {waited:.2f}s)"
+                        "message": f"\n[{board_name}] 수집 시작 (게시일 {date_range_days}일 이내 또는 마감일 미래)... (대기: {waited:.2f}s)"
                     })
 
                     board_saved_count = 0
                     board_checked_count = 0
 
-                    # 1단계: 마감일이 미래인 모든 공고 수집
+                    # 1단계: 필터 조건에 맞는 공고 수집
+                    # - 게시일 기준 A일 이내 OR 마감일이 미래
                     notice_rows = []
                     seen_titles = set()  # 중복 제거용
-                    consecutive_past_deadlines = 0  # 연속으로 마감된 공고 수
+                    consecutive_excluded = 0  # 연속으로 제외된 공고 수
                     page = 1
                     MAX_PAGES = 100  # 안전장치
+
+                    # 필터 기준 날짜 계산
+                    now = datetime.now()
+                    cutoff_date = now - timedelta(days=date_range_days)
+
+                    # 필터 정보 로그
+                    await self.send_event(callback, "log", {
+                        "source_id": self.source_id,
+                        "message": f"  📅 필터 설정: 게시일 >= {cutoff_date.strftime('%Y-%m-%d')} OR 마감일 >= {now.strftime('%Y-%m-%d')}"
+                    })
 
                     while page <= MAX_PAGES:
                         # 중단 체크
@@ -413,6 +424,9 @@ class JBTPCrawler(BaseCrawler):
                                 rows = table.find_all('tr')
 
                             page_notice_count = 0
+                            page_duplicate_count = 0  # 페이지 내 중복 수
+                            page_total_count = 0  # 페이지 내 전체 공고 수
+
                             for row in rows:
                                 cols = row.find_all('td')
                                 if len(cols) >= 7:  # 최소 7개 컬럼 필요 (0-6)
@@ -430,9 +444,11 @@ class JBTPCrawler(BaseCrawler):
                                         title_tag = title_col.find('a')
                                         if title_tag:
                                             title = title_tag.get_text(strip=True)
+                                            page_total_count += 1  # 전체 공고 수 증가
 
                                             # 중복 체크 (공지는 한 번만 수집)
                                             if title in seen_titles:
+                                                page_duplicate_count += 1
                                                 continue
                                             seen_titles.add(title)
 
@@ -451,15 +467,40 @@ class JBTPCrawler(BaseCrawler):
                                             # 작성일 추출 (컬럼 6)
                                             posted_date = cols[6].get_text(strip=True) if len(cols) > 6 else ''
 
-                                            # 마감일 체크
+                                            # 날짜 필터링: 게시일 A일 이내 OR 마감일 미래
+                                            posted_datetime = self.parse_date(posted_date)
                                             deadline_datetime = self.parse_date(deadline)
-                                            if deadline_datetime and deadline_datetime < datetime.now():
-                                                # 마감일이 과거인 공고는 건너뜀
-                                                consecutive_past_deadlines += 1
+
+                                            should_collect = False
+                                            reason = ""
+
+                                            # 1) 게시일이 A일 이내?
+                                            if posted_datetime and posted_datetime >= cutoff_date:
+                                                should_collect = True
+                                                reason = f"게시일({posted_date}) >= cutoff({cutoff_date.strftime('%Y-%m-%d')})"
+
+                                            # 2) 마감일이 미래?
+                                            elif deadline_datetime and deadline_datetime >= now:
+                                                should_collect = True
+                                                reason = f"마감일({deadline}) >= now({now.strftime('%Y-%m-%d')})"
+
+                                            # 디버그 로그 (페이지별 처음 5개 항목만)
+                                            if page_total_count <= 5:
+                                                debug_msg = f"[P{page} #{page_total_count}] {title[:30]}... | 게시일:{posted_date} | 마감일:{deadline} | 수집:{should_collect}"
+                                                if should_collect:
+                                                    debug_msg += f" ({reason})"
+                                                await self.send_event(callback, "log", {
+                                                    "source_id": self.source_id,
+                                                    "message": f"  {debug_msg}"
+                                                })
+
+                                            # 수집 대상이 아니면 스킵
+                                            if not should_collect:
+                                                consecutive_excluded += 1
                                                 continue
                                             else:
-                                                # 미래 마감일 공고를 발견하면 카운터 리셋
-                                                consecutive_past_deadlines = 0
+                                                # 수집 대상 발견 → 카운터 리셋
+                                                consecutive_excluded = 0
 
                                             notice_rows.append({
                                                 'title': title,
@@ -469,10 +510,20 @@ class JBTPCrawler(BaseCrawler):
                                             })
                                             page_notice_count += 1
 
-                            # 페이지별 진행 로그
+                            # 페이지별 진행 로그 (중복 정보 포함)
+                            # 페이지 통계 계산
+                            page_excluded_count = page_total_count - page_duplicate_count - page_notice_count
+
+                            log_msg = f"  → 페이지 {page}: 전체 {page_total_count}개"
+                            if page_duplicate_count > 0:
+                                log_msg += f" | 중복 {page_duplicate_count}개"
+                            if page_excluded_count > 0:
+                                log_msg += f" | 필터제외 {page_excluded_count}개"
+                            log_msg += f" | 수집 {page_notice_count}개 | 누적: {len(notice_rows)}개"
+
                             await self.send_event(callback, "log", {
                                 "source_id": self.source_id,
-                                "message": f"  → 페이지 {page}: {page_notice_count}개 발견 (누적: {len(notice_rows)}개)"
+                                "message": log_msg
                             })
 
                             # 페이지별 진행 상태 전송
@@ -484,20 +535,20 @@ class JBTPCrawler(BaseCrawler):
                                 "accumulated": len(notice_rows)
                             })
 
-                            # 공고가 없으면 다음 페이지 없음
-                            if page_notice_count == 0:
+                            # 공고가 전혀 없으면 (중복도 없음) 다음 페이지 없음
+                            if page_total_count == 0:
                                 await self.send_event(callback, "log", {
                                     "source_id": self.source_id,
                                     "message": f"  → 페이지 {page}에 공고 없음, 수집 중단"
                                 })
                                 break
 
-                            # 연속으로 30개 이상의 마감된 공고가 나오면 수집 중단
+                            # 연속으로 30개 이상 제외된 공고가 나오면 수집 중단
                             # (보통 한 페이지에 10~20개 정도 표시되므로 2페이지 정도)
-                            if consecutive_past_deadlines > 30:
+                            if consecutive_excluded > 30:
                                 await self.send_event(callback, "log", {
                                     "source_id": self.source_id,
-                                    "message": f"  → 연속 {consecutive_past_deadlines}개 마감된 공고, 수집 중단"
+                                    "message": f"  → 연속 {consecutive_excluded}개 필터 제외, 수집 중단"
                                 })
                                 break
 
@@ -596,24 +647,29 @@ class JBTPCrawler(BaseCrawler):
 """
                         })
 
-                        # 전체 공고 개수 업데이트 (신규만)
-                        self.status["total"] += stats_new
+                        # 전체 공고 개수 업데이트 (키워드 매칭된 항목만)
+                        self.status["total"] += stats_matched
 
-                        # 3단계: 신규 공고만 상세 페이지 크롤링
-                        if stats_new > 0:
+                        # 3단계: 키워드 매칭된 신규 공고만 상세 페이지 크롤링
+                        if stats_matched > 0:
                             await self.send_event(callback, "log", {
                                 "source_id": self.source_id,
-                                "message": f"\n  → {stats_new}개 신규 공고 상세 정보 크롤링 시작...\n"
+                                "message": f"\n  → {stats_matched}개 키워드 매칭 공고 상세 정보 크롤링 시작...\n"
                             })
 
                             # 수집 완료 이벤트 전송
                             await self.send_event(callback, "collection_complete", {
                                 "source_id": self.source_id,
                                 "board_name": board_name,
-                                "total_collected": stats_new
+                                "total_collected": stats_matched
                             })
 
                             for notice_row in new_notices:
+                                # 키워드 매칭된 항목만 상세 크롤링
+                                matched_keywords = notice_row['matched_keywords']
+                                if not matched_keywords:
+                                    continue  # 매칭 안 된 것은 스킵
+
                                 board_checked_count += 1
 
                                 # 상세 페이지 크롤링
@@ -630,8 +686,7 @@ class JBTPCrawler(BaseCrawler):
                                     'detail': detail_data
                                 }
 
-                                # 키워드 매칭된 항목만 DB에 저장
-                                matched_keywords = notice_row['matched_keywords']
+                                # DB에 저장
                                 if matched_keywords:
                                     status, _, queue_item = self._save_single_notice(
                                         notice_data, keywords, db
