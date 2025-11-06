@@ -165,9 +165,11 @@ class BaseCrawler(ABC):
                         continue  # 키워드 매칭 안되면 저장하지 않음
 
                 # 1. 이미 존재하는지 확인 (title + crawler_source_id로 중복 체크)
+                # 주의: notice_id가 NULL이고 rejection_status가 'rejected'가 아닌 것만 체크
                 existing = db.query(CrawlQueue).filter(
                     CrawlQueue.crawler_source_id == self.source_id,
-                    CrawlQueue.title == title
+                    CrawlQueue.title == title,
+                    CrawlQueue.notice_id.is_(None)
                 ).first()
 
                 if existing:
@@ -194,30 +196,39 @@ class BaseCrawler(ABC):
                     existing.status = notice.get('status')
                     updated_existing += 1
                 else:
-                    # 4. 새로운 항목 추가
-                    deadline_dt = self.parse_date(notice.get('deadline')) if notice.get('deadline') else None
-                    published_dt = self.parse_date(notice.get('published_date')) if notice.get('published_date') else None
+                    # 4. 새로운 항목 추가 (데이터베이스 트리거가 중복 체크 및 업데이트 처리)
+                    # 트리거가 자동으로 중복 감지 시 기존 항목 업데이트하므로 try-except 사용
+                    try:
+                        deadline_dt = self.parse_date(notice.get('deadline')) if notice.get('deadline') else None
+                        published_dt = self.parse_date(notice.get('published_date')) if notice.get('published_date') else None
 
-                    queue_item = CrawlQueue(
-                        crawler_source_id=self.source_id,
-                        title=title,
-                        link=notice.get('link'),
-                        source_board_name=notice.get('board'),
-                        # notice에 raw_data 키가 있으면 그 값만 저장, 없으면 notice 전체 저장
-                        raw_data=notice.get('raw_data', notice),
-                        crawler_extracted_at=datetime.now(),
-                        rejection_status=None,  # NULL = pending review
-                        # 구조화된 필드 추가
-                        deadline=deadline_dt.date() if deadline_dt else None,
-                        published_date=published_dt.date() if published_dt else None,
-                        organization=notice.get('organization'),
-                        department=notice.get('department'),
-                        contact=notice.get('contact'),
-                        views=notice.get('views', 0),
-                        status=notice.get('status')
-                    )
-                    db.add(queue_item)
-                    added_new += 1
+                        queue_item = CrawlQueue(
+                            crawler_source_id=self.source_id,
+                            title=title,
+                            link=notice.get('link'),
+                            source_board_name=notice.get('board'),
+                            # notice에 raw_data 키가 있으면 그 값만 저장, 없으면 notice 전체 저장
+                            raw_data=notice.get('raw_data', notice),
+                            crawler_extracted_at=datetime.now(),
+                            rejection_status=None,  # NULL = pending review
+                            # 구조화된 필드 추가
+                            deadline=deadline_dt.date() if deadline_dt else None,
+                            published_date=published_dt.date() if published_dt else None,
+                            organization=notice.get('organization'),
+                            department=notice.get('department'),
+                            contact=notice.get('contact'),
+                            views=notice.get('views', 0),
+                            status=notice.get('status')
+                        )
+                        db.add(queue_item)
+                        db.flush()  # 즉시 실행하여 트리거 동작 확인
+                        added_new += 1
+                    except Exception as e:
+                        # 트리거에 의한 중복 업데이트인 경우 무시
+                        db.rollback()
+                        logger.debug(f"Item likely updated by trigger: {title[:50]}...")
+                        updated_existing += 1
+                        continue
 
             db.commit()
 

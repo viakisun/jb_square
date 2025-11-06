@@ -415,6 +415,16 @@ async def get_crawl_queue(
     """
     query = db.query(CrawlQueue)
 
+    # Only show pending items (not yet processed and not rejected)
+    query = query.filter(
+        CrawlQueue.notice_id.is_(None)  # Not yet processed to notice
+    ).filter(
+        or_(
+            CrawlQueue.rejection_status.is_(None),  # Pending review
+            CrawlQueue.rejection_status != 'rejected'  # Not rejected
+        )
+    )
+
     # Filter by source
     if source_id:
         query = query.filter(CrawlQueue.crawler_source_id == source_id)

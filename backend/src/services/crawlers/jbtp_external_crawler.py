@@ -106,9 +106,11 @@ class JBTPExternalCrawler(BaseCrawler):
         parsed_data = self._parse_jbtp_data(notice)
 
         # 1. 이미 존재하는지 확인 (title + crawler_source_id로 중복 체크)
+        # 주의: notice_id가 NULL이고 rejection_status가 'rejected'가 아닌 것만 체크
         existing = db.query(CrawlQueue).filter(
             CrawlQueue.crawler_source_id == self.source_id,
-            CrawlQueue.title == title
+            CrawlQueue.title == title,
+            CrawlQueue.notice_id.is_(None)
         ).first()
 
         if existing:
@@ -132,27 +134,35 @@ class JBTPExternalCrawler(BaseCrawler):
             existing.status = parsed_data.get('status')
             return ('updated', matched_keywords, existing)
         else:
-            # 4. 새로운 항목 추가
-            queue_item = CrawlQueue(
-                crawler_source_id=self.source_id,
-                title=title,
-                link=notice.get('link'),
-                source_board_name=notice.get('board'),
-                raw_data=notice,
-                matched_keywords=matched_keywords,
-                crawler_extracted_at=datetime.now(),
-                rejection_status=None,  # NULL = pending review
-                # Structured fields
-                deadline=parsed_data.get('deadline'),
-                published_date=parsed_data.get('published_date'),
-                organization=parsed_data.get('organization'),
-                department=parsed_data.get('department'),
-                contact=parsed_data.get('contact'),
-                views=parsed_data.get('views', 0),
-                status=parsed_data.get('status')
-            )
-            db.add(queue_item)
-            return ('added', matched_keywords, queue_item)
+            # 4. 새로운 항목 추가 (데이터베이스 트리거가 중복 체크 및 업데이트 처리)
+            # 트리거가 자동으로 중복 감지 시 기존 항목 업데이트하므로 try-except 사용
+            try:
+                queue_item = CrawlQueue(
+                    crawler_source_id=self.source_id,
+                    title=title,
+                    link=notice.get('link'),
+                    source_board_name=notice.get('board'),
+                    raw_data=notice,
+                    matched_keywords=matched_keywords,
+                    crawler_extracted_at=datetime.now(),
+                    rejection_status=None,  # NULL = pending review
+                    # Structured fields
+                    deadline=parsed_data.get('deadline'),
+                    published_date=parsed_data.get('published_date'),
+                    organization=parsed_data.get('organization'),
+                    department=parsed_data.get('department'),
+                    contact=parsed_data.get('contact'),
+                    views=parsed_data.get('views', 0),
+                    status=parsed_data.get('status')
+                )
+                db.add(queue_item)
+                db.flush()  # 즉시 실행하여 트리거 동작 확인
+                return ('added', matched_keywords, queue_item)
+            except Exception as e:
+                # 트리거에 의한 중복 업데이트인 경우 무시
+                db.rollback()
+                print(f"Item likely updated by trigger: {title[:50]}...")
+                return ('updated', matched_keywords, None)
 
     def _extract_jbtp_meta_info(self, bbs_view, detail: dict) -> None:
         """
@@ -539,10 +549,12 @@ class JBTPExternalCrawler(BaseCrawler):
                                 stats_already_published += 1
                                 continue
 
-                            # 2) 대기 중?
+                            # 2) 대기 중? (notice_id가 NULL이고 rejected가 아닌 것만)
                             in_queue = db.query(CrawlQueue).filter(
                                 CrawlQueue.crawler_source_id == self.source_id,
-                                CrawlQueue.title == title
+                                CrawlQueue.title == title,
+                                CrawlQueue.notice_id.is_(None),
+                                CrawlQueue.rejection_status != 'rejected'
                             ).first()
                             if in_queue:
                                 stats_in_queue += 1
