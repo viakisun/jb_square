@@ -25,8 +25,8 @@ const TechForumPage = () => {
 
           <div className="bg-blue-50 border-l-4 border-blue-400 p-6 rounded-lg mb-8">
             <p className="text-gray-700 leading-relaxed">
-              JB BIO 기술포럼은 전북지역 바이오 분야 연구기관과 기업이 함께
-              최신 기술 동향을 공유하고 협력 방안을 모색하는 기술 교류의 장입니다.
+              JB BIO 기술포럼은 전북지역 바이오 분야 연구기관과 기업이 함께 최신
+              기술 동향을 공유하고 협력 방안을 모색하는 기술 교류의 장입니다.
             </p>
           </div>
         </div>
