@@ -454,13 +454,13 @@ class JBTPCrawler(BaseCrawler):
                                             # 작성일 추출 (컬럼 6)
                                             posted_date = cols[6].get_text(strip=True) if len(cols) > 6 else ''
 
-                                            # 마감일 기준으로 날짜 체크 (작성일 대신 마감일 사용)
-                                            deadline_datetime = self.parse_date(deadline)
-                                            if deadline_datetime and deadline_datetime < cutoff_date:
+                                            # 작성일 기준으로 날짜 체크 (마감일이 아닌 게시일 사용)
+                                            posted_datetime = self.parse_date(posted_date)
+                                            if posted_datetime and posted_datetime < cutoff_date:
                                                 found_old_notices = True
                                                 await self.send_event(callback, "log", {
                                                     "source_id": self.source_id,
-                                                    "message": f"  → 마감일 {deadline}이 기준 날짜({cutoff_date.strftime('%Y-%m-%d')}) 이전, 수집 중단"
+                                                    "message": f"  → 게시일 {posted_date}이 기준 날짜({cutoff_date.strftime('%Y-%m-%d')}) 이전, 수집 중단"
                                                 })
                                                 break
 
