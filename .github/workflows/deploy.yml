@@ -107,7 +107,7 @@ jobs:
             echo ""
             echo "🛑 Stopping and removing old containers..."
             # Force remove existing containers to prevent name conflicts
-            docker rm -f jb2-backend-prod jb2-frontend-prod jb2-nginx-prod 2>/dev/null || true
+            docker rm -f jb2-backend-prod jb2-frontend-main-prod jb2-frontend-admin-prod jb2-nginx-prod 2>/dev/null || true
             # Clean stop with docker-compose
             docker-compose -f docker-compose.prod.yml down --remove-orphans 2>&1 || true
 
@@ -126,14 +126,26 @@ jobs:
             fi
             cd ..
 
-            # Build frontend
-            echo "📦 Building frontend image..."
-            cd frontend
-            docker build -t jb2-frontend:latest . 2>&1
+            # Build frontend-main
+            echo "📦 Building frontend-main (Next.js) image..."
+            cd frontend-main
+            docker build -t jb2-frontend-main:latest . 2>&1
             if [ $? -eq 0 ]; then
-              echo "✅ Frontend image built successfully"
+              echo "✅ Frontend-main image built successfully"
             else
-              echo "❌ Frontend build failed"
+              echo "❌ Frontend-main build failed"
+              exit 1
+            fi
+            cd ..
+
+            # Build frontend-admin
+            echo "📦 Building frontend-admin (SvelteKit) image..."
+            cd frontend-admin
+            docker build -t jb2-frontend-admin:latest . 2>&1
+            if [ $? -eq 0 ]; then
+              echo "✅ Frontend-admin image built successfully"
+            else
+              echo "❌ Frontend-admin build failed"
               exit 1
             fi
             cd ..
@@ -159,7 +171,7 @@ jobs:
 
             echo ""
             echo "🔍 Verifying each container is running..."
-            for container in jb2-backend-prod jb2-frontend-prod jb2-nginx-prod; do
+            for container in jb2-backend-prod jb2-frontend-main-prod jb2-frontend-admin-prod jb2-nginx-prod; do
               if docker ps | grep -q $container; then
                 echo "✅ $container is running"
               else
@@ -175,8 +187,12 @@ jobs:
             docker-compose -f docker-compose.prod.yml logs --tail=20 backend 2>&1 || echo "Cannot get backend logs"
 
             echo ""
-            echo "--- Frontend logs (last 20 lines) ---"
-            docker-compose -f docker-compose.prod.yml logs --tail=20 frontend 2>&1 || echo "Cannot get frontend logs"
+            echo "--- Frontend-main logs (last 20 lines) ---"
+            docker-compose -f docker-compose.prod.yml logs --tail=20 frontend-main 2>&1 || echo "Cannot get frontend-main logs"
+
+            echo ""
+            echo "--- Frontend-admin logs (last 20 lines) ---"
+            docker-compose -f docker-compose.prod.yml logs --tail=20 frontend-admin 2>&1 || echo "Cannot get frontend-admin logs"
 
             echo ""
             echo "--- Nginx logs (last 20 lines) ---"
@@ -230,11 +246,19 @@ jobs:
             fi
 
             echo ""
-            echo "🌍 Frontend check..."
+            echo "🌍 Main frontend check..."
             if curl -I http://localhost 2>&1 | head -n 1; then
-              echo "✅ Frontend is responding!"
+              echo "✅ Main frontend is responding!"
             else
-              echo "⚠️  Frontend check inconclusive"
+              echo "⚠️  Main frontend check inconclusive"
+            fi
+
+            echo ""
+            echo "🔐 Admin frontend check..."
+            if curl -I http://localhost/admin 2>&1 | head -n 1; then
+              echo "✅ Admin frontend is responding!"
+            else
+              echo "⚠️  Admin frontend check inconclusive"
             fi
 
             echo ""
@@ -263,8 +287,12 @@ jobs:
             docker-compose -f docker-compose.prod.yml logs backend 2>&1 || echo "No backend logs"
 
             echo ""
-            echo "========== Frontend Logs =========="
-            docker-compose -f docker-compose.prod.yml logs frontend 2>&1 || echo "No frontend logs"
+            echo "========== Frontend-main Logs =========="
+            docker-compose -f docker-compose.prod.yml logs frontend-main 2>&1 || echo "No frontend-main logs"
+
+            echo ""
+            echo "========== Frontend-admin Logs =========="
+            docker-compose -f docker-compose.prod.yml logs frontend-admin 2>&1 || echo "No frontend-admin logs"
 
             echo ""
             echo "========== Nginx Logs =========="
@@ -304,7 +332,9 @@ jobs:
           echo "✅ Application is ready"
           echo ""
           echo "🌐 Access your application at:"
-          echo "   http://${{ secrets.EC2_HOST }}"
+          echo "   Main site: http://${{ secrets.EC2_HOST }}"
+          echo "   Admin panel: http://admin.${{ secrets.EC2_HOST }}"
+          echo "   API docs: http://${{ secrets.EC2_HOST }}/docs"
           echo ""
           echo "=========================================="
 
