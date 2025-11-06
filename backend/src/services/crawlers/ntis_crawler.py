@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 from typing import Callable, Optional
 import re
 from html import unescape
+from bs4 import BeautifulSoup
 
 from src.services.rate_limiter import RateLimiter
 from .base_crawler import BaseCrawler, CrawlerStatus
@@ -539,6 +540,8 @@ class NTISRSSCrawler(BaseCrawler):
                         'budget': budget,
                         'appbegin': appbegin.isoformat() if appbegin else None,
                         'description_clean': description_clean[:500],  # 미리보기용
+                        'content': description_clean,  # RSS description을 본문으로 사용
+                        'content_html': description_html,  # 원본 HTML도 보존
                     }
                 }
             }
@@ -561,6 +564,146 @@ class NTISRSSCrawler(BaseCrawler):
                 filtered.append(notice)
 
         return filtered
+
+    def _extract_ntis_content(self, soup, detail: dict) -> None:
+        """
+        NTIS 상세 페이지에서 본문 내용을 추출합니다.
+
+        Args:
+            soup: BeautifulSoup 객체
+            detail: 추출된 정보를 저장할 딕셔너리
+        """
+        try:
+            # 공고 내용이 있는 영역 찾기
+            # NTIS는 table 구조로 되어 있음
+            content_table = soup.find('table', class_='announcement_table1')
+            if not content_table:
+                content_table = soup.find('table', class_='table')
+
+            if content_table:
+                # 모든 행에서 텍스트 추출
+                content_parts = []
+                for row in content_table.find_all('tr'):
+                    cells = row.find_all(['th', 'td'])
+                    for cell in cells:
+                        text = cell.get_text(strip=True)
+                        if text and len(text) > 10:  # 의미있는 텍스트만
+                            content_parts.append(text)
+
+                if content_parts:
+                    detail['content'] = '\n\n'.join(content_parts)
+
+            # 공고 요약 정보 추출
+            view_con = soup.find('div', class_='view_con')
+            if view_con:
+                detail['summary'] = view_con.get_text(strip=True)
+
+        except Exception as e:
+            print(f"Error extracting content: {str(e)}")
+
+    def _extract_ntis_attachments(self, soup, detail: dict) -> None:
+        """
+        NTIS 상세 페이지에서 첨부파일 정보를 추출합니다.
+
+        Args:
+            soup: BeautifulSoup 객체
+            detail: 추출된 정보를 저장할 딕셔너리
+        """
+        try:
+            detail['attachments'] = []
+
+            # 첨부파일 링크 찾기 (여러 패턴 시도)
+            file_links = soup.find_all('a', href=re.compile(r'download|file|attach', re.I))
+
+            for link in file_links:
+                href = link.get('href', '')
+                filename = link.get_text(strip=True)
+
+                if not filename or not href:
+                    continue
+
+                # 상대 URL을 절대 URL로 변환
+                if href and not href.startswith('http'):
+                    if href.startswith('/'):
+                        file_url = 'https://www.ntis.go.kr' + href
+                    else:
+                        file_url = 'https://www.ntis.go.kr/' + href
+                else:
+                    file_url = href
+
+                if file_url and filename:
+                    detail['attachments'].append({
+                        'filename': filename,
+                        'url': file_url
+                    })
+
+            # 첨부파일 테이블에서 추출
+            file_table = soup.find('table', class_='file')
+            if file_table:
+                for row in file_table.find_all('tr'):
+                    link = row.find('a')
+                    if link:
+                        href = link.get('href', '')
+                        filename = link.get_text(strip=True)
+
+                        if href and filename:
+                            if not href.startswith('http'):
+                                file_url = 'https://www.ntis.go.kr' + href if href.startswith('/') else 'https://www.ntis.go.kr/' + href
+                            else:
+                                file_url = href
+
+                            detail['attachments'].append({
+                                'filename': filename,
+                                'url': file_url
+                            })
+
+        except Exception as e:
+            print(f"Error extracting attachments: {str(e)}")
+
+    async def _fetch_ntis_detail(self, session, url: str, rate_limiter) -> dict:
+        """
+        NTIS 상세 페이지에서 정보를 추출합니다.
+
+        Args:
+            session: requests.Session
+            url: 상세 페이지 URL
+            rate_limiter: RateLimiter 인스턴스
+
+        Returns:
+            dict: 상세 정보 (오류 발생 시 'error' 키 포함)
+        """
+        detail = {}
+
+        try:
+            # Rate limiting 적용 (0.5초 간격)
+            rate_limiter.wait()
+
+            # HTTP 요청
+            response = session.get(url, timeout=10)
+
+            # 응답 상태 확인
+            if response.status_code != 200:
+                detail['error'] = f"HTTP {response.status_code}"
+                return detail
+
+            # HTML 파싱
+            soup = BeautifulSoup(response.text, 'html.parser')
+
+            # 본문 내용 추출
+            self._extract_ntis_content(soup, detail)
+
+            # 첨부파일 추출
+            self._extract_ntis_attachments(soup, detail)
+
+        except requests.exceptions.Timeout:
+            detail['error'] = "요청 시간 초과"
+        except requests.exceptions.RequestException as e:
+            detail['error'] = f"네트워크 오류: {str(e)}"
+        except Exception as e:
+            detail['error'] = f"예상치 못한 오류: {str(e)}"
+            print(f"Error fetching NTIS detail from {url}: {str(e)}")
+
+        return detail
 
     async def execute(self, callback: Optional[Callable] = None):
         """RSS 크롤링 실행"""
@@ -647,6 +790,92 @@ class NTISRSSCrawler(BaseCrawler):
             await self.send_event(callback, "log", {
                 "source_id": self.source_id,
                 "message": f"날짜 필터링 완료: {len(filtered_notices)}개 항목 (총 {len(notices)}개 중)"
+            })
+
+            # 2단계: 상세 페이지 크롤링 (JBTP 방식)
+            await self.send_event(callback, "log", {
+                "source_id": self.source_id,
+                "message": f"\n=== 2단계: 상세 페이지 크롤링 시작 ({len(filtered_notices)}개) ==="
+            })
+
+            # HTTP session 생성
+            session = requests.Session()
+            session.headers.update({
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9',
+                'Accept-Language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7',
+            })
+
+            # Rate limiter 생성 (0.5초 간격)
+            detail_rate_limiter = RateLimiter(0.5)
+
+            # 진행 상황 초기화
+            self.status["total"] = len(filtered_notices)
+            self.status["progress"] = 0
+            detail_success = 0
+            detail_failed = 0
+
+            # 각 공고의 상세 페이지 크롤링
+            for idx, notice in enumerate(filtered_notices):
+                # 중단 체크
+                if self.stop_flag:
+                    await self.send_event(callback, "stopped", {
+                        "source_id": self.source_id,
+                        "message": "데이터 수집이 사용자에 의해 중단되었습니다."
+                    })
+                    self.status["status"] = CrawlerStatus.STOPPED
+                    return
+
+                link = notice.get('link', '')
+                title = notice.get('title', '')[:50]
+
+                if link:
+                    await self.send_event(callback, "log", {
+                        "source_id": self.source_id,
+                        "message": f"\n[{idx + 1}/{len(filtered_notices)}] {title}..."
+                    })
+
+                    # 상세 페이지 크롤링
+                    detail = await self._fetch_ntis_detail(session, link, detail_rate_limiter)
+
+                    if 'error' in detail:
+                        detail_failed += 1
+                        await self.send_event(callback, "log", {
+                            "source_id": self.source_id,
+                            "message": f"  ✗ 오류: {detail['error']}"
+                        })
+                    else:
+                        detail_success += 1
+                        # raw_data에 상세 정보 추가
+                        if 'raw_data' not in notice:
+                            notice['raw_data'] = {'detail': {}}
+                        notice['raw_data']['detail'].update(detail)
+
+                        # 첨부파일 정보 로그
+                        attachments = detail.get('attachments', [])
+                        content_len = len(detail.get('content', ''))
+                        await self.send_event(callback, "log", {
+                            "source_id": self.source_id,
+                            "message": f"  ✓ 본문: {content_len}자, 첨부파일: {len(attachments)}개"
+                        })
+                else:
+                    detail_failed += 1
+
+                # 진행상황 업데이트
+                self.status["progress"] = idx + 1
+                await self.send_event(callback, "progress", {
+                    "source_id": self.source_id,
+                    "progress": idx + 1,
+                    "total": len(filtered_notices),
+                    "percentage": int((idx + 1) / len(filtered_notices) * 100),
+                    "success": detail_success,
+                    "failed": detail_failed,
+                    "message": f"상세 크롤링 진행 중... ({idx + 1}/{len(filtered_notices)})"
+                })
+
+            await self.send_event(callback, "log", {
+                "source_id": self.source_id,
+                "message": f"\n상세 페이지 크롤링 완료: 성공 {detail_success}개, 실패 {detail_failed}개"
             })
 
             # 키워드 매칭 및 DB 저장

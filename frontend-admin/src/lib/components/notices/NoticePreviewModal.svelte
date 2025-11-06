@@ -17,6 +17,8 @@
 		attachments?: Array<{ filename: string; url: string }>;
 		content_viewer_url?: string;
 		content_type?: string;
+		content?: string;  // 본문 텍스트
+		content_html?: string;  // 본문 HTML
 	};
 
 	type NoticeItem = {
@@ -42,6 +44,15 @@
 
 	let activeItem = $derived(item || notice);
 	let detail = $derived(activeItem?.raw_data?.detail);
+
+	// Debug logging
+	$effect(() => {
+		if (open && activeItem) {
+			console.log('NoticePreviewModal - activeItem:', activeItem);
+			console.log('NoticePreviewModal - raw_data:', activeItem?.raw_data);
+			console.log('NoticePreviewModal - detail:', detail);
+		}
+	});
 
 	function handleBackdropClick(e: MouseEvent) {
 		if (e.target === e.currentTarget) {
@@ -82,9 +93,10 @@
 
 			<!-- Body -->
 			<div class="modal-body">
-				<!-- Meta Information Grid -->
 				{#if detail}
-					<div class="meta-grid">
+					<!-- Meta Information Grid -->
+					{#if detail.writer || detail.published_date || detail.views !== undefined || detail.status || detail.deadline}
+						<div class="meta-grid">
 						{#if detail.writer}
 							<div class="meta-item">
 								<span class="meta-label">작성자</span>
@@ -121,28 +133,6 @@
 							</div>
 						{/if}
 					</div>
-
-					<!-- Attachments -->
-					{#if detail.attachments && detail.attachments.length > 0}
-						<div class="attachments-section">
-							<h3 class="section-title">첨부파일 ({detail.attachments.length})</h3>
-							<ul class="attachments-list">
-								{#each detail.attachments as attachment}
-									<li class="attachment-item">
-										<span class="attachment-icon">📎</span>
-										<span class="attachment-name">{attachment.filename}</span>
-										<a
-											href={attachment.url}
-											target="_blank"
-											rel="noopener noreferrer"
-											class="attachment-download"
-										>
-											다운로드
-										</a>
-									</li>
-								{/each}
-							</ul>
-						</div>
 					{/if}
 
 					<!-- Content Viewer -->
@@ -167,6 +157,43 @@
 									새 창에서 열기 →
 								</a>
 							</div>
+						</div>
+					{/if}
+
+					<!-- Content HTML (for NTIS RSS and other sources) -->
+					{#if detail.content_html || detail.content}
+						<div class="content-section">
+							<h3 class="section-title">공고 내용</h3>
+							<div class="content-body">
+								{#if detail.content_html}
+									{@html detail.content_html}
+								{:else if detail.content}
+									<pre class="content-text">{detail.content}</pre>
+								{/if}
+							</div>
+						</div>
+					{/if}
+
+					<!-- Attachments -->
+					{#if detail.attachments && detail.attachments.length > 0}
+						<div class="attachments-section">
+							<h3 class="section-title">첨부파일 ({detail.attachments.length})</h3>
+							<ul class="attachments-list">
+								{#each detail.attachments as attachment}
+									<li class="attachment-item">
+										<span class="attachment-icon">📎</span>
+										<span class="attachment-name">{attachment.filename}</span>
+										<a
+											href={attachment.url}
+											target="_blank"
+											rel="noopener noreferrer"
+											class="attachment-download"
+										>
+											다운로드
+										</a>
+									</li>
+								{/each}
+							</ul>
 						</div>
 					{/if}
 				{:else}
@@ -225,7 +252,7 @@
 	.modal-content {
 		background-color: var(--bg);
 		border: var(--border-width) solid var(--hair);
-		max-width: 800px;
+		max-width: 960px;
 		width: 100%;
 		max-height: 90vh;
 		display: flex;
@@ -500,6 +527,73 @@
 		text-align: center;
 		padding: var(--space-12);
 		color: var(--muted);
+	}
+
+	/* Content Section */
+	.content-section {
+		padding: var(--space-4);
+		border: var(--border-width) solid var(--hair);
+		margin-bottom: var(--space-6);
+	}
+
+	.content-body {
+		padding: var(--space-4);
+		background-color: var(--surface-1);
+		border: var(--border-width) solid var(--hair);
+		line-height: 1.6;
+		overflow-x: auto;
+		color: var(--fg);
+	}
+
+	.content-body :global(*) {
+		color: inherit !important;
+	}
+
+	.content-body :global(span),
+	.content-body :global(p),
+	.content-body :global(div) {
+		color: var(--fg) !important;
+	}
+
+	.content-body :global(p) {
+		margin-bottom: var(--space-3);
+	}
+
+	.content-body :global(ul),
+	.content-body :global(ol) {
+		margin-left: var(--space-6);
+		margin-bottom: var(--space-3);
+	}
+
+	.content-body :global(li) {
+		margin-bottom: var(--space-2);
+	}
+
+	.content-body :global(table) {
+		width: 100%;
+		border-collapse: collapse;
+		margin-bottom: var(--space-4);
+	}
+
+	.content-body :global(th),
+	.content-body :global(td) {
+		padding: var(--space-2) var(--space-3);
+		border: var(--border-width) solid var(--hair);
+		text-align: left;
+	}
+
+	.content-body :global(th) {
+		background-color: var(--fg);
+		color: var(--bg);
+		font-weight: var(--font-medium);
+	}
+
+	.content-text {
+		white-space: pre-wrap;
+		word-wrap: break-word;
+		font-family: inherit;
+		font-size: var(--text-sm);
+		margin: 0;
 	}
 
 	/* ========================================
