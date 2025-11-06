@@ -1,34 +1,62 @@
 <script lang="ts">
 	import favicon from '$lib/assets/favicon.svg';
 	import '$lib/app.css';
-	import { page } from '$app/stores';
 	import { Toast } from '$lib/components/feedback';
+	import { NavItem, NavGroup } from '$lib/components/navigation';
+	import { Menu, User } from 'lucide-svelte';
+	import {
+		LayoutDashboard,
+		FileText,
+		Building,
+		Building2,
+		MapPin,
+		Briefcase,
+		FlaskConical,
+		Rocket,
+		Clock,
+		Tag,
+		BarChart3
+	} from 'lucide-svelte';
 
 	let { children } = $props();
 
+	let sidebarCollapsed = $state(false);
+	let groupCollapsedState = $state<Record<string, boolean>>({
+		'업무자동화': true
+	});
+
 	const navItems = [
-		{ path: '/', label: '대시보드' },
+		{ path: '/', label: '대시보드', icon: LayoutDashboard },
 		{
-			label: 'JB지원사업 공고',
+			label: '업무자동화',
+			icon: Briefcase,
 			children: [
-				{ path: '/notices/ntis', label: '정부 공고 (NTIS)' },
-				{ path: '/notices/local', label: '지자체 공고 (JBTP)' },
-				{ path: '/notices/business', label: '기업 맞춤형 지원사업' },
-				{ path: '/notices/rnd', label: '연구개발(R&D)' },
-				{ path: '/notices/startup', label: '창업 및 기술이전' },
-				{ path: '/notices/latest', label: '최신공고 모아보기' }
+				{ path: '/notices/ntis', label: '정부 공고 (NTIS)', icon: Building2 },
+				{ path: '/notices/local', label: '지자체 공고 (JBTP)', icon: MapPin },
+				{ path: '/notices/business', label: '기업 맞춤형 지원사업', icon: Briefcase },
+				{ path: '/notices/rnd', label: '연구개발(R&D)', icon: FlaskConical },
+				{ path: '/notices/startup', label: '창업보육센터(BI)', icon: Rocket },
+				{ path: '/notices/latest', label: '최신공고 모아보기', icon: Clock }
 			]
 		},
-		{ path: '/contents', label: '콘텐츠 관리' },
-		{ path: '/organizations', label: '기업·기관' },
-		{ path: '/ksic', label: 'KSIC 코드' },
-		{ path: '/analytics', label: '통계' }
+		{ path: '/contents', label: '콘텐츠 관리', icon: FileText },
+		{ path: '/organizations', label: '기업·기관', icon: Building },
+		{ path: '/ksic', label: 'KSIC 코드', icon: Tag },
+		{ path: '/analytics', label: '통계', icon: BarChart3 }
 	];
+
+	function toggleSidebar() {
+		sidebarCollapsed = !sidebarCollapsed;
+	}
+
+	function toggleGroup(label: string) {
+		groupCollapsedState[label] = !groupCollapsedState[label];
+	}
 </script>
 
 <svelte:head>
 	<link rel="icon" href={favicon} />
-	<title>JB SQUARE Backoffice</title>
+	<title>JB2 Backoffice</title>
 </svelte:head>
 
 <div class="app">
@@ -38,10 +66,20 @@
 	<!-- Top Bar -->
 	<header class="topbar">
 		<div class="topbar-left">
-			<a href="/" class="brand">JB SQUARE</a>
+			<button class="sidebar-toggle" onclick={toggleSidebar} type="button" aria-label="Toggle sidebar">
+				{#if sidebarCollapsed}
+					<Menu size={20} />
+				{:else}
+					<Menu size={20} />
+				{/if}
+			</button>
+			<a href="/" class="brand">JB2 Backoffice</a>
 		</div>
 		<div class="topbar-right">
-			<button class="btn-text" type="button">관리자</button>
+			<div class="user-info">
+				<User size={18} />
+				<span>관리자</span>
+			</div>
 			<button class="btn-text" type="button">로그아웃</button>
 		</div>
 	</header>
@@ -49,31 +87,19 @@
 	<!-- Sidebar + Main Layout -->
 	<div class="layout">
 		<!-- Sidebar Navigation -->
-		<nav class="sidebar" aria-label="Main navigation">
+		<nav class="sidebar" class:collapsed={sidebarCollapsed} aria-label="Main navigation">
 			{#each navItems as item}
 				{#if item.children}
-					<div class="sidebar-group">
-						<div class="sidebar-group-label">{item.label}</div>
-						{#each item.children as child}
-							<a
-								href={child.path}
-								class="sidebar-item sidebar-item-child"
-								class:active={$page.url.pathname === child.path}
-								aria-current={$page.url.pathname === child.path ? 'page' : undefined}
-							>
-								{child.label}
-							</a>
-						{/each}
-					</div>
+					<NavGroup
+						label={item.label}
+						icon={item.icon}
+						children={item.children}
+						collapsed={sidebarCollapsed}
+						expanded={!groupCollapsedState[item.label]}
+						ontoggle={() => toggleGroup(item.label)}
+					/>
 				{:else}
-					<a
-						href={item.path}
-						class="sidebar-item"
-						class:active={$page.url.pathname === item.path}
-						aria-current={$page.url.pathname === item.path ? 'page' : undefined}
-					>
-						{item.label}
-					</a>
+					<NavItem href={item.path} label={item.label} icon={item.icon} collapsed={sidebarCollapsed} />
 				{/if}
 			{/each}
 		</nav>
@@ -115,6 +141,7 @@
 		text-decoration: none;
 		font-weight: var(--font-medium);
 		border: var(--border-width) solid var(--fg);
+		border-radius: var(--radius-xs);
 	}
 
 	.skip-link:focus {
@@ -130,9 +157,9 @@
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		padding: 0 var(--space-6);
+		padding: 0 var(--space-8);
 		background-color: var(--bg);
-		border-bottom: var(--border-width) solid var(--hair);
+		border-bottom: 2px solid var(--hair);
 		position: sticky;
 		top: 0;
 		z-index: var(--z-sticky);
@@ -145,31 +172,62 @@
 		gap: var(--space-4);
 	}
 
+	.sidebar-toggle {
+		background: none;
+		border: none;
+		padding: var(--space-2);
+		cursor: pointer;
+		color: var(--fg);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border-radius: var(--radius-sm);
+		transition: background-color var(--duration-fast) var(--ease-out);
+	}
+
+	.sidebar-toggle:hover {
+		background-color: var(--ghost);
+	}
+
 	.brand {
-		font-size: var(--text-md);
-		font-weight: var(--font-semibold);
+		font-size: var(--text-lg);
+		font-weight: var(--font-bold);
 		letter-spacing: var(--tracking-tight);
 		text-decoration: none;
 		color: var(--fg);
 		text-transform: uppercase;
+		transition: opacity var(--duration-fast) var(--ease-out);
 	}
 
 	.brand:hover {
 		opacity: 0.7;
 	}
 
+	.user-info {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+		padding: var(--space-2) var(--space-3);
+		font-size: var(--text-sm);
+		color: var(--fg);
+		background-color: var(--ghost);
+		border-radius: var(--radius-sm);
+	}
+
 	.btn-text {
 		background: none;
 		border: none;
-		padding: var(--space-2);
+		padding: var(--space-2) var(--space-3);
 		font-size: var(--text-sm);
 		color: var(--muted);
 		cursor: pointer;
-		transition: color var(--duration-base) var(--ease-out);
+		border-radius: var(--radius-sm);
+		transition: all var(--duration-fast) var(--ease-out);
 	}
 
 	.btn-text:hover {
 		color: var(--fg);
+		background-color: var(--ghost);
 	}
 
 	.btn-text:focus-visible {
@@ -198,57 +256,11 @@
 		display: flex;
 		flex-direction: column;
 		overflow-y: auto;
+		transition: width var(--duration-base) var(--ease-out-expo);
 	}
 
-	.sidebar-item {
-		display: block;
-		padding: var(--space-3) var(--space-6);
-		font-size: var(--text-base);
-		font-weight: var(--font-normal);
-		color: var(--muted);
-		text-decoration: none;
-		border-left: 2px solid transparent;
-		transition: all var(--duration-base) var(--ease-out);
-		position: relative;
-	}
-
-	.sidebar-item:hover {
-		color: var(--fg);
-		background-color: var(--ghost);
-	}
-
-	.sidebar-item.active {
-		color: var(--fg);
-		font-weight: var(--font-medium);
-		background-color: var(--surface-1);
-		border-left-color: var(--fg);
-	}
-
-	.sidebar-item:focus-visible {
-		outline: var(--focus-ring-width) solid var(--focus-black);
-		outline-offset: -2px;
-	}
-
-	/* Sidebar Group */
-	.sidebar-group {
-		display: flex;
-		flex-direction: column;
-	}
-
-	.sidebar-group-label {
-		padding: var(--space-4) var(--space-6);
-		font-size: var(--text-xs);
-		font-weight: var(--font-semibold);
-		color: var(--fg);
-		text-transform: uppercase;
-		letter-spacing: var(--tracking-wide);
-		background-color: var(--surface-1);
-		border-bottom: var(--border-width) solid var(--hair);
-	}
-
-	.sidebar-item-child {
-		padding-left: var(--space-8);
-		font-size: var(--text-sm);
+	.sidebar.collapsed {
+		width: var(--sidebar-width-collapsed);
 	}
 
 	/* ========================================

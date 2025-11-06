@@ -66,11 +66,15 @@
   --border-color-muted: var(--divider);
 
   /* ========================================
-     RADIUS - ZERO EVERYWHERE
+     RADIUS - Softened Professional (Selective)
      ======================================== */
 
   --radius-0: 0;
   --radius-none: 0;
+  --radius-xs: 2px; /* Buttons, inputs */
+  --radius-sm: 4px; /* Cards, nav items */
+  --radius-md: 6px; /* Modals, panels */
+  --radius-lg: 8px; /* Large cards */
 
   /* ========================================
      SPACING - Enhanced 4px Grid
@@ -112,8 +116,8 @@
   --text-2xs: 11px; /* Captions, Micro labels */
   --text-xs: 12px; /* Small labels, Metadata */
   --text-sm: 13px; /* Body small, Secondary text */
-  --text-base: 14px; /* Body text, Default */
-  --text-md: 16px; /* Body large, Emphasis */
+  --text-base: 15px; /* Body text, Default - Increased for better readability */
+  --text-md: 17px; /* Body large, Emphasis */
   --text-lg: 18px; /* Subheadings */
   --text-xl: 22px; /* Heading 3 */
   --text-2xl: 28px; /* Heading 2 */
@@ -153,7 +157,7 @@
   --sidebar-width-collapsed: 64px;
 
   /* Topbar */
-  --topbar-height: 56px;
+  --topbar-height: 64px; /* Increased from 56px for better visual weight */
 
   /* Container */
   --container-max: 1400px;
@@ -237,6 +241,14 @@
   /* ========================================
      COMPONENT SPECIFIC
      ======================================== */
+
+  /* Navigation (Sidebar) */
+  --nav-item-height: 40px;
+  --nav-icon-size: 20px;
+  --nav-font-size: var(--text-base);
+  --nav-padding-x: var(--space-4);
+  --nav-padding-y: var(--space-3);
+  --nav-indent: var(--space-10);
 
   /* Button */
   --button-height-xs: 28px;
