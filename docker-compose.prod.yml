@@ -31,12 +31,34 @@ services:
       retries: 5
       start_period: 60s
 
-  frontend:
-    image: jb2-frontend:latest
+  frontend-main:
+    image: jb2-frontend-main:latest
     build:
-      context: ./frontend
+      context: ./frontend-main
       dockerfile: Dockerfile
-    container_name: jb2-frontend-prod
+    container_name: jb2-frontend-main-prod
+    environment:
+      - NEXT_PUBLIC_API_URL=/api
+    expose:
+      - "3100"
+    depends_on:
+      - backend
+    restart: always
+    networks:
+      - jb2-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3100"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  frontend-admin:
+    image: jb2-frontend-admin:latest
+    build:
+      context: ./frontend-admin
+      dockerfile: Dockerfile
+    container_name: jb2-frontend-admin-prod
     expose:
       - "80"
     depends_on:
@@ -44,6 +66,12 @@ services:
     restart: always
     networks:
       - jb2-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
 
   nginx:
     image: nginx:alpine
@@ -57,7 +85,8 @@ services:
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
     depends_on:
       - backend
-      - frontend
+      - frontend-main
+      - frontend-admin
     restart: always
     networks:
       - jb2-network
