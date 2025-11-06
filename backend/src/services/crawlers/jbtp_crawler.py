@@ -367,25 +367,22 @@ class JBTPCrawler(BaseCrawler):
                     # Rate limiting
                     waited = rate_limiter.wait()
 
-                    # 날짜 기준 계산
-                    cutoff_date = datetime.now() - timedelta(days=date_range_days)
-
                     await self.send_event(callback, "log", {
                         "source_id": self.source_id,
-                        "message": f"\n[{board_name}] 수집 시작 (최근 {date_range_days}일간 데이터)... (대기: {waited:.2f}s)"
+                        "message": f"\n[{board_name}] 수집 시작 (마감일이 미래인 모든 공고)... (대기: {waited:.2f}s)"
                     })
 
                     board_saved_count = 0
                     board_checked_count = 0
 
-                    # 1단계: 날짜 기준까지 페이지 수집
+                    # 1단계: 마감일이 미래인 모든 공고 수집
                     notice_rows = []
                     seen_titles = set()  # 중복 제거용
-                    found_old_notices = False
+                    consecutive_past_deadlines = 0  # 연속으로 마감된 공고 수
                     page = 1
                     MAX_PAGES = 100  # 안전장치
 
-                    while not found_old_notices and page <= MAX_PAGES:
+                    while page <= MAX_PAGES:
                         # 중단 체크
                         if self.stop_flag:
                             break
@@ -454,15 +451,15 @@ class JBTPCrawler(BaseCrawler):
                                             # 작성일 추출 (컬럼 6)
                                             posted_date = cols[6].get_text(strip=True) if len(cols) > 6 else ''
 
-                                            # 작성일 기준으로 날짜 체크 (마감일이 아닌 게시일 사용)
-                                            posted_datetime = self.parse_date(posted_date)
-                                            if posted_datetime and posted_datetime < cutoff_date:
-                                                found_old_notices = True
-                                                await self.send_event(callback, "log", {
-                                                    "source_id": self.source_id,
-                                                    "message": f"  → 게시일 {posted_date}이 기준 날짜({cutoff_date.strftime('%Y-%m-%d')}) 이전, 수집 중단"
-                                                })
-                                                break
+                                            # 마감일 체크
+                                            deadline_datetime = self.parse_date(deadline)
+                                            if deadline_datetime and deadline_datetime < datetime.now():
+                                                # 마감일이 과거인 공고는 건너뜀
+                                                consecutive_past_deadlines += 1
+                                                continue
+                                            else:
+                                                # 미래 마감일 공고를 발견하면 카운터 리셋
+                                                consecutive_past_deadlines = 0
 
                                             notice_rows.append({
                                                 'title': title,
@@ -495,8 +492,13 @@ class JBTPCrawler(BaseCrawler):
                                 })
                                 break
 
-                            # 기준 날짜 이전 공고를 만났으면 수집 중단
-                            if found_old_notices:
+                            # 연속으로 30개 이상의 마감된 공고가 나오면 수집 중단
+                            # (보통 한 페이지에 10~20개 정도 표시되므로 2페이지 정도)
+                            if consecutive_past_deadlines > 30:
+                                await self.send_event(callback, "log", {
+                                    "source_id": self.source_id,
+                                    "message": f"  → 연속 {consecutive_past_deadlines}개 마감된 공고, 수집 중단"
+                                })
                                 break
 
                             # Rate limiting between pages
