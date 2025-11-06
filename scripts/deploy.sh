@@ -1,16 +1,17 @@
 #!/bin/bash
 
 # ========================================
-# JB2 Backoffice Deployment Script
+# JB SQUARE Deployment Script
 # ========================================
 # Run this script on EC2 to deploy or update the application
+# Supports multi-frontend architecture (main + admin)
 # Usage: bash deploy.sh
 
 set -e
 
-APP_DIR="/home/ubuntu/jb2-backoffice"
+APP_DIR="/home/ec2-user/jb_square"
 COMPOSE_FILE="docker-compose.prod.yml"
-BACKUP_DIR="/home/ubuntu/backups"
+BACKUP_DIR="/home/ec2-user/backups"
 
 echo "🚀 Starting deployment..."
 
@@ -85,12 +86,28 @@ if ! docker-compose -f $COMPOSE_FILE ps | grep -q "Up"; then
     exit 1
 fi
 
-# Check backend health endpoint
-if ! curl -f http://localhost:8000/health > /dev/null 2>&1; then
+# Check backend health endpoint (via nginx)
+if ! curl -f http://localhost/health > /dev/null 2>&1; then
     echo "⚠️  Warning: Backend health check failed"
     echo "Check backend logs with: docker-compose -f $COMPOSE_FILE logs backend"
 else
     echo "✅ Backend is healthy"
+fi
+
+# Check main frontend (Next.js)
+if ! curl -f http://localhost/ > /dev/null 2>&1; then
+    echo "⚠️  Warning: Main frontend health check failed"
+    echo "Check logs with: docker-compose -f $COMPOSE_FILE logs frontend-main"
+else
+    echo "✅ Main frontend is healthy"
+fi
+
+# Check admin frontend (SvelteKit)
+if ! curl -f http://localhost/admin > /dev/null 2>&1; then
+    echo "⚠️  Warning: Admin frontend health check failed"
+    echo "Check logs with: docker-compose -f $COMPOSE_FILE logs frontend-admin"
+else
+    echo "✅ Admin frontend is healthy"
 fi
 
 # ========================================
@@ -115,13 +132,21 @@ echo ""
 docker-compose -f $APP_DIR/$COMPOSE_FILE ps
 echo ""
 echo "Access your application at:"
-echo "  - Frontend: http://$(curl -s ifconfig.me)"
+echo "  - Main Site: http://$(curl -s ifconfig.me)"
+echo "  - Admin Panel: http://$(curl -s ifconfig.me)/admin"
 echo "  - Backend API: http://$(curl -s ifconfig.me)/api"
 echo "  - API Docs: http://$(curl -s ifconfig.me)/docs"
 echo ""
+echo "Service URLs:"
+echo "  - Main Frontend (Next.js): Port 3100 internally"
+echo "  - Admin Frontend (SvelteKit): Port 80 internally"
+echo "  - Backend (FastAPI): Port 8000 internally"
+echo "  - Nginx (Reverse Proxy): Port 80/443 externally"
+echo ""
 echo "Useful commands:"
-echo "  - View logs: docker-compose -f $APP_DIR/$COMPOSE_FILE logs -f"
-echo "  - Restart: docker-compose -f $APP_DIR/$COMPOSE_FILE restart"
-echo "  - Stop: docker-compose -f $APP_DIR/$COMPOSE_FILE down"
+echo "  - View all logs: docker-compose -f $APP_DIR/$COMPOSE_FILE logs -f"
+echo "  - View specific service: docker-compose -f $APP_DIR/$COMPOSE_FILE logs -f [backend|frontend-main|frontend-admin|nginx]"
+echo "  - Restart all: docker-compose -f $APP_DIR/$COMPOSE_FILE restart"
+echo "  - Stop all: docker-compose -f $APP_DIR/$COMPOSE_FILE down"
 echo ""
 echo "=========================================="

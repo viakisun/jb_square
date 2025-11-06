@@ -1,0 +1,38 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 와이어프레임 전용 스타일 */
+.wireframe-border {
+  @apply border-2 border-gray-400;
+}
+
+.wireframe-border-light {
+  @apply border border-gray-300;
+}
+
+.wireframe-bg {
+  @apply bg-gray-50;
+}
+
+.wireframe-text {
+  @apply text-gray-800;
+}
+
+.wireframe-text-secondary {
+  @apply text-gray-600;
+}
+
+/* 반응형 디자인 */
+@media (max-width: 768px) {
+  .mobile-hidden {
+    display: none;
+  }
+}
+
+@media (min-width: 769px) {
+  .desktop-hidden {
+    display: none;
+  }
+}
+

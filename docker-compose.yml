@@ -16,6 +16,7 @@ services:
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
       - AWS_S3_BUCKET_NAME=${AWS_S3_BUCKET_NAME}
       - AWS_S3_REGION=${AWS_S3_REGION}
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:3100,http://localhost}
     volumes:
       - ./backend:/app
       - /app/__pycache__
@@ -29,11 +30,32 @@ services:
       retries: 3
       start_period: 40s
 
-  frontend:
+  frontend-main:
     build:
-      context: ./frontend
+      context: ./frontend-main
       dockerfile: Dockerfile
-    container_name: jb2-frontend
+    container_name: jb2-frontend-main
+    ports:
+      - "3100:3100"
+    environment:
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8000/api}
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - jb2-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3100"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  frontend-admin:
+    build:
+      context: ./frontend-admin
+      dockerfile: Dockerfile
+    container_name: jb2-frontend-admin
     ports:
       - "3000:80"
     depends_on:
@@ -56,10 +78,12 @@ services:
       - "443:443"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
       - ./nginx/ssl:/etc/nginx/ssl:ro
     depends_on:
       - backend
-      - frontend
+      - frontend-main
+      - frontend-admin
     restart: unless-stopped
     networks:
       - jb2-network
