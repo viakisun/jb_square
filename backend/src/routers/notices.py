@@ -363,7 +363,7 @@ async def crawl_source(websocket: WebSocket, source_id: str):
     """
     WebSocket endpoint for real-time crawling with progress updates
 
-    - **source_id**: 'jbtp', 'ntis', 'bizinfo'
+    - **source_id**: 'jbtp', 'jbtp_external', 'ntis', 'ntis_rss', 'bizinfo'
     """
     await websocket.accept()
 
@@ -379,6 +379,8 @@ async def crawl_source(websocket: WebSocket, source_id: str):
             await crawler_manager.execute_jbtp_external(callback=send_update)
         elif source_id == "ntis":
             await crawler_manager.execute_ntis(callback=send_update)
+        elif source_id == "ntis_rss":
+            await crawler_manager.execute_ntis_rss(callback=send_update)
         elif source_id == "bizinfo":
             await crawler_manager.execute_bizinfo(callback=send_update)
         else:

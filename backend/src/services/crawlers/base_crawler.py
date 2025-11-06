@@ -226,7 +226,7 @@ class BaseCrawler(ABC):
                     except Exception as e:
                         # 트리거에 의한 중복 업데이트인 경우 무시
                         db.rollback()
-                        logger.debug(f"Item likely updated by trigger: {title[:50]}...")
+                        # logger.debug(f"Item likely updated by trigger: {title[:50]}...")
                         updated_existing += 1
                         continue
 

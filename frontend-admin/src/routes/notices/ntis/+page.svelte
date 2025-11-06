@@ -57,6 +57,88 @@
 		}
 	}
 
+	async function crawlNTISRSS() {
+		loading = true;
+		crawlStatus = 'running';
+		crawlLogs = [];
+		crawlProgress = { progress: 0, total: 0, success: 0, failed: 0 };
+		errorMessage = '';
+
+		try {
+			const ws = new WebSocket(`${WS_BASE_URL}/api/notices/crawl/ntis_rss`);
+
+			ws.onmessage = (event) => {
+				const data = JSON.parse(event.data);
+				const timestamp = new Date().toISOString();
+
+				switch (data.type) {
+					case 'start':
+						crawlLogs = [...crawlLogs, { timestamp, message: data.message || 'RSS 크롤링 시작...', type: 'info' }];
+						break;
+
+					case 'log':
+						crawlLogs = [...crawlLogs, { timestamp, message: data.message, type: 'info' }];
+						break;
+
+					case 'progress':
+						crawlProgress = {
+							progress: data.progress || 0,
+							total: data.total || 0,
+							success: data.success || 0,
+							failed: data.failed || 0
+						};
+						if (data.message) {
+							crawlLogs = [...crawlLogs, { timestamp, message: data.message, type: 'info' }];
+						}
+						break;
+
+					case 'complete':
+						crawlStatus = 'completed';
+						const totalCollected = data.total_collected || crawlProgress.success;
+						crawlLogs = [
+							...crawlLogs,
+							{ timestamp, message: data.message || 'RSS 크롤링 완료', type: 'success' },
+							{ timestamp, message: `📋 크롤링 대기열 탭에서 ${totalCollected}개의 공고를 확인하세요`, type: 'info' }
+						];
+						loading = false;
+						break;
+
+					case 'error':
+						crawlStatus = 'error';
+						errorMessage = data.message || '크롤링 중 오류 발생';
+						crawlLogs = [...crawlLogs, { timestamp, message: data.message, type: 'error' }];
+						loading = false;
+						break;
+
+					case 'stopped':
+						crawlStatus = 'stopped';
+						crawlLogs = [...crawlLogs, { timestamp, message: data.message || '크롤링 중단됨', type: 'warning' }];
+						loading = false;
+						break;
+				}
+			};
+
+			ws.onclose = () => {
+				if (crawlStatus === 'running') {
+					crawlStatus = 'completed';
+				}
+				loadQueue();
+				loading = false;
+			};
+
+			ws.onerror = (error) => {
+				crawlStatus = 'error';
+				errorMessage = '웹소켓 연결 오류';
+				crawlLogs = [...crawlLogs, { timestamp: new Date().toISOString(), message: '웹소켓 연결 오류', type: 'error' }];
+				loading = false;
+			};
+		} catch (error) {
+			crawlStatus = 'error';
+			errorMessage = String(error);
+			loading = false;
+		}
+	}
+
 	async function crawlNTIS() {
 		loading = true;
 		crawlStatus = 'running';
@@ -65,7 +147,7 @@
 		errorMessage = '';
 
 		try {
-			const ws = new WebSocket(`${WS_BASE_URL}/api/crawling/ws/ntis`);
+			const ws = new WebSocket(`${WS_BASE_URL}/api/notices/crawl/ntis`);
 
 			ws.onmessage = (event) => {
 				const data = JSON.parse(event.data);
@@ -73,7 +155,7 @@
 
 				switch (data.type) {
 					case 'start':
-						crawlLogs = [...crawlLogs, { timestamp, message: data.message || '크롤링 시작...', type: 'info' }];
+						crawlLogs = [...crawlLogs, { timestamp, message: data.message || 'API 크롤링 시작...', type: 'info' }];
 						break;
 
 					case 'log':
@@ -96,7 +178,7 @@
 						crawlStatus = 'completed';
 						crawlLogs = [
 							...crawlLogs,
-							{ timestamp, message: data.message || '크롤링 완료', type: 'success' },
+							{ timestamp, message: data.message || 'API 크롤링 완료', type: 'success' },
 							{ timestamp, message: `📋 크롤링 대기열 탭에서 ${crawlProgress.success}개의 공고를 확인하세요`, type: 'info' }
 						];
 						loading = false;
@@ -183,13 +265,30 @@
 		</div>
 	</div>
 
-	<!-- Crawler Config Card -->
-	<CrawlerConfigCard
-		sourceType="ntis"
-		sourceName="NTIS 국가R&D"
-		onCrawl={crawlNTIS}
-		crawling={loading}
-	/>
+	<!-- Crawler Config Cards -->
+	<div class="crawler-cards">
+		<Panel title="NTIS RSS 크롤러 (권장)">
+			<div class="crawler-card-content">
+				<p class="crawler-description">
+					NTIS RSS 피드를 통해 최근 7일 이내 R&D 공고를 수집합니다. (빠르고 안정적)
+				</p>
+				<Button variant="primary" onclick={crawlNTISRSS} disabled={loading}>
+					{loading ? '크롤링 중...' : 'RSS 크롤링 시작'}
+				</Button>
+			</div>
+		</Panel>
+
+		<Panel title="NTIS API 크롤러 (백업)">
+			<div class="crawler-card-content">
+				<p class="crawler-description">
+					NTIS OpenAPI를 통해 공고를 수집합니다. (API 키 필요)
+				</p>
+				<Button onclick={crawlNTIS} disabled={loading}>
+					{loading ? '크롤링 중...' : 'API 크롤링 시작'}
+				</Button>
+			</div>
+		</Panel>
+	</div>
 
 	<!-- Crawling Status -->
 	{#if crawlStatus !== 'idle'}
@@ -310,6 +409,24 @@
 	.header-actions {
 		display: flex;
 		gap: var(--space-3);
+	}
+
+	.crawler-cards {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+		gap: var(--space-4);
+	}
+
+	.crawler-card-content {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-4);
+	}
+
+	.crawler-description {
+		color: var(--muted);
+		font-size: var(--text-sm);
+		line-height: 1.6;
 	}
 
 	.tabs {
