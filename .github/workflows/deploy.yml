@@ -153,6 +153,20 @@ jobs:
               sleep 2
             done
 
+            echo "🧹 Cleaning up old Docker images..."
+            # Remove dangling images (untagged)
+            docker image prune -f
+
+            # Remove old ECR images except the ones currently in use
+            docker images --filter "reference=711678334703.dkr.ecr.ap-northeast-2.amazonaws.com/jb-square" --format "{{.Repository}}:{{.Tag}} {{.ID}}" | while read img id; do
+              if ! docker ps --format "{{.Image}}" | grep -q "$id"; then
+                if [[ ! "$img" =~ -latest$ ]]; then
+                  echo "Removing unused image: $img"
+                  docker rmi "$img" 2>/dev/null || true
+                fi
+              fi
+            done
+
             echo "=========================================="
             echo "✅ Deployment Complete"
             echo "=========================================="

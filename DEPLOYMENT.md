@@ -362,13 +362,29 @@ sudo systemctl disable nginx
 ### 문제 5: 디스크 공간 부족
 
 ```bash
-# Docker 정리
+# 수동 정리: Docker 이미지 및 캐시 정리
+cd ~/jb_square
+bash scripts/cleanup-docker-images.sh
+
+# 더 강력한 정리 (모든 사용하지 않는 리소스 삭제)
 docker system prune -af
 docker volume prune -f
 
 # 로그 파일 정리
 sudo journalctl --vacuum-time=7d
 ```
+
+**자동 정리 설정 (권장):**
+
+```bash
+# Crontab 편집
+crontab -e
+
+# 매주 일요일 새벽 3시에 Docker 이미지 정리
+0 3 * * 0 /home/ec2-user/jb_square/scripts/cleanup-docker-images.sh >> /home/ec2-user/jb_square/logs/cleanup.log 2>&1
+```
+
+**참고:** GitHub Actions 워크플로우에 자동 정리가 이미 포함되어 있습니다.
 
 ---
 
