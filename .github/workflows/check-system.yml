@@ -1,0 +1,63 @@
+name: Check EC2 System Status
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check-system:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Check System Status
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+            echo "=========================================="
+            echo "📊 System Status Report"
+            echo "=========================================="
+            echo ""
+
+            echo "💾 Memory Usage:"
+            echo "----------------------------------------"
+            free -h
+            echo ""
+
+            echo "💿 Disk Usage:"
+            echo "----------------------------------------"
+            df -h
+            echo ""
+
+            echo "📦 Directory Sizes:"
+            echo "----------------------------------------"
+            du -sh /home/${{ secrets.EC2_USER }}/* 2>/dev/null | sort -hr | head -10
+            echo ""
+
+            echo "🐳 Docker Images:"
+            echo "----------------------------------------"
+            docker images --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}"
+            echo ""
+
+            echo "📊 Docker System Usage:"
+            echo "----------------------------------------"
+            docker system df
+            echo ""
+
+            echo "🏃 Running Containers:"
+            echo "----------------------------------------"
+            docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Size}}"
+            echo ""
+
+            echo "=========================================="
+            echo "✅ Report Complete"
+            echo "=========================================="
+          EOF
+
+      - name: Cleanup
+        if: always()
+        run: rm -f ~/.ssh/deploy_key
