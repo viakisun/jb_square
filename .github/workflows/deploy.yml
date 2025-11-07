@@ -1,4 +1,4 @@
-name: Deploy to EC2
+name: Deploy to EC2 with ECR
 
 on:
   push:
@@ -6,19 +6,67 @@ on:
       - main
   workflow_dispatch:
 
+env:
+  ECR_REGISTRY: 711678334703.dkr.ecr.ap-northeast-2.amazonaws.com
+  ECR_REPOSITORY: jb-square
+  AWS_REGION: ap-northeast-2
+
 jobs:
-  deploy:
+  build-and-push:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Set deploy path
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Build and push Backend image
         run: |
-          echo "🔧 Setting deployment path..."
-          echo "DEPLOY_PATH=/home/${{ secrets.EC2_USER }}/jb_square" >> $GITHUB_ENV
-          echo "✅ Deploy path: /home/${{ secrets.EC2_USER }}/jb_square"
+          echo "🔨 Building backend image..."
+          cd backend
+          docker build -t ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:backend-latest \
+                       -t ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:backend-${{ github.sha }} .
+          docker push ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:backend-latest
+          docker push ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:backend-${{ github.sha }}
+          echo "✅ Backend image pushed"
+
+      - name: Build and push Frontend-Main image
+        run: |
+          echo "🔨 Building frontend-main image..."
+          cd frontend-main
+          docker build -t ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:frontend-main-latest \
+                       -t ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:frontend-main-${{ github.sha }} .
+          docker push ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:frontend-main-latest
+          docker push ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:frontend-main-${{ github.sha }}
+          echo "✅ Frontend-main image pushed"
+
+      - name: Build and push Frontend-Admin image
+        run: |
+          echo "🔨 Building frontend-admin image..."
+          cd frontend-admin
+          docker build -t ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:frontend-admin-latest \
+                       -t ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:frontend-admin-${{ github.sha }} .
+          docker push ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:frontend-admin-latest
+          docker push ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:frontend-admin-${{ github.sha }}
+          echo "✅ Frontend-admin image pushed"
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
 
       - name: Configure SSH
         run: |
@@ -26,11 +74,7 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          echo "📡 Adding EC2 host to known_hosts..."
           ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
-          echo "✅ SSH configuration complete"
-          echo "   EC2 Host: ${{ secrets.EC2_HOST }}"
-          echo "   EC2 User: ${{ secrets.EC2_USER }}"
 
       - name: Create .env file
         run: |
@@ -53,109 +97,53 @@ jobs:
           BIZINFO_API_KEY=${{ secrets.BIZINFO_API_KEY }}
           JBTP_API_KEY=${{ secrets.JBTP_API_KEY }}
           EOF
-          echo "✅ .env file created with $(wc -l < .env) lines"
 
       - name: Copy files to EC2
         run: |
-          echo "📦 Copying files to EC2..."
-          echo "   Source: $(pwd)"
-          echo "   Destination: ${{ secrets.EC2_HOST }}:${{ env.DEPLOY_PATH }}"
-
-          echo "📁 Creating deploy directory on EC2..."
-          ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "mkdir -p ${{ env.DEPLOY_PATH }}"
-
-          echo "🔄 Syncing files with rsync..."
+          echo "📦 Syncing files to EC2..."
           rsync -avz --delete \
             -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" \
             --exclude='.git' \
             --exclude='node_modules' \
             --exclude='venv' \
             --exclude='__pycache__' \
-            --exclude='.env.local' \
-            ./ ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:${{ env.DEPLOY_PATH }}/
+            --exclude='backend/Dockerfile' \
+            --exclude='frontend-main/Dockerfile' \
+            --exclude='frontend-admin/Dockerfile' \
+            ./ ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/home/${{ secrets.EC2_USER }}/jb_square/
 
-          echo "✅ Files copied successfully"
+          scp -i ~/.ssh/deploy_key .env ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/home/${{ secrets.EC2_USER }}/jb_square/.env
 
-      - name: Copy .env file
-        run: |
-          echo "📝 Copying .env file to EC2..."
-          scp -i ~/.ssh/deploy_key .env ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:${{ env.DEPLOY_PATH }}/.env
-          echo "✅ .env file copied"
-
-      - name: Deploy with Docker Compose
+      - name: Deploy to EC2
         run: |
           ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
-            set -e  # Exit on error
+            set -e
 
             echo "=========================================="
-            echo "🐳 Starting Docker Deployment"
+            echo "🚀 Starting Deployment"
             echo "=========================================="
 
-            cd ${{ env.DEPLOY_PATH }}
+            cd /home/${{ secrets.EC2_USER }}/jb_square
 
-            echo ""
-            echo "📂 Current directory: $(pwd)"
-            echo "📋 Files in directory:"
-            ls -la
+            echo "🔐 Logging into ECR..."
+            aws ecr get-login-password --region ap-northeast-2 | \
+              docker login --username AWS --password-stdin 711678334703.dkr.ecr.ap-northeast-2.amazonaws.com
 
-            echo ""
-            echo "🔍 Checking Docker versions..."
-            docker --version
-            docker-compose --version || echo "Docker Compose v1 not found, checking for v2..."
-            docker compose version || echo "Docker Compose v2 not found"
+            echo "📥 Pulling latest images from ECR..."
+            docker pull 711678334703.dkr.ecr.ap-northeast-2.amazonaws.com/jb-square:backend-latest
+            docker pull 711678334703.dkr.ecr.ap-northeast-2.amazonaws.com/jb-square:frontend-main-latest
+            docker pull 711678334703.dkr.ecr.ap-northeast-2.amazonaws.com/jb-square:frontend-admin-latest
 
-            echo ""
-            echo "🛑 Stopping and removing old containers..."
-            # Force remove existing containers to prevent name conflicts
-            docker rm -f jb2-backend-prod jb2-frontend-main-prod jb2-frontend-admin-prod jb2-nginx-prod 2>/dev/null || true
-            # Clean stop with docker-compose
-            docker-compose -f docker-compose.prod.yml down --remove-orphans 2>&1 || true
+            echo "🔄 Restarting containers..."
+            docker-compose -f docker-compose.prod.yml up -d --force-recreate
 
-            echo ""
-            echo "🔨 Building Docker images individually to avoid buildx issues..."
+            echo "⏳ Waiting for services to start..."
+            sleep 15
 
-            # Build backend
-            echo "📦 Building backend image..."
-            cd backend
-            docker build -t jb2-backend:latest . 2>&1
-            if [ $? -eq 0 ]; then
-              echo "✅ Backend image built successfully"
-            else
-              echo "❌ Backend build failed"
-              exit 1
-            fi
-            cd ..
+            echo "📊 Container status:"
+            docker-compose -f docker-compose.prod.yml ps
 
-            # Build frontend-main
-            echo "📦 Building frontend-main (Next.js) image..."
-            cd frontend-main
-            docker build -t jb2-frontend-main:latest . 2>&1
-            if [ $? -eq 0 ]; then
-              echo "✅ Frontend-main image built successfully"
-            else
-              echo "❌ Frontend-main build failed"
-              exit 1
-            fi
-            cd ..
-
-            # Build frontend-admin
-            echo "📦 Building frontend-admin (SvelteKit) image..."
-            cd frontend-admin
-            docker build -t jb2-frontend-admin:latest . 2>&1
-            if [ $? -eq 0 ]; then
-              echo "✅ Frontend-admin image built successfully"
-            else
-              echo "❌ Frontend-admin build failed"
-              exit 1
-            fi
-            cd ..
-
-            echo ""
-            echo "🚀 Starting containers with docker-compose..."
-            docker-compose -f docker-compose.prod.yml up -d --no-build --force-recreate 2>&1
-
-            echo ""
-            echo "⏳ Waiting for backend to be healthy..."
+            echo "🏥 Health check..."
             for i in {1..30}; do
               if docker exec jb2-backend-prod curl -f http://localhost:8000/health 2>/dev/null; then
                 echo "✅ Backend is healthy"
@@ -165,198 +153,25 @@ jobs:
               sleep 2
             done
 
-            echo ""
-            echo "📊 Container status:"
-            docker-compose -f docker-compose.prod.yml ps 2>&1
-
-            echo ""
-            echo "🔍 Verifying each container is running..."
-            for container in jb2-backend-prod jb2-frontend-main-prod jb2-frontend-admin-prod jb2-nginx-prod; do
-              if docker ps | grep -q $container; then
-                echo "✅ $container is running"
-              else
-                echo "❌ $container is NOT running"
-                echo "Checking logs for $container:"
-                docker logs $container --tail=20 2>&1 || echo "No logs available"
-              fi
-            done
-
-            echo ""
-            echo "📝 Recent container logs:"
-            echo "--- Backend logs (last 20 lines) ---"
-            docker-compose -f docker-compose.prod.yml logs --tail=20 backend 2>&1 || echo "Cannot get backend logs"
-
-            echo ""
-            echo "--- Frontend-main logs (last 20 lines) ---"
-            docker-compose -f docker-compose.prod.yml logs --tail=20 frontend-main 2>&1 || echo "Cannot get frontend-main logs"
-
-            echo ""
-            echo "--- Frontend-admin logs (last 20 lines) ---"
-            docker-compose -f docker-compose.prod.yml logs --tail=20 frontend-admin 2>&1 || echo "Cannot get frontend-admin logs"
-
-            echo ""
-            echo "--- Nginx logs (last 20 lines) ---"
-            docker-compose -f docker-compose.prod.yml logs --tail=20 nginx 2>&1 || echo "Cannot get nginx logs"
-
-            echo ""
-            echo "🧹 Cleaning up unused images..."
-            docker image prune -af 2>&1 || echo "Image cleanup skipped"
-
-            echo ""
             echo "=========================================="
-            echo "✅ Docker deployment completed"
+            echo "✅ Deployment Complete"
             echo "=========================================="
-          EOF
-
-      - name: Health Check
-        run: |
-          echo "=========================================="
-          echo "🏥 Health Check Starting"
-          echo "=========================================="
-
-          echo "⏳ Waiting 30 seconds for services to fully start..."
-          sleep 30
-
-          ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
-            set -e
-
-            cd ${{ env.DEPLOY_PATH }}
-
-            echo ""
-            echo "📊 Final container status:"
-            docker-compose -f docker-compose.prod.yml ps 2>&1
-
-            echo ""
-            echo "🔍 Checking running containers:"
-            docker ps
-
-            echo ""
-            echo "🌐 Checking network ports:"
-            sudo netstat -tlnp | grep -E ':(80|443|8000)' || echo "No services on ports 80, 443, 8000"
-
-            echo ""
-            echo "🏥 Backend health check..."
-            if curl -f http://localhost:8000/health 2>&1; then
-              echo "✅ Backend is healthy!"
-            else
-              echo "❌ Backend health check failed!"
-              echo "Backend logs (last 50 lines):"
-              docker-compose -f docker-compose.prod.yml logs --tail=50 backend 2>&1
-              exit 1
-            fi
-
-            echo ""
-            echo "🌍 Main frontend check..."
-            if curl -I http://localhost 2>&1 | head -n 1; then
-              echo "✅ Main frontend is responding!"
-            else
-              echo "⚠️  Main frontend check inconclusive"
-            fi
-
-            echo ""
-            echo "🔐 Admin frontend check..."
-            if curl -I http://localhost/admin 2>&1 | head -n 1; then
-              echo "✅ Admin frontend is responding!"
-            else
-              echo "⚠️  Admin frontend check inconclusive"
-            fi
-
-            echo ""
-            echo "=========================================="
-            echo "✅ All health checks passed!"
-            echo "=========================================="
-          EOF
-
-      - name: Debug on Failure
-        if: failure()
-        run: |
-          echo "=========================================="
-          echo "🔍 Debug Information Collection"
-          echo "=========================================="
-
-          ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF' || true
-            cd ${{ env.DEPLOY_PATH }}
-
-            echo ""
-            echo "📊 All containers (including stopped):"
-            docker ps -a
-
-            echo ""
-            echo "📝 Full container logs:"
-            echo "========== Backend Logs =========="
-            docker-compose -f docker-compose.prod.yml logs backend 2>&1 || echo "No backend logs"
-
-            echo ""
-            echo "========== Frontend-main Logs =========="
-            docker-compose -f docker-compose.prod.yml logs frontend-main 2>&1 || echo "No frontend-main logs"
-
-            echo ""
-            echo "========== Frontend-admin Logs =========="
-            docker-compose -f docker-compose.prod.yml logs frontend-admin 2>&1 || echo "No frontend-admin logs"
-
-            echo ""
-            echo "========== Nginx Logs =========="
-            docker-compose -f docker-compose.prod.yml logs nginx 2>&1 || echo "No nginx logs"
-
-            echo ""
-            echo "💾 Disk space:"
-            df -h
-
-            echo ""
-            echo "🧠 Memory usage:"
-            free -h
-
-            echo ""
-            echo "🖥️  Docker info:"
-            docker info || echo "Cannot get docker info"
           EOF
 
       - name: Cleanup
         if: always()
         run: |
-          echo "🧹 Cleaning up temporary files..."
           rm -f ~/.ssh/deploy_key
           rm -f .env
-          echo "✅ Cleanup complete"
 
       - name: Notify on success
         if: success()
         run: |
-          echo ""
-          echo "=========================================="
-          echo "🎉 DEPLOYMENT SUCCESSFUL!"
-          echo "=========================================="
-          echo ""
-          echo "✅ All containers are running"
-          echo "✅ Health checks passed"
-          echo "✅ Application is ready"
-          echo ""
-          echo "🌐 Access your application at:"
-          echo "   Main site: http://${{ secrets.EC2_HOST }}"
-          echo "   Admin panel: http://admin.${{ secrets.EC2_HOST }}"
-          echo "   API docs: http://${{ secrets.EC2_HOST }}/docs"
-          echo ""
-          echo "=========================================="
+          echo "✅ Deployment successful!"
+          echo "🌐 Website: https://admin.jb2.kr"
 
       - name: Notify on failure
         if: failure()
         run: |
-          echo ""
-          echo "=========================================="
-          echo "❌ DEPLOYMENT FAILED!"
-          echo "=========================================="
-          echo ""
-          echo "Please check the logs above for details."
-          echo ""
-          echo "Common issues:"
-          echo "  - Docker build errors"
-          echo "  - Missing environment variables"
-          echo "  - Port conflicts"
-          echo "  - Insufficient disk space"
-          echo ""
-          echo "Debug steps:"
-          echo "  1. Check the 'Deploy with Docker Compose' step logs"
-          echo "  2. Review the 'Debug on Failure' step output"
-          echo "  3. SSH to EC2 and run: docker-compose -f ~/jb_square/docker-compose.prod.yml logs"
-          echo ""
-          echo "=========================================="
+          echo "❌ Deployment failed!"
+          echo "Check logs above for details"

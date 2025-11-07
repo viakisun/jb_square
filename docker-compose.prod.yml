@@ -1,9 +1,6 @@
 services:
   backend:
-    image: jb2-backend:latest
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
+    image: 711678334703.dkr.ecr.ap-northeast-2.amazonaws.com/jb-square:backend-latest
     container_name: jb2-backend-prod
     environment:
       - AWS_DB_HOST=${AWS_DB_HOST}
@@ -32,10 +29,7 @@ services:
       start_period: 60s
 
   frontend-main:
-    image: jb2-frontend-main:latest
-    build:
-      context: ./frontend-main
-      dockerfile: Dockerfile
+    image: 711678334703.dkr.ecr.ap-northeast-2.amazonaws.com/jb-square:frontend-main-latest
     container_name: jb2-frontend-main-prod
     environment:
       - NEXT_PUBLIC_API_URL=/api
@@ -54,10 +48,7 @@ services:
       start_period: 30s
 
   frontend-admin:
-    image: jb2-frontend-admin:latest
-    build:
-      context: ./frontend-admin
-      dockerfile: Dockerfile
+    image: 711678334703.dkr.ecr.ap-northeast-2.amazonaws.com/jb-square:frontend-admin-latest
     container_name: jb2-frontend-admin-prod
     expose:
       - "80"
