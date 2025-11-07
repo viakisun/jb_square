@@ -15,7 +15,8 @@
 		Rocket,
 		Clock,
 		Tag,
-		BarChart3
+		BarChart3,
+		Activity
 	} from 'lucide-svelte';
 
 	let { children } = $props();
@@ -42,7 +43,8 @@
 		{ path: '/contents', label: '콘텐츠 관리', icon: FileText },
 		{ path: '/organizations', label: '기업·기관', icon: Building },
 		{ path: '/ksic', label: 'KSIC 코드', icon: Tag },
-		{ path: '/analytics', label: '통계', icon: BarChart3 }
+		{ path: '/analytics', label: '통계', icon: BarChart3 },
+		{ path: '/system-monitor', label: '시스템 모니터링', icon: Activity }
 	];
 
 	function toggleSidebar() {
