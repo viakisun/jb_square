@@ -1,11 +1,48 @@
 #!/bin/bash
 
 # ========================================
-# JB SQUARE Deployment Script
+# JB SQUARE Deployment Script - DEPRECATED
 # ========================================
-# Run this script on EC2 to deploy or update the application
-# Supports multi-frontend architecture (main + admin)
-# Usage: bash deploy.sh
+# ⚠️  WARNING: This script is DEPRECATED!
+# ⚠️  Use GitHub Actions for deployment instead.
+#
+# This script builds Docker images locally on EC2, which can cause
+# memory issues on t3.small instances. The current deployment method
+# uses ECR (Elastic Container Registry) where images are built by
+# GitHub Actions and pulled to EC2.
+#
+# Deployment method: Push to main branch → GitHub Actions → ECR → EC2
+# ========================================
+
+echo "⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️"
+echo "⚠️                    WARNING                      ⚠️"
+echo "⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️"
+echo ""
+echo "This deployment script is DEPRECATED and should NOT be used!"
+echo ""
+echo "Current deployment method:"
+echo "  1. Push code to main branch"
+echo "  2. GitHub Actions builds images"
+echo "  3. Images pushed to ECR"
+echo "  4. EC2 pulls images from ECR"
+echo ""
+echo "Why this script is deprecated:"
+echo "  - Building images on EC2 causes OOM (Out of Memory) issues"
+echo "  - t3.small instances have insufficient memory for builds"
+echo "  - GitHub Actions has better resources for building"
+echo ""
+echo "⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️"
+echo ""
+
+read -p "Do you really want to continue? This may crash your EC2 instance! (yes/NO): " -r
+if [[ ! $REPLY =~ ^yes$ ]]; then
+    echo "Deployment cancelled."
+    exit 1
+fi
+
+echo ""
+echo "Proceeding with deprecated local deployment..."
+echo ""
 
 set -e
 

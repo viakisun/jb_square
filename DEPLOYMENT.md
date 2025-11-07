@@ -2,16 +2,33 @@
 
 이 가이드는 JB2 Backoffice를 AWS EC2에 자동으로 배포하는 방법을 설명합니다.
 
+## ⚠️ 중요: 배포 방법
+
+**유일하게 허용되는 배포 방법:**
+- ✅ GitHub Actions를 통한 ECR 기반 배포 (main 브랜치 push)
+
+**사용 금지된 배포 방법:**
+- ❌ EC2에서 직접 `docker build` 실행
+- ❌ `scripts/deploy.sh` 직접 실행 (로컬 빌드 방식, DEPRECATED)
+- ❌ 수동으로 이미지 빌드 및 배포
+
+**이유:**
+- EC2 t3.small 인스턴스는 메모리가 부족하여 Docker 빌드 시 OOM 발생
+- GitHub Actions가 이미지를 빌드하고 ECR에 푸시
+- EC2는 ECR에서 이미지를 pull만 하여 메모리 부담 감소
+
 ---
 
 ## 📋 목차
 
 1. [사전 준비](#사전-준비)
 2. [EC2 인스턴스 설정](#ec2-인스턴스-설정)
-3. [GitHub Secrets 설정](#github-secrets-설정)
-4. [자동 배포 설정](#자동-배포-설정)
-5. [SSL/TLS 인증서 설정](#ssltls-인증서-설정)
-6. [트러블슈팅](#트러블슈팅)
+3. [ECR 설정](#ecr-설정)
+4. [GitHub Secrets 설정](#github-secrets-설정)
+5. [자동 배포 설정](#자동-배포-설정)
+6. [디스크 관리](#디스크-관리)
+7. [SSL/TLS 인증서 설정](#ssltls-인증서-설정)
+8. [트러블슈팅](#트러블슈팅)
 
 ---
 
@@ -104,19 +121,74 @@ AWS_DB_PASSWORD=your_password
 # ... 나머지 설정
 ```
 
-### 5. 수동 배포 (첫 실행)
+---
+
+## 📦 ECR 설정
+
+### 1. ECR Repository 생성
 
 ```bash
-cd ~/jb2-backoffice
+# AWS CLI로 ECR 리포지토리 생성
+aws ecr create-repository \
+  --repository-name jb-square \
+  --region ap-northeast-2
 
-# Docker Compose로 빌드 및 실행
-docker-compose -f docker-compose.prod.yml up -d --build
+# 출력 예시:
+# {
+#   "repository": {
+#     "repositoryUri": "711678334703.dkr.ecr.ap-northeast-2.amazonaws.com/jb-square"
+#   }
+# }
+```
 
-# 로그 확인
-docker-compose -f docker-compose.prod.yml logs -f
+### 2. ECR Lifecycle Policy 적용
 
-# 컨테이너 상태 확인
-docker-compose -f docker-compose.prod.yml ps
+이미지가 무한정 쌓이지 않도록 lifecycle policy를 적용합니다.
+
+```bash
+# lifecycle-policy.json 파일 사용
+aws ecr put-lifecycle-policy \
+  --repository-name jb-square \
+  --lifecycle-policy-text file://lifecycle-policy.json \
+  --region ap-northeast-2
+```
+
+**Lifecycle Policy 내용:**
+- `*-latest` 태그: 영구 보존
+- SHA 태그 이미지: 최근 2개 버전만 유지
+- 태그 없는 이미지: 1일 후 자동 삭제
+
+### 3. EC2 IAM Role ECR 권한 추가
+
+EC2 인스턴스가 ECR에서 이미지를 pull할 수 있도록 IAM Role에 권한을 추가합니다.
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ecr:GetAuthorizationToken",
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:GetDownloadUrlForLayer",
+        "ecr:BatchGetImage"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
+```
+
+### 4. ECR 로그인 테스트 (EC2에서)
+
+```bash
+# EC2에 SSH 접속 후
+aws ecr get-login-password --region ap-northeast-2 | \
+  docker login --username AWS --password-stdin \
+  711678334703.dkr.ecr.ap-northeast-2.amazonaws.com
+
+# 성공 시: Login Succeeded
 ```
 
 ---
@@ -244,6 +316,91 @@ sudo crontab -e
 # 매일 새벽 3시에 인증서 갱신 시도
 0 3 * * * certbot renew --quiet && cp /etc/letsencrypt/live/your-domain.com/*.pem ~/jb2-backoffice/nginx/ssl/ && docker-compose -f ~/jb2-backoffice/docker-compose.prod.yml restart nginx
 ```
+
+---
+
+## 💾 디스크 관리
+
+### 1. 디스크 사용량 점검
+
+EC2에서 정기적으로 디스크 사용량을 점검하는 것이 중요합니다.
+
+```bash
+# 전체 디스크 점검 스크립트 실행
+ssh ec2-user@<EC2_IP>
+cd ~/jb_square
+bash scripts/check-disk-usage.sh
+```
+
+**점검 항목:**
+- 전체 디스크 사용량
+- Docker 이미지 및 컨테이너
+- 로그 파일 크기
+- 이전 프로젝트 잔여 파일
+- 캐시 디렉토리
+
+### 2. 디스크 정리
+
+```bash
+# Dry-run 모드 (변경 없이 미리보기)
+bash scripts/cleanup-disk.sh --dry-run
+
+# 자동 정리 (안전한 항목만)
+bash scripts/cleanup-disk.sh --auto
+
+# 인터랙티브 모드 (각 항목마다 확인)
+bash scripts/cleanup-disk.sh --interactive
+```
+
+**자동으로 정리되는 항목:**
+- Docker dangling images
+- 사용하지 않는 ECR 이미지 (현재 실행 중이 아닌 SHA 태그)
+- 중지된 컨테이너
+- 사용하지 않는 Docker 네트워크/볼륨
+- APT, Pip, NPM 캐시
+- Docker 빌드 캐시
+- 30일 이상 된 로그 파일
+
+### 3. 자동 정리 설정 (권장)
+
+```bash
+# Crontab 편집
+crontab -e
+
+# 매주 일요일 새벽 3시에 자동 정리
+0 3 * * 0 /home/ec2-user/jb_square/scripts/cleanup-disk.sh --auto >> /home/ec2-user/jb_square/logs/cleanup.log 2>&1
+```
+
+### 4. GitHub Actions 자동 정리
+
+배포 시 자동으로 다음 항목이 정리됩니다:
+- Dangling Docker images
+- 사용하지 않는 ECR 이미지 (`*-latest` 태그 제외)
+
+이 기능은 `.github/workflows/deploy.yml`에 이미 포함되어 있습니다.
+
+### 5. EC2에 필요한 파일만 유지
+
+**유지해야 할 파일:**
+- `docker-compose.prod.yml` ✅
+- `.env` ✅
+- `nginx/nginx.conf` ✅
+- `nginx/conf.d/` ✅
+- `nginx/ssl/` ✅ (SSL 사용 시)
+- `scripts/cleanup-docker-images.sh` ✅
+- `scripts/check-disk-usage.sh` ✅
+- `scripts/cleanup-disk.sh` ✅
+- `scripts/verify-and-fix.sh` ✅
+- `scripts/debug-502.sh` ✅
+
+**삭제해야 할 파일:**
+- `backend/Dockerfile` ❌ (GitHub Actions에서만 사용)
+- `frontend-main/Dockerfile` ❌
+- `frontend-admin/Dockerfile` ❌
+- `scripts/deploy.sh` ❌ (DEPRECATED)
+- 이전 프로젝트 디렉토리 ❌
+
+**참고:** `cleanup-disk.sh` 스크립트가 자동으로 이러한 파일들을 식별하고 정리합니다.
 
 ---
 
