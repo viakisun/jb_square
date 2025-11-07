@@ -19,6 +19,14 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # 애플리케이션 코드 복사
 COPY . .
 
+# Docker 소켓 접근을 위한 그룹 및 사용자 설정
+RUN groupadd -g 999 docker || true && \
+    useradd -m -u 1000 -g docker appuser && \
+    chown -R appuser:docker /app
+
+# 비루트 사용자로 전환
+USER appuser
+
 # 포트 노출
 EXPOSE 8000
 

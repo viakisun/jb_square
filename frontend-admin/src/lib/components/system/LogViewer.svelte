@@ -161,7 +161,7 @@
 	<!-- 헤더 -->
 	<div class="viewer-header">
 		<div class="header-left">
-			<span class="icon">📋</span>
+			<span class="icon">[LOGS]</span>
 			<h3 class="title">컨테이너 로그</h3>
 			<span class="container-name">{containerName}</span>
 		</div>
@@ -169,11 +169,7 @@
 		<!-- 액션 버튼 -->
 		<div class="actions">
 			<button class="action-btn" on:click={fetchLogs} disabled={loading}>
-				{#if loading}
-					<span class="btn-icon">⟳</span>
-				{:else}
-					<span class="btn-icon">🔄</span>
-				{/if}
+				<span class="btn-icon" class:loading-icon={loading}>↻</span>
 				<span class="btn-text">새로고침</span>
 			</button>
 
@@ -182,7 +178,7 @@
 				on:click={downloadLogs}
 				disabled={!logs || logs.lines.length === 0}
 			>
-				<span class="btn-icon">💾</span>
+				<span class="btn-icon">↓</span>
 				<span class="btn-text">다운로드</span>
 			</button>
 		</div>
@@ -333,8 +329,14 @@
 	}
 
 	.icon {
-		font-size: var(--text-xl);
+		font-size: var(--text-xs);
+		font-weight: var(--font-bold);
+		text-transform: uppercase;
+		letter-spacing: var(--tracking-wide);
 		line-height: 1;
+		padding: var(--space-1) var(--space-2);
+		border: var(--border-width) solid var(--hair);
+		background-color: var(--surface-1);
 	}
 
 	.title {
@@ -393,6 +395,16 @@
 	.btn-icon {
 		font-size: var(--text-base);
 		line-height: 1;
+	}
+
+	.loading-icon {
+		animation: spin 1s linear infinite;
+	}
+
+	@keyframes spin {
+		to {
+			transform: rotate(360deg);
+		}
 	}
 
 	.btn-text {

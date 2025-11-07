@@ -70,7 +70,7 @@
 	<!-- 헤더 -->
 	<div class="list-header">
 		<div class="header-left">
-			<span class="icon">🐳</span>
+			<span class="icon">[DOCKER]</span>
 			<h3 class="title">Docker 컨테이너</h3>
 		</div>
 		<div class="count-badge">{containers.length}개</div>
@@ -207,8 +207,14 @@
 	}
 
 	.icon {
-		font-size: var(--text-xl);
+		font-size: var(--text-xs);
+		font-weight: var(--font-bold);
+		text-transform: uppercase;
+		letter-spacing: var(--tracking-wide);
 		line-height: 1;
+		padding: var(--space-1) var(--space-2);
+		border: var(--border-width) solid var(--hair);
+		background-color: var(--surface-1);
 	}
 
 	.title {

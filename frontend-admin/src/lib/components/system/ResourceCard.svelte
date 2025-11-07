@@ -157,8 +157,14 @@
 	}
 
 	.icon {
-		font-size: var(--text-xl);
+		font-size: var(--text-xs);
+		font-weight: var(--font-bold);
+		text-transform: uppercase;
+		letter-spacing: var(--tracking-wide);
 		line-height: 1;
+		padding: var(--space-1) var(--space-2);
+		border: var(--border-width) solid var(--hair);
+		background-color: var(--surface-1);
 	}
 
 	.title {

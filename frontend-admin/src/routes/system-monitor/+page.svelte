@@ -185,7 +185,7 @@
 		<div class="header-content">
 			<div class="title-group">
 				<h1 class="page-title">
-					<span class="title-icon">🖥️</span>
+					<span class="title-icon">[SYS]</span>
 					<span class="title-text">시스템 모니터링</span>
 				</h1>
 				<p class="page-description">
@@ -196,11 +196,7 @@
 			<!-- 액션 버튼 -->
 			<div class="header-actions">
 				<button class="action-button" on:click={handleRefresh} disabled={loading}>
-					{#if loading}
-						<span class="btn-icon loading-icon">⟳</span>
-					{:else}
-						<span class="btn-icon">🔄</span>
-					{/if}
+					<span class="btn-icon" class:loading-icon={loading}>↻</span>
 					<span class="btn-text">새로고침</span>
 				</button>
 
@@ -228,21 +224,17 @@
 	<!-- 탭 네비게이션 -->
 	<nav class="tabs-nav">
 		<button class="tab-button" class:tab-active={activeTab === 'overview'} on:click={() => (activeTab = 'overview')}>
-			<span class="tab-icon">📊</span>
 			<span class="tab-label">개요</span>
 		</button>
 		<button class="tab-button" class:tab-active={activeTab === 'containers'} on:click={() => (activeTab = 'containers')}>
-			<span class="tab-icon">🐳</span>
 			<span class="tab-label">컨테이너</span>
 			<span class="tab-count">{containers.length}</span>
 		</button>
 		<button class="tab-button" class:tab-active={activeTab === 'images'} on:click={() => (activeTab = 'images')}>
-			<span class="tab-icon">💿</span>
 			<span class="tab-label">이미지</span>
 			<span class="tab-count">{images.length}</span>
 		</button>
 		<button class="tab-button" class:tab-active={activeTab === 'logs'} on:click={() => (activeTab = 'logs')}>
-			<span class="tab-icon">📋</span>
 			<span class="tab-label">로그</span>
 		</button>
 	</nav>
@@ -270,7 +262,7 @@
 					<!-- 메모리 -->
 					<ResourceCard
 						title="메모리"
-						icon="💾"
+						icon="MEM"
 						used={systemStatus.memory.used}
 						total={systemStatus.memory.total}
 						percent={systemStatus.memory.percent}
@@ -284,7 +276,7 @@
 					<!-- 디스크 -->
 					<ResourceCard
 						title="디스크"
-						icon="💿"
+						icon="DISK"
 						used={systemStatus.disk.used}
 						total={systemStatus.disk.total}
 						percent={systemStatus.disk.percent}
@@ -298,7 +290,7 @@
 					<!-- CPU -->
 					<ResourceCard
 						title="CPU"
-						icon="⚙️"
+						icon="CPU"
 						used={systemStatus.cpu.percent}
 						total={100}
 						percent={systemStatus.cpu.percent}
@@ -316,7 +308,7 @@
 				<!-- Docker 시스템 정보 -->
 				<div class="docker-panel">
 					<div class="panel-header">
-						<span class="panel-icon">🐳</span>
+						<span class="panel-icon">[DOCKER]</span>
 						<h3 class="panel-title">Docker 시스템</h3>
 					</div>
 
@@ -361,7 +353,7 @@
 		{#if activeTab === 'images'}
 			<div class="images-panel">
 				<div class="panel-header">
-					<span class="panel-icon">💿</span>
+					<span class="panel-icon">[IMAGES]</span>
 					<h3 class="panel-title">Docker 이미지</h3>
 				</div>
 
