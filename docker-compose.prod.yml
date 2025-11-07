@@ -18,6 +18,9 @@ services:
       - JBTP_API_KEY=${JBTP_API_KEY:-}
     expose:
       - "8000"
+    volumes:
+      # Docker socket을 읽기 전용으로 마운트 (시스템 모니터링용)
+      - /var/run/docker.sock:/var/run/docker.sock:ro
     restart: always
     networks:
       - jb2-network

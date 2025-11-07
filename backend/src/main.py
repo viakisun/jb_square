@@ -5,7 +5,7 @@ FastAPI 메인 애플리케이션
 import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from src.routers import dashboard, contents, organizations, analytics, settings, crawling, notices, bi_centers, crawling_config, tags, ksic_codes
+from src.routers import dashboard, contents, organizations, analytics, settings, crawling, notices, bi_centers, crawling_config, tags, ksic_codes, system_monitor
 from src.core.database import init_db
 
 app = FastAPI(
@@ -49,6 +49,7 @@ app.include_router(crawling_config.router, prefix="/api/crawling/configs", tags=
 app.include_router(notices.router, tags=["공고관리"])  # Notice: prefix already in router
 app.include_router(bi_centers.router, prefix="/api/bi-centers", tags=["창업보육센터"])
 app.include_router(tags.router, tags=["태그관리"])
+app.include_router(system_monitor.router, tags=["시스템 모니터링"])
 
 
 @app.get("/")
