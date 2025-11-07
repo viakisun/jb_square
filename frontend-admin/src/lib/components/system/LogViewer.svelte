@@ -2,15 +2,15 @@
 	/**
 	 * 컨테이너 로그 뷰어 컴포넌트
 	 *
-	 * Docker 컨테이너의 로그를 실시간으로 조회하고 필터링합니다.
-	 * 로그 레벨, 검색어 필터링을 지원하며, 자동 스크롤 기능이 있습니다.
+	 * BLACK/WHITE/ZERO-ROUND/INDUSTRIAL 디자인 시스템 적용
+	 * monochrome 스타일의 로그 뷰어로 Docker 컨테이너 로그 표시
 	 *
 	 * @component
 	 */
 
 	import { onMount, onDestroy } from 'svelte';
 	import type { LogsResponse, LogLine, LogLevel } from '$lib/types/system-monitor';
-	import { getContainerLogs, getLogLevelColor } from '$lib/api/system-monitor-api';
+	import { getContainerLogs } from '$lib/api/system-monitor-api';
 
 	/**
 	 * Props
@@ -135,211 +135,574 @@
 	$: if (containerName) {
 		fetchLogs();
 	}
+
+	/**
+	 * Utility functions
+	 */
+
+	/** 로그 레벨 표시 텍스트 (monochrome 디자인용) */
+	function getLogLevelDisplay(level: string | null): string {
+		if (!level) return '';
+		return level.toUpperCase();
+	}
+
+	/** 로그 레벨 강도 (스타일 분류용) */
+	function getLogLevelIntensity(level: string | null): 'high' | 'medium' | 'low' | 'none' {
+		if (!level) return 'none';
+		const upper = level.toUpperCase();
+		if (upper === 'ERROR' || upper === 'CRITICAL') return 'high';
+		if (upper === 'WARNING') return 'medium';
+		if (upper === 'INFO') return 'low';
+		return 'none';
+	}
 </script>
 
-<div class="card bg-base-100 shadow-md">
-	<div class="card-body">
-		<!-- 헤더 -->
-		<div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
-			<h3 class="card-title text-lg flex items-center gap-2">
-				<span class="text-2xl">📋</span>
-				컨테이너 로그: <code class="text-sm font-mono">{containerName}</code>
-			</h3>
-
-			<!-- 액션 버튼 -->
-			<div class="flex gap-2">
-				<button class="btn btn-sm btn-primary" on:click={fetchLogs} disabled={loading}>
-					{#if loading}
-						<span class="loading loading-spinner loading-xs"></span>
-					{:else}
-						🔄
-					{/if}
-					새로고침
-				</button>
-
-				<button
-					class="btn btn-sm btn-outline"
-					on:click={downloadLogs}
-					disabled={!logs || logs.lines.length === 0}
-				>
-					💾 다운로드
-				</button>
-			</div>
+<div class="log-viewer">
+	<!-- 헤더 -->
+	<div class="viewer-header">
+		<div class="header-left">
+			<span class="icon">📋</span>
+			<h3 class="title">컨테이너 로그</h3>
+			<span class="container-name">{containerName}</span>
 		</div>
 
-		<!-- 필터 -->
-		<div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-			<!-- 로그 레벨 필터 -->
-			<div class="form-control">
-				<label class="label" for="level-filter">
-					<span class="label-text">로그 레벨</span>
-				</label>
-				<select
-					id="level-filter"
-					class="select select-bordered select-sm"
-					bind:value={levelFilter}
-					on:change={applyFilters}
-				>
-					<option value="">전체</option>
-					<option value="DEBUG">DEBUG</option>
-					<option value="INFO">INFO</option>
-					<option value="WARNING">WARNING</option>
-					<option value="ERROR">ERROR</option>
-					<option value="CRITICAL">CRITICAL</option>
-				</select>
-			</div>
-
-			<!-- 검색어 -->
-			<div class="form-control">
-				<label class="label" for="search-term">
-					<span class="label-text">검색어</span>
-				</label>
-				<input
-					id="search-term"
-					type="text"
-					placeholder="검색..."
-					class="input input-bordered input-sm"
-					bind:value={searchTerm}
-					on:keydown={(e) => e.key === 'Enter' && applyFilters()}
-				/>
-			</div>
-
-			<!-- 라인 수 -->
-			<div class="form-control">
-				<label class="label" for="lines-count">
-					<span class="label-text">라인 수</span>
-				</label>
-				<select
-					id="lines-count"
-					class="select select-bordered select-sm"
-					bind:value={linesCount}
-					on:change={applyFilters}
-				>
-					<option value={100}>100</option>
-					<option value={500}>500</option>
-					<option value={1000}>1000</option>
-					<option value={5000}>5000</option>
-				</select>
-			</div>
-		</div>
-
-		<!-- 자동 스크롤 토글 -->
-		<div class="form-control mb-4">
-			<label class="label cursor-pointer justify-start gap-2">
-				<input type="checkbox" class="checkbox checkbox-sm" bind:checked={autoScroll} />
-				<span class="label-text">자동 스크롤</span>
-			</label>
-		</div>
-
-		<!-- 로그 내용 -->
-		{#if loading && !logs}
-			<div class="flex justify-center items-center py-12">
-				<span class="loading loading-spinner loading-lg text-primary"></span>
-			</div>
-		{:else if error}
-			<div class="alert alert-error">
-				<svg
-					xmlns="http://www.w3.org/2000/svg"
-					class="stroke-current shrink-0 h-6 w-6"
-					fill="none"
-					viewBox="0 0 24 24"
-				>
-					<path
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						stroke-width="2"
-						d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
-					/>
-				</svg>
-				<span>{error}</span>
-			</div>
-		{:else if logs && logs.lines.length > 0}
-			<!-- 로그 통계 -->
-			<div class="flex justify-between text-sm text-gray-600 mb-2">
-				<span>총 {logs.total_lines}줄 (표시: {logs.filtered_lines}줄)</span>
-				{#if logs.has_more}
-					<span class="badge badge-warning badge-sm">더 많은 로그가 있습니다</span>
+		<!-- 액션 버튼 -->
+		<div class="actions">
+			<button class="action-btn" on:click={fetchLogs} disabled={loading}>
+				{#if loading}
+					<span class="btn-icon">⟳</span>
+				{:else}
+					<span class="btn-icon">🔄</span>
 				{/if}
-			</div>
+				<span class="btn-text">새로고침</span>
+			</button>
 
-			<!-- 로그 뷰어 -->
-			<div bind:this={logContainer} class="log-container bg-gray-900 rounded-lg p-4">
-				{#each logs.lines as line, i}
-					<div class="log-line flex gap-3 text-sm font-mono hover:bg-gray-800 px-2 py-1 rounded">
-						<!-- 라인 번호 -->
-						<span class="text-gray-500 select-none w-12 text-right flex-shrink-0">
-							{i + 1}
-						</span>
-
-						<!-- 타임스탬프 -->
-						{#if line.timestamp}
-							<span class="text-gray-400 flex-shrink-0">
-								{new Date(line.timestamp).toLocaleTimeString('ko-KR', {
-									hour12: false,
-									hour: '2-digit',
-									minute: '2-digit',
-									second: '2-digit'
-								})}
-							</span>
-						{/if}
-
-						<!-- 로그 레벨 -->
-						{#if line.level}
-							<span class={`badge badge-sm ${getLogLevelColor(line.level)} flex-shrink-0`}>
-								{line.level}
-							</span>
-						{/if}
-
-						<!-- 메시지 -->
-						<span class="text-gray-100 break-all flex-1">
-							{line.message}
-						</span>
-					</div>
-				{/each}
-			</div>
-		{:else}
-			<div class="text-center py-12 text-gray-500">
-				<p class="text-lg mb-2">로그가 없습니다</p>
-				<p class="text-sm">조회된 로그가 없거나 필터 조건에 맞는 로그가 없습니다.</p>
-			</div>
-		{/if}
+			<button
+				class="action-btn"
+				on:click={downloadLogs}
+				disabled={!logs || logs.lines.length === 0}
+			>
+				<span class="btn-icon">💾</span>
+				<span class="btn-text">다운로드</span>
+			</button>
+		</div>
 	</div>
+
+	<!-- 필터 -->
+	<div class="filters">
+		<!-- 로그 레벨 필터 -->
+		<div class="filter-group">
+			<label class="filter-label" for="level-filter">로그 레벨</label>
+			<select
+				id="level-filter"
+				class="filter-select"
+				bind:value={levelFilter}
+				on:change={applyFilters}
+			>
+				<option value="">전체</option>
+				<option value="DEBUG">DEBUG</option>
+				<option value="INFO">INFO</option>
+				<option value="WARNING">WARNING</option>
+				<option value="ERROR">ERROR</option>
+				<option value="CRITICAL">CRITICAL</option>
+			</select>
+		</div>
+
+		<!-- 검색어 -->
+		<div class="filter-group">
+			<label class="filter-label" for="search-term">검색어</label>
+			<input
+				id="search-term"
+				type="text"
+				placeholder="검색..."
+				class="filter-input"
+				bind:value={searchTerm}
+				on:keydown={(e) => e.key === 'Enter' && applyFilters()}
+			/>
+		</div>
+
+		<!-- 라인 수 -->
+		<div class="filter-group">
+			<label class="filter-label" for="lines-count">라인 수</label>
+			<select id="lines-count" class="filter-select" bind:value={linesCount} on:change={applyFilters}>
+				<option value={100}>100</option>
+				<option value={500}>500</option>
+				<option value={1000}>1000</option>
+				<option value={5000}>5000</option>
+			</select>
+		</div>
+	</div>
+
+	<!-- 자동 스크롤 토글 -->
+	<div class="controls">
+		<label class="checkbox-label">
+			<input type="checkbox" class="checkbox-input" bind:checked={autoScroll} />
+			<span class="checkbox-text">자동 스크롤</span>
+		</label>
+	</div>
+
+	<!-- 로그 내용 -->
+	{#if loading && !logs}
+		<div class="loading-state">
+			<div class="spinner"></div>
+			<p class="loading-text">로그를 불러오는 중...</p>
+		</div>
+	{:else if error}
+		<div class="error-state">
+			<div class="error-icon">■</div>
+			<p class="error-message">{error}</p>
+		</div>
+	{:else if logs && logs.lines.length > 0}
+		<!-- 로그 통계 -->
+		<div class="log-stats">
+			<span class="stat-text">총 {logs.total_lines}줄 (표시: {logs.filtered_lines}줄)</span>
+			{#if logs.has_more}
+				<span class="more-badge">더 많은 로그가 있습니다</span>
+			{/if}
+		</div>
+
+		<!-- 로그 뷰어 -->
+		<div bind:this={logContainer} class="log-container">
+			{#each logs.lines as line, i}
+				<div class="log-line">
+					<!-- 라인 번호 -->
+					<span class="line-number">{i + 1}</span>
+
+					<!-- 타임스탬프 -->
+					{#if line.timestamp}
+						<span class="timestamp">
+							{new Date(line.timestamp).toLocaleTimeString('ko-KR', {
+								hour12: false,
+								hour: '2-digit',
+								minute: '2-digit',
+								second: '2-digit'
+							})}
+						</span>
+					{/if}
+
+					<!-- 로그 레벨 -->
+					{#if line.level}
+						<span class="level-badge" class:level-high={getLogLevelIntensity(line.level) === 'high'} class:level-medium={getLogLevelIntensity(line.level) === 'medium'} class:level-low={getLogLevelIntensity(line.level) === 'low'}>
+							{getLogLevelDisplay(line.level)}
+						</span>
+					{/if}
+
+					<!-- 메시지 -->
+					<span class="message">{line.message}</span>
+				</div>
+			{/each}
+		</div>
+	{:else}
+		<div class="empty-state">
+			<p class="empty-message">로그가 없습니다</p>
+			<p class="empty-description">조회된 로그가 없거나 필터 조건에 맞는 로그가 없습니다.</p>
+		</div>
+	{/if}
 </div>
 
 <style>
+	/* ========================================
+	   LOG VIEWER
+	   ======================================== */
+
+	.log-viewer {
+		background-color: var(--bg);
+		border: var(--border-width) solid var(--hair);
+		padding: var(--space-6);
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-4);
+	}
+
+	/* ========================================
+	   HEADER
+	   ======================================== */
+
+	.viewer-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		flex-wrap: wrap;
+		gap: var(--space-4);
+	}
+
+	.header-left {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+	}
+
+	.icon {
+		font-size: var(--text-xl);
+		line-height: 1;
+	}
+
+	.title {
+		font-size: var(--text-lg);
+		font-weight: var(--font-semibold);
+		text-transform: uppercase;
+		letter-spacing: var(--tracking-tight);
+		color: var(--fg);
+		line-height: 1;
+	}
+
+	.container-name {
+		font-size: var(--text-sm);
+		font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', monospace;
+		color: var(--fg);
+		background-color: var(--surface-1);
+		padding: var(--space-1) var(--space-2);
+		border: var(--border-width) solid var(--hair);
+	}
+
+	/* ========================================
+	   ACTIONS
+	   ======================================== */
+
+	.actions {
+		display: flex;
+		gap: var(--space-2);
+	}
+
+	.action-btn {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--space-1-5);
+		padding: var(--space-2) var(--space-4);
+		font-size: var(--text-sm);
+		font-weight: var(--font-medium);
+		text-transform: uppercase;
+		letter-spacing: var(--tracking-wide);
+		background-color: var(--bg);
+		color: var(--fg);
+		border: var(--border-width) solid var(--hair);
+		cursor: pointer;
+		transition: all var(--duration-fast) var(--ease-out);
+	}
+
+	.action-btn:hover:not(:disabled) {
+		background-color: var(--ghost);
+		border-color: var(--fg);
+	}
+
+	.action-btn:disabled {
+		opacity: 0.4;
+		cursor: not-allowed;
+	}
+
+	.btn-icon {
+		font-size: var(--text-base);
+		line-height: 1;
+	}
+
+	.btn-text {
+		line-height: 1;
+	}
+
+	/* ========================================
+	   FILTERS
+	   ======================================== */
+
+	.filters {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+		gap: var(--space-4);
+	}
+
+	.filter-group {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-2);
+	}
+
+	.filter-label {
+		font-size: var(--text-xs);
+		font-weight: var(--font-semibold);
+		text-transform: uppercase;
+		letter-spacing: var(--tracking-wide);
+		color: var(--muted);
+	}
+
+	.filter-select,
+	.filter-input {
+		padding: var(--space-2) var(--space-3);
+		font-size: var(--text-sm);
+		color: var(--fg);
+		background-color: var(--bg);
+		border: var(--border-width) solid var(--hair);
+		font-family: 'Pretendard Variable', -apple-system, sans-serif;
+		transition: border-color var(--duration-fast) var(--ease-out);
+	}
+
+	.filter-select:hover,
+	.filter-input:hover {
+		border-color: var(--fg);
+	}
+
+	.filter-select:focus,
+	.filter-input:focus {
+		outline: none;
+		border-color: var(--fg);
+		background-color: var(--ghost);
+	}
+
+	/* ========================================
+	   CONTROLS
+	   ======================================== */
+
+	.controls {
+		display: flex;
+		align-items: center;
+	}
+
+	.checkbox-label {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+		cursor: pointer;
+	}
+
+	.checkbox-input {
+		width: 16px;
+		height: 16px;
+		border: var(--border-width) solid var(--hair);
+		background-color: var(--bg);
+		cursor: pointer;
+		transition: all var(--duration-fast) var(--ease-out);
+	}
+
+	.checkbox-input:checked {
+		background-color: var(--fg);
+	}
+
+	.checkbox-text {
+		font-size: var(--text-sm);
+		font-weight: var(--font-medium);
+		text-transform: uppercase;
+		letter-spacing: var(--tracking-wide);
+		color: var(--fg);
+	}
+
+	/* ========================================
+	   LOADING STATE
+	   ======================================== */
+
+	.loading-state {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		padding: var(--space-12) var(--space-4);
+		gap: var(--space-3);
+	}
+
+	.spinner {
+		width: 32px;
+		height: 32px;
+		border: var(--border-width) solid var(--hair);
+		border-top-color: var(--fg);
+		animation: spin 1s linear infinite;
+	}
+
+	@keyframes spin {
+		to {
+			transform: rotate(360deg);
+		}
+	}
+
+	.loading-text {
+		font-size: var(--text-sm);
+		color: var(--muted);
+		text-transform: uppercase;
+		letter-spacing: var(--tracking-wide);
+	}
+
+	/* ========================================
+	   ERROR STATE
+	   ======================================== */
+
+	.error-state {
+		display: flex;
+		align-items: center;
+		gap: var(--space-3);
+		padding: var(--space-4);
+		background-color: var(--surface-1);
+		border: var(--border-width) solid var(--fg);
+	}
+
+	.error-icon {
+		font-size: var(--text-2xl);
+		color: var(--fg);
+		line-height: 1;
+	}
+
+	.error-message {
+		font-size: var(--text-sm);
+		color: var(--fg);
+		font-weight: var(--font-medium);
+	}
+
+	/* ========================================
+	   EMPTY STATE
+	   ======================================== */
+
+	.empty-state {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		padding: var(--space-12) var(--space-4);
+		gap: var(--space-2);
+	}
+
+	.empty-message {
+		font-size: var(--text-base);
+		font-weight: var(--font-semibold);
+		color: var(--fg);
+		text-transform: uppercase;
+		letter-spacing: var(--tracking-wide);
+	}
+
+	.empty-description {
+		font-size: var(--text-sm);
+		color: var(--muted);
+	}
+
+	/* ========================================
+	   LOG STATS
+	   ======================================== */
+
+	.log-stats {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		flex-wrap: wrap;
+		gap: var(--space-2);
+	}
+
+	.stat-text {
+		font-size: var(--text-sm);
+		color: var(--muted);
+		text-transform: uppercase;
+		letter-spacing: var(--tracking-wide);
+	}
+
+	.more-badge {
+		display: inline-flex;
+		padding: var(--space-0-5) var(--space-2);
+		font-size: var(--text-2xs);
+		font-weight: var(--font-medium);
+		text-transform: uppercase;
+		letter-spacing: var(--tracking-wide);
+		background-color: var(--surface-1);
+		border: var(--border-width) solid var(--fg);
+		color: var(--fg);
+	}
+
+	/* ========================================
+	   LOG CONTAINER
+	   ======================================== */
+
 	.log-container {
 		max-height: 600px;
 		overflow-y: auto;
 		overflow-x: hidden;
+		background-color: var(--surface-1);
+		border: var(--border-width) solid var(--hair);
+		padding: var(--space-4);
 	}
 
+	/* 스크롤바 스타일 (monochrome) */
 	.log-container::-webkit-scrollbar {
 		width: 8px;
 	}
 
 	.log-container::-webkit-scrollbar-track {
-		background: #1f2937;
-		border-radius: 4px;
+		background: var(--surface-2);
 	}
 
 	.log-container::-webkit-scrollbar-thumb {
-		background: #4b5563;
-		border-radius: 4px;
+		background: var(--muted);
+		border: var(--border-width) solid var(--hair);
 	}
 
 	.log-container::-webkit-scrollbar-thumb:hover {
-		background: #6b7280;
+		background: var(--fg);
 	}
+
+	/* ========================================
+	   LOG LINE
+	   ======================================== */
 
 	.log-line {
-		line-height: 1.5;
-		min-height: 2rem;
+		display: flex;
 		align-items: flex-start;
+		gap: var(--space-3);
+		padding: var(--space-1-5) var(--space-2);
+		font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', monospace;
+		font-size: var(--text-xs);
+		line-height: 1.6;
+		min-height: 32px;
+		transition: background-color var(--duration-fast) var(--ease-out);
 	}
 
-	code {
-		background-color: hsl(var(--b3));
-		padding: 0.2rem 0.4rem;
-		border-radius: 0.25rem;
+	.log-line:hover {
+		background-color: var(--ghost);
+	}
+
+	/* 라인 번호 */
+	.line-number {
+		user-select: none;
+		width: 48px;
+		text-align: right;
+		flex-shrink: 0;
+		color: var(--muted);
+		font-variant-numeric: tabular-nums;
+	}
+
+	/* 타임스탬프 */
+	.timestamp {
+		flex-shrink: 0;
+		color: var(--muted);
+		font-variant-numeric: tabular-nums;
+		min-width: 70px;
+	}
+
+	/* 로그 레벨 배지 */
+	.level-badge {
+		display: inline-flex;
+		padding: var(--space-0-5) var(--space-1-5);
+		font-size: var(--text-2xs);
+		font-weight: var(--font-medium);
+		text-transform: uppercase;
+		letter-spacing: var(--tracking-wide);
+		background-color: var(--surface-2);
+		border: var(--border-width) solid var(--hair);
+		flex-shrink: 0;
+		min-width: 64px;
+		justify-content: center;
+	}
+
+	.level-badge.level-high {
+		background-color: rgba(0, 0, 0, 0.9);
+		border-color: var(--fg);
+		color: var(--bg);
+	}
+
+	.level-badge.level-medium {
+		background-color: rgba(0, 0, 0, 0.6);
+		color: var(--bg);
+	}
+
+	.level-badge.level-low {
+		background-color: var(--surface-2);
+		color: var(--fg);
+	}
+
+	/* 메시지 */
+	.message {
+		flex: 1;
+		color: var(--fg);
+		word-break: break-all;
 	}
 </style>

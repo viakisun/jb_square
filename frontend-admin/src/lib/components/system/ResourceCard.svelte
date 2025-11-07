@@ -2,21 +2,10 @@
 	/**
 	 * 리소스 사용률 카드 컴포넌트
 	 *
-	 * 메모리, 디스크, CPU 등의 리소스 사용률을 시각적으로 표시합니다.
-	 * 프로그레스 바와 상세 정보를 포함하며, 임계값 초과 시 색상이 변경됩니다.
+	 * BLACK/WHITE/ZERO-ROUND/INDUSTRIAL 디자인 시스템 적용
+	 * 메모리, 디스크, CPU 등의 리소스 사용률을 monochrome 스타일로 표시
 	 *
 	 * @component
-	 * @example
-	 * ```svelte
-	 * <ResourceCard
-	 *   title="메모리"
-	 *   icon="💾"
-	 *   used={8}
-	 *   total={16}
-	 *   percent={50}
-	 *   unit="GB"
-	 * />
-	 * ```
 	 */
 
 	import { formatBytes } from '$lib/api/system-monitor-api';
@@ -28,7 +17,7 @@
 	/** 리소스 이름 */
 	export let title: string;
 
-	/** 아이콘 (이모지 또는 SVG) */
+	/** 아이콘 (텍스트/이모지) */
 	export let icon: string;
 
 	/** 사용량 (원시 값) */
@@ -65,93 +54,227 @@
 	/** 표시용 총 용량 */
 	$: displayTotal = isBytes ? formatBytes(total) : `${total.toFixed(1)} ${unit}`;
 
-	/** 프로그레스 바 색상 클래스 */
-	$: progressColor =
-		percent >= criticalThreshold
-			? 'bg-red-600'
-			: percent >= warningThreshold
-				? 'bg-yellow-500'
-				: 'bg-green-500';
-
-	/** 텍스트 색상 클래스 */
-	$: textColor =
-		percent >= criticalThreshold
-			? 'text-red-600'
-			: percent >= warningThreshold
-				? 'text-yellow-600'
-				: 'text-green-600';
-
-	/** 배경 색상 클래스 */
-	$: bgColor =
-		percent >= criticalThreshold
-			? 'bg-red-50'
-			: percent >= warningThreshold
-				? 'bg-yellow-50'
-				: 'bg-green-50';
+	/** 알림 레벨 결정 */
+	$: alertLevel =
+		percent >= criticalThreshold ? 'critical' : percent >= warningThreshold ? 'warning' : 'normal';
 </script>
 
-<div class="card bg-base-100 shadow-md hover:shadow-lg transition-shadow">
-	<div class="card-body">
-		<!-- 헤더: 아이콘 + 제목 + 사용률 -->
-		<div class="flex items-center justify-between mb-4">
-			<div class="flex items-center gap-2">
-				<span class="text-2xl">{icon}</span>
-				<h3 class="card-title text-lg">{title}</h3>
-			</div>
-			<div class={`font-bold text-2xl ${textColor}`}>
-				{percent.toFixed(1)}%
-			</div>
+<div class="resource-card">
+	<!-- 헤더: 아이콘 + 제목 -->
+	<div class="card-header">
+		<div class="header-left">
+			<span class="icon">{icon}</span>
+			<h3 class="title">{title}</h3>
 		</div>
+		<div class="percent-value">{percent.toFixed(1)}%</div>
+	</div>
 
-		<!-- 프로그레스 바 -->
-		<div class="w-full bg-gray-200 rounded-full h-3 mb-4 overflow-hidden">
-			<div
-				class={`h-full ${progressColor} transition-all duration-500 ease-out`}
-				style="width: {percent}%"
-			></div>
+	<!-- 프로그레스 바 -->
+	<div class="progress-bar">
+		<div
+			class="progress-fill"
+			class:alert-warning={alertLevel === 'warning'}
+			class:alert-critical={alertLevel === 'critical'}
+			style="width: {percent}%"
+		></div>
+	</div>
+
+	<!-- 상세 정보 -->
+	<div class="details">
+		<div class="detail-row">
+			<span class="label">사용 중</span>
+			<span class="value">{displayUsed}</span>
 		</div>
-
-		<!-- 상세 정보: 사용량 / 총 용량 -->
-		<div class="flex justify-between text-sm text-gray-600 mb-2">
-			<span>사용 중</span>
-			<span class="font-semibold">{displayUsed}</span>
+		<div class="detail-row">
+			<span class="label">총 용량</span>
+			<span class="value">{displayTotal}</span>
 		</div>
+	</div>
 
-		<div class="flex justify-between text-sm text-gray-600">
-			<span>총 용량</span>
-			<span class="font-semibold">{displayTotal}</span>
-		</div>
-
-		<!-- 추가 정보 (optional) -->
-		{#if additional.length > 0}
-			<div class="divider my-2"></div>
+	<!-- 추가 정보 -->
+	{#if additional.length > 0}
+		<div class="divider"></div>
+		<div class="additional">
 			{#each additional as info}
-				<div class="flex justify-between text-sm text-gray-600">
-					<span>{info.label}</span>
-					<span class="font-semibold">{info.value}</span>
+				<div class="detail-row">
+					<span class="label">{info.label}</span>
+					<span class="value">{info.value}</span>
 				</div>
 			{/each}
-		{/if}
+		</div>
+	{/if}
 
-		<!-- 알림 배지 (임계값 초과 시) -->
-		{#if percent >= warningThreshold}
-			<div class={`badge badge-sm mt-3 ${bgColor} ${textColor} border-none`}>
-				{#if percent >= criticalThreshold}
-					⚠️ 위험 수준
-				{:else}
-					⚡ 주의 필요
-				{/if}
-			</div>
-		{/if}
-	</div>
+	<!-- 알림 배지 -->
+	{#if alertLevel !== 'normal'}
+		<div
+			class="alert-badge"
+			class:alert-warning={alertLevel === 'warning'}
+			class:alert-critical={alertLevel === 'critical'}
+		>
+			{#if alertLevel === 'critical'}
+				■ 위험 수준
+			{:else}
+				■ 주의 필요
+			{/if}
+		</div>
+	{/if}
 </div>
 
 <style>
-	.card {
-		min-height: 220px;
+	/* ========================================
+	   RESOURCE CARD
+	   ======================================== */
+
+	.resource-card {
+		background-color: var(--bg);
+		border: var(--border-width) solid var(--hair);
+		padding: var(--space-6);
+		transition: border-color var(--duration-base) var(--ease-out);
+		min-height: 240px;
+		display: flex;
+		flex-direction: column;
 	}
 
-	.card-body {
-		padding: 1.5rem;
+	.resource-card:hover {
+		border-color: var(--fg);
+	}
+
+	/* ========================================
+	   CARD HEADER
+	   ======================================== */
+
+	.card-header {
+		display: flex;
+		align-items: flex-start;
+		justify-content: space-between;
+		margin-bottom: var(--space-4);
+	}
+
+	.header-left {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+	}
+
+	.icon {
+		font-size: var(--text-xl);
+		line-height: 1;
+	}
+
+	.title {
+		font-size: var(--text-md);
+		font-weight: var(--font-semibold);
+		text-transform: uppercase;
+		letter-spacing: var(--tracking-tight);
+		color: var(--fg);
+		line-height: 1;
+	}
+
+	.percent-value {
+		font-size: var(--text-2xl);
+		font-weight: var(--font-bold);
+		font-variant-numeric: tabular-nums;
+		letter-spacing: var(--tracking-tight);
+		color: var(--fg);
+	}
+
+	/* ========================================
+	   PROGRESS BAR
+	   ======================================== */
+
+	.progress-bar {
+		width: 100%;
+		height: 4px;
+		background-color: var(--surface-2);
+		border: var(--border-width) solid var(--hair);
+		margin-bottom: var(--space-4);
+		overflow: hidden;
+	}
+
+	.progress-fill {
+		height: 100%;
+		background-color: var(--fg);
+		transition: width var(--duration-base) var(--ease-out-expo);
+	}
+
+	.progress-fill.alert-warning {
+		background-color: rgba(0, 0, 0, 0.6);
+	}
+
+	.progress-fill.alert-critical {
+		background-color: rgba(0, 0, 0, 0.9);
+	}
+
+	/* ========================================
+	   DETAILS
+	   ======================================== */
+
+	.details {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-2);
+	}
+
+	.detail-row {
+		display: flex;
+		justify-content: space-between;
+		align-items: baseline;
+	}
+
+	.label {
+		font-size: var(--text-sm);
+		color: var(--muted);
+		text-transform: uppercase;
+		letter-spacing: var(--tracking-wide);
+		font-weight: var(--font-medium);
+	}
+
+	.value {
+		font-size: var(--text-base);
+		font-weight: var(--font-semibold);
+		color: var(--fg);
+		font-variant-numeric: tabular-nums;
+	}
+
+	/* ========================================
+	   DIVIDER
+	   ======================================== */
+
+	.divider {
+		height: var(--border-width);
+		background-color: var(--hair);
+		margin: var(--space-3) 0;
+	}
+
+	/* ========================================
+	   ADDITIONAL INFO
+	   ======================================== */
+
+	.additional {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-2);
+	}
+
+	/* ========================================
+	   ALERT BADGE
+	   ======================================== */
+
+	.alert-badge {
+		margin-top: auto;
+		padding-top: var(--space-3);
+		font-size: var(--text-xs);
+		font-weight: var(--font-semibold);
+		text-transform: uppercase;
+		letter-spacing: var(--tracking-wide);
+		color: var(--fg);
+	}
+
+	.alert-badge.alert-warning {
+		opacity: 0.6;
+	}
+
+	.alert-badge.alert-critical {
+		opacity: 0.9;
 	}
 </style>
