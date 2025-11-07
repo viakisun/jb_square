@@ -140,6 +140,39 @@ class DockerClient:
           - /var/run/docker.sock:/var/run/docker.sock:ro
     """
 
+    @staticmethod
+    def _parse_docker_timestamp(timestamp_str: str) -> datetime:
+        """Docker 타임스탬프를 datetime 객체로 변환
+
+        Docker는 나노초까지 포함된 ISO 형식을 반환하지만,
+        Python의 fromisoformat()은 마이크로초까지만 지원하므로 변환이 필요합니다.
+
+        Args:
+            timestamp_str: Docker 타임스탬프 (예: '2025-11-07T11:36:41.344815465+00:00')
+
+        Returns:
+            datetime: 파싱된 datetime 객체
+
+        Example:
+            >>> DockerClient._parse_docker_timestamp('2025-11-07T11:36:41.344815465+00:00')
+            datetime.datetime(2025, 11, 7, 11, 36, 41, 344815, tzinfo=...)
+        """
+        # Z를 +00:00으로 변환
+        timestamp_str = timestamp_str.replace('Z', '+00:00')
+
+        # 나노초가 포함된 경우 마이크로초로 자르기
+        if '.' in timestamp_str:
+            date_part, fractional_part = timestamp_str.split('.', 1)
+            # 소수점 이하에서 숫자만 추출 (타임존 정보 분리)
+            i = 0
+            while i < len(fractional_part) and fractional_part[i].isdigit():
+                i += 1
+            microseconds = fractional_part[:min(i, 6)]  # 마이크로초는 최대 6자리
+            timezone = fractional_part[i:]  # 타임존 정보 (+00:00 등)
+            timestamp_str = f"{date_part}.{microseconds}{timezone}"
+
+        return datetime.fromisoformat(timestamp_str)
+
     def __init__(self, base_url: str = "unix://var/run/docker.sock", retry_count: int = 3):
         """Docker 클라이언트 초기화
 
@@ -234,11 +267,11 @@ class DockerClient:
                 started_at = state.get('StartedAt')
                 started = None
                 if started_at and started_at != '0001-01-01T00:00:00Z':
-                    started = datetime.fromisoformat(started_at.replace('Z', '+00:00'))
+                    started = self._parse_docker_timestamp(started_at)
 
                 # 생성 시각 파싱
                 created_at = attrs.get('Created')
-                created = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
+                created = self._parse_docker_timestamp(created_at)
 
                 # 컨테이너 크기 조회 (size_rw: 변경된 크기, size_rootfs: 루트 파일시스템 크기)
                 size_info = container.client.api.inspect_container(container.id)
@@ -301,7 +334,7 @@ class DockerClient:
 
                 # 생성 시각 파싱
                 created_at = attrs.get('Created')
-                created = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
+                created = self._parse_docker_timestamp(created_at)
 
                 image_info = ImageInfo(
                     id=image.short_id.replace('sha256:', ''),
