@@ -661,30 +661,6 @@
 		border-top: var(--border-width) solid var(--hair);
 	}
 
-	.detail-grid {
-		display: grid;
-		grid-template-columns: repeat(2, 1fr);
-		gap: var(--space-3);
-		margin-bottom: var(--space-4);
-	}
-
-	.detail-item {
-		display: flex;
-		gap: var(--space-2);
-	}
-
-	.detail-item .label {
-		font-size: var(--text-sm);
-		font-weight: var(--font-medium);
-		color: var(--muted);
-		min-width: 100px;
-	}
-
-	.detail-item .value {
-		font-size: var(--text-sm);
-		color: var(--fg);
-	}
-
 	/* Inline detail grid - always visible in header */
 	.detail-grid-inline {
 		display: grid;

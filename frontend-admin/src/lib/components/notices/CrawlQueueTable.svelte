@@ -589,30 +589,19 @@
 	}
 
 	/* ========================================
-     DEADLINE CELL & POSTED INFO
+     DEADLINE CELL
      ======================================== */
 
-	.deadline-cell,
-	.posted-info {
+	.deadline-cell {
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-1);
 		align-items: flex-start;
 	}
 
-	.deadline-date,
-	.posted-date {
+	.deadline-date {
 		font-size: var(--text-xs);
 		color: var(--muted);
-	}
-
-	.info-label {
-		font-size: var(--text-xs);
-		color: var(--muted);
-		font-weight: var(--font-medium);
-		text-transform: uppercase;
-		letter-spacing: var(--tracking-wide);
-		opacity: 0.7;
 	}
 
 	.deadline-badge {

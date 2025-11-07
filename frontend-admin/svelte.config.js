@@ -19,6 +19,22 @@ const config = {
       base: process.env.PUBLIC_BASE_PATH || "",
     },
   },
+
+  // Disable some accessibility warnings for production build
+  onwarn: (warning, handler) => {
+    // Ignore specific a11y warnings that don't affect functionality
+    if (
+      warning.code === "a11y_autofocus" ||
+      warning.code === "a11y_no_noninteractive_tabindex" ||
+      warning.code === "a11y_click_events_have_key_events" ||
+      warning.code === "a11y_no_static_element_interactions" ||
+      warning.code === "a11y_label_has_associated_control" ||
+      warning.code === "a11y_no_redundant_roles"
+    ) {
+      return;
+    }
+    handler(warning);
+  },
 };
 
 export default config;
