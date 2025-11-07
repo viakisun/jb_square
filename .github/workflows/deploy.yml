@@ -134,6 +134,10 @@ jobs:
             docker pull 711678334703.dkr.ecr.ap-northeast-2.amazonaws.com/jb-square:frontend-main-latest
             docker pull 711678334703.dkr.ecr.ap-northeast-2.amazonaws.com/jb-square:frontend-admin-latest
 
+            echo "🔧 Setting Docker GID..."
+            export DOCKER_GID=\$(getent group docker | cut -d: -f3)
+            echo "Docker GID: \$DOCKER_GID"
+
             echo "🔄 Restarting containers..."
             docker-compose -f docker-compose.prod.yml up -d --force-recreate
 

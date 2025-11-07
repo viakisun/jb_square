@@ -23,7 +23,8 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     group_add:
       # Docker 그룹 GID 추가 (Docker 소켓 접근 권한)
-      - "999"
+      # 호스트의 Docker 그룹 GID를 사용 (환경 변수로 전달)
+      - "${DOCKER_GID:-991}"
     restart: always
     networks:
       - jb2-network

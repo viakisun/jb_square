@@ -1,6 +1,9 @@
 # Backend Dockerfile for FastAPI application
 FROM python:3.9-slim
 
+# Docker 그룹 GID를 빌드 인자로 받음 (기본값: 991)
+ARG DOCKER_GID=991
+
 # 작업 디렉토리 설정
 WORKDIR /app
 
@@ -20,7 +23,8 @@ RUN pip install --no-cache-dir --upgrade pip && \
 COPY . .
 
 # Docker 소켓 접근을 위한 그룹 및 사용자 설정
-RUN groupadd -g 999 docker || true && \
+# DOCKER_GID 빌드 인자를 사용하여 동적으로 그룹 생성
+RUN groupadd -g ${DOCKER_GID} docker || true && \
     useradd -m -u 1000 -g docker appuser && \
     chown -R appuser:docker /app
 
