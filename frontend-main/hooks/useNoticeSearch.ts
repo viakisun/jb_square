@@ -35,7 +35,7 @@
  * @version 1.0.0
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import api from '@/lib/api/client';
 import { Notice, NoticeFilterParams } from '@/lib/api/types';
 import { getErrorMessage, logError } from '@/lib/utils/errors';
@@ -123,6 +123,9 @@ export function useNoticeSearch(options: SearchOptions = {}): UseNoticeSearchRet
     disableAutoSearch = false
   } = options;
 
+  // additionalFilters를 메모이제이션하여 참조 안정성 확보
+  const memoizedFilters = useMemo(() => additionalFilters, [JSON.stringify(additionalFilters)]);
+
   // 상태 관리
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [results, setResults] = useState<Notice[]>([]);
@@ -158,7 +161,7 @@ export function useNoticeSearch(options: SearchOptions = {}): UseNoticeSearchRet
 
     try {
       const response = await api.notices.search(searchTerm, {
-        ...additionalFilters,
+        ...memoizedFilters,
         limit: 50  // 검색 결과는 기본 50개까지
       });
 
@@ -174,7 +177,7 @@ export function useNoticeSearch(options: SearchOptions = {}): UseNoticeSearchRet
     } finally {
       setLoading(false);
     }
-  }, [minLength, additionalFilters]);
+  }, [minLength, memoizedFilters]);
 
   /**
    * 검색 결과 초기화
@@ -220,7 +223,7 @@ export function useNoticeSearch(options: SearchOptions = {}): UseNoticeSearchRet
 
       try {
         const response = await api.notices.search(searchQuery, {
-          ...additionalFilters,
+          ...memoizedFilters,
           limit: 50  // 검색 결과는 기본 50개까지
         });
 
@@ -244,7 +247,7 @@ export function useNoticeSearch(options: SearchOptions = {}): UseNoticeSearchRet
         clearTimeout(debounceTimer.current);
       }
     };
-  }, [searchQuery, debounceDelay, minLength, disableAutoSearch, additionalFilters]);
+  }, [searchQuery, debounceDelay, minLength, disableAutoSearch, memoizedFilters]);
 
   return {
     searchQuery,
