@@ -162,7 +162,7 @@ export class NoticesAPI {
    * ```
    */
   async getByCategory(
-    category: 'government' | 'business' | 'rnd' | 'startup',
+    category: 'government' | 'local_government' | 'business' | 'rnd' | 'startup',
     additionalParams?: Omit<NoticeFilterParams, 'category'>
   ): Promise<PaginatedResponse<Notice>> {
     return this.getList({ ...additionalParams, category });

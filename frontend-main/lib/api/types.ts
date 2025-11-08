@@ -41,8 +41,8 @@ export interface Notice {
   /** 크롤러 소스 ID ('jbtp', 'ntis_rss', 'bizinfo', 'manual' 등) */
   crawler_source_id: string;
 
-  /** 공고 카테고리 ('government': 정부, 'business': 지자체, 'rnd': R&D, 'startup': 창업) */
-  category: 'government' | 'business' | 'rnd' | 'startup';
+  /** 공고 카테고리 ('government': 정부, 'local_government': 지자체, 'business': 민간, 'rnd': R&D, 'startup': 창업) */
+  category: 'government' | 'local_government' | 'business' | 'rnd' | 'startup';
 
   /** 공고 태그 목록 (예: ['바이오', '제조업', '신규']) */
   tags: string[];
@@ -102,7 +102,7 @@ export interface Notice {
  */
 export interface NoticeFilterParams {
   /** 카테고리 필터 */
-  category?: 'government' | 'business' | 'rnd' | 'startup';
+  category?: 'government' | 'local_government' | 'business' | 'rnd' | 'startup';
 
   /** 상태 필터 */
   status?: 'pending' | 'published' | 'archived';
@@ -265,4 +265,61 @@ export interface LatestNoticesParams {
 
   /** 카테고리 필터 */
   category?: string;
+}
+
+/**
+ * 창업보육센터 (BI Center) 데이터 인터페이스
+ *
+ * 백엔드 BICenter 모델과 1:1 매핑됩니다.
+ */
+export interface BICenter {
+  /** BI 센터 고유 ID (Primary Key) */
+  id: number;
+
+  /** 지역 (예: '전북', '서울') */
+  region: string;
+
+  /** 도시 (예: '전주시', '완주군') */
+  city: string | null;
+
+  /** 운영 기관명 (예: '전북테크노파크') */
+  org_name: string;
+
+  /** 센터명 (예: '바이오 창업보육센터') */
+  center_name: string;
+
+  /** 연락처 (전화번호, 이메일 등) */
+  contact: string | null;
+
+  /** 특화 분야 (예: '바이오', 'IT', '제조') */
+  specialization: string | null;
+
+  /** 공실 정보 (예: '3실', '없음') */
+  vacant_rooms: string | null;
+
+  /** 위치/주소 정보 */
+  location: string | null;
+
+  /** 센터 웹사이트 URL */
+  center_url: string | null;
+
+  /** 입주 기업 수 */
+  companies_count: number;
+
+  /** 생성 일시 (ISO 8601 형식) */
+  created_at: string;
+
+  /** 수정 일시 (ISO 8601 형식) */
+  updated_at: string;
+}
+
+/**
+ * BI Center 목록 응답 인터페이스
+ */
+export interface BICenterListResponse {
+  /** BI 센터 목록 */
+  items: BICenter[];
+
+  /** 전체 센터 개수 */
+  total: number;
 }

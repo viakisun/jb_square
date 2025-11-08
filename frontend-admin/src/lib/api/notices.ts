@@ -9,7 +9,7 @@ import { API_BASE_URL } from '$lib/config/api';
  * Parameters for fetching notices
  */
 export interface FetchNoticesParams {
-	source_id: string;
+	source_id?: string;
 	category: string;
 	status: string;
 	limit: string;
@@ -25,12 +25,15 @@ export interface FetchNoticesParams {
  */
 export async function fetchNotices(params: FetchNoticesParams) {
 	const urlParams = new URLSearchParams({
-		source_id: params.source_id,
 		category: params.category,
 		status: params.status,
 		limit: params.limit,
 		offset: params.offset
 	});
+
+	if (params.source_id) {
+		urlParams.append('source_id', params.source_id);
+	}
 
 	if (params.search) {
 		urlParams.append('search', params.search);

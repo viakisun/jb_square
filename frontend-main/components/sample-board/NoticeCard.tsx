@@ -54,6 +54,7 @@ interface NoticeCardProps {
  */
 const CATEGORY_COLORS: Record<Notice['category'], { bg: string; text: string }> = {
   government: { bg: 'bg-blue-100', text: 'text-blue-800' },
+  local_government: { bg: 'bg-teal-100', text: 'text-teal-800' },
   business: { bg: 'bg-green-100', text: 'text-green-800' },
   rnd: { bg: 'bg-purple-100', text: 'text-purple-800' },
   startup: { bg: 'bg-orange-100', text: 'text-orange-800' }
@@ -64,6 +65,7 @@ const CATEGORY_COLORS: Record<Notice['category'], { bg: string; text: string }> 
  */
 const CATEGORY_NAMES: Record<Notice['category'], string> = {
   government: '정부사업',
+  local_government: '지자체사업',
   business: '민간사업',
   rnd: 'R&D',
   startup: '스타트업'
@@ -282,16 +284,9 @@ export const NoticeCard: React.FC<NoticeCardProps> = ({
         </div>
 
         {/* 제목 */}
-        <h3 className="text-base font-bold mb-2 line-clamp-2">
+        <h3 className="text-base font-bold mb-3 line-clamp-2">
           {notice.title}
         </h3>
-
-        {/* 내용 미리보기 */}
-        {notice.content && (
-          <p className="text-sm text-gray-600 mb-3 line-clamp-2">
-            {notice.content}
-          </p>
-        )}
 
         {/* 태그 */}
         {notice.tags && notice.tags.length > 0 && (
@@ -312,10 +307,24 @@ export const NoticeCard: React.FC<NoticeCardProps> = ({
           </div>
         )}
 
-        {/* 푸터: 기관명, 게시일 */}
-        <div className="flex items-center justify-between text-xs text-gray-500 pt-2 border-t">
-          <span>{notice.organization || '미지정'}</span>
-          <span>{formatDate(notice.published_at)}</span>
+        {/* 푸터: 기관명, 마감일 */}
+        <div className="flex flex-col gap-1 pt-2 border-t">
+          <div className="flex items-center justify-between text-xs text-gray-500">
+            <span className="flex items-center">
+              <svg className="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+              </svg>
+              {notice.organization || '미지정'}
+            </span>
+            {notice.deadline && (
+              <span className="flex items-center">
+                <svg className="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                마감: {formatDate(notice.deadline)}
+              </span>
+            )}
+          </div>
         </div>
       </div>
     </Link>

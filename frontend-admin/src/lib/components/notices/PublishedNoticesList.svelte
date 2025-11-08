@@ -66,7 +66,6 @@
 		loading = true;
 		try {
 			const result = await fetchNotices({
-				source_id: sourceId,
 				category: category,
 				status: statusFilter,
 				limit: String(itemsPerPage),
