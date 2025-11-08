@@ -3,149 +3,64 @@
 	import { Panel } from '$lib/components/layout';
 	import { Button } from '$lib/components/ui/buttons';
 	import CrawlQueueTable from '$lib/components/notices/CrawlQueueTable.svelte';
-	import { CrawlingStatus, CrawlerConfigCard } from '$lib/components/crawling';
-	import { API_BASE_URL, WS_BASE_URL } from '$lib/config/api';
+	import { CrawlingStatus, BizinfoConfigInline } from '$lib/components/crawling';
+	import {
+		PublishedNoticesList,
+		AddNoticeModal
+	} from '$lib/components/notices';
+	import { toast } from '$lib/stores/toast';
+	import { WS_BASE_URL } from '$lib/config/api';
+	import { fetchCrawlQueue } from '$lib/api/crawl-queue';
+	import { publishNotices } from '$lib/api/notices';
+	import { useCrawlWebSocket } from '$lib/composables/useCrawlWebSocket.svelte';
 
-	interface LogEntry {
-		timestamp: string;
-		message: string;
-		type?: 'info' | 'success' | 'error' | 'warning';
-	}
+	// Tab state
+	let activeTab = $state<'queue' | 'published'>('queue');
 
+	// Queue state
 	let queueItems = $state([]);
 	let selectedIds = $state<number[]>([]);
-	let selectedTags = $state<string[]>([]);
 	let loading = $state(false);
 
-	// Real-time crawling status
-	let crawlStatus = $state<'idle' | 'running' | 'completed' | 'error' | 'stopped'>('idle');
-	let crawlLogs = $state<LogEntry[]>([]);
-	let crawlProgress = $state({ progress: 0, total: 0, success: 0, failed: 0 });
-	let errorMessage = $state('');
+	// Modal state
+	let showAddModal = $state(false);
 
 	// For smooth UX flow
 	let queuePanelRef: HTMLElement | null = null;
 
+	// WebSocket composable for crawling
+	const crawlWs = useCrawlWebSocket();
+
 	async function loadQueue() {
 		loading = true;
 		try {
-			const res = await fetch(`${API_BASE_URL}/notices/crawl-queue/list?source_id=bizinfo`);
-			const data = await res.json();
-			queueItems = data.items;
+			queueItems = await fetchCrawlQueue('bizinfo');
 		} catch (error) {
 			console.error('Failed to load queue:', error);
+			toast.error('대기열 로드 실패');
 		} finally {
 			loading = false;
 		}
 	}
 
-	async function crawlBizinfo() {
-		loading = true;
-		crawlStatus = 'running';
-		crawlLogs = [];
-		crawlProgress = { progress: 0, total: 0, success: 0, failed: 0 };
-		errorMessage = '';
+	function crawlBizinfo() {
+		const wsUrl = `${WS_BASE_URL}/api/notices/crawl/bizinfo`;
 
-		try {
-			const ws = new WebSocket(`${WS_BASE_URL}/api/notices/crawl/bizinfo`);
-
-			ws.onmessage = (event) => {
-				const data = JSON.parse(event.data);
-				const timestamp = new Date().toISOString();
-
-				switch (data.type) {
-					case 'start':
-						crawlLogs = [
-							...crawlLogs,
-							{ timestamp, message: data.message || 'API 데이터 수집을 시작합니다...', type: 'info' }
-						];
-						break;
-
-					case 'log':
-						crawlLogs = [...crawlLogs, { timestamp, message: data.message, type: 'info' }];
-						break;
-
-					case 'progress':
-						crawlProgress = {
-							progress: data.progress || 0,
-							total: data.total || 0,
-							success: data.success || 0,
-							failed: data.failed || 0
-						};
-						if (data.message) {
-							crawlLogs = [...crawlLogs, { timestamp, message: data.message, type: 'info' }];
-						}
-						break;
-
-					case 'complete':
-						crawlStatus = 'completed';
-						crawlLogs = [
-							...crawlLogs,
-							{
-								timestamp,
-								message: data.message || 'API 데이터 수집이 완료되었습니다.',
-								type: 'success'
-							},
-							{
-								timestamp,
-								message: `📋 아래 '크롤링 대기열'에서 수집된 ${crawlProgress.success}개의 공고를 확인하세요`,
-								type: 'info'
-							}
-						];
-						loading = false;
-						// Scroll to queue panel after completion
-						setTimeout(() => {
-							queuePanelRef?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-						}, 800);
-						break;
-
-					case 'error':
-						crawlStatus = 'error';
-						errorMessage = data.message || 'API 데이터 수집 중 오류가 발생했습니다.';
-						crawlLogs = [
-							...crawlLogs,
-							{ timestamp, message: data.message || 'Error occurred', type: 'error' }
-						];
-						loading = false;
-						break;
-
-					case 'stopped':
-						crawlStatus = 'stopped';
-						crawlLogs = [
-							...crawlLogs,
-							{ timestamp, message: data.message || 'API 데이터 수집이 중단되었습니다.', type: 'warning' }
-						];
-						loading = false;
-						break;
-				}
-			};
-
-			ws.onclose = () => {
-				if (crawlStatus === 'running') {
-					crawlStatus = 'completed';
-				}
+		crawlWs.connect(
+			wsUrl,
+			// onItemAdded callback
+			(item) => {
+				queueItems = [item, ...queueItems];
+			},
+			// onComplete callback
+			() => {
 				loadQueue();
-				loading = false;
-			};
-
-			ws.onerror = (error) => {
-				crawlStatus = 'error';
-				errorMessage = '웹소켓 연결 오류가 발생했습니다.';
-				crawlLogs = [
-					...crawlLogs,
-					{
-						timestamp: new Date().toISOString(),
-						message: '웹소켓 연결 오류가 발생했습니다.',
-						type: 'error'
-					}
-				];
-				loading = false;
-			};
-		} catch (error) {
-			crawlStatus = 'error';
-			errorMessage = String(error);
-			loading = false;
-		}
+				// Scroll to queue panel after completion
+				setTimeout(() => {
+					queuePanelRef?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+				}, 800);
+			}
+		);
 	}
 
 	async function publishSelected() {
@@ -153,21 +68,14 @@
 
 		loading = true;
 		try {
-			const res = await fetch(`${API_BASE_URL}/notices/publish`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					queue_ids: selectedIds,
-					category: 'business',
-					tags: selectedTags
-				})
-			});
-			const data = await res.json();
-			console.log('Published:', data);
+			const result = await publishNotices(selectedIds, 'business', []);
+			toast.success(`${result.published}개 공고가 게시되었습니다`);
 			await loadQueue();
 			selectedIds = [];
+			activeTab = 'published'; // Switch to published tab
 		} catch (error) {
 			console.error('Publish failed:', error);
+			toast.error('게시 실패');
 		} finally {
 			loading = false;
 		}
@@ -189,67 +97,111 @@
 			<p class="page-subtitle">기업마당 API 데이터 수집 및 공고 관리</p>
 		</div>
 		<div class="header-actions">
-			<Button variant="primary" onclick={publishSelected} disabled={selectedIds.length === 0 || loading}>
-				선택 항목 게시 ({selectedIds.length})
+			<Button variant="outline" onclick={() => (showAddModal = true)}>
+				+ 수동 추가
 			</Button>
 		</div>
 	</div>
 
-	<!-- Crawler Config Card -->
-	<CrawlerConfigCard
-		sourceType="bizinfo"
-		sourceName="기업마당 BizInfo"
-		onCrawl={crawlBizinfo}
-		crawling={loading}
-	/>
+	<!-- Crawler Config Panel -->
+	<Panel title="기업마당 API 크롤러">
+		<div class="crawler-card-content">
+			<p class="crawler-description">
+				기업마당 API를 통해 최신 기업 지원사업 공고를 수집합니다.
+			</p>
+			<Button variant="primary" onclick={crawlBizinfo} disabled={crawlWs.loading}>
+				{crawlWs.loading ? '크롤링 중...' : 'API 데이터 수집 시작'}
+			</Button>
+		</div>
+	</Panel>
 
-	{#if crawlStatus !== 'idle'}
+	<!-- Bizinfo Crawler Settings -->
+	<BizinfoConfigInline />
+
+	{#if crawlWs.status !== 'idle'}
 		<Panel title="데이터 수집 진행 상황">
+			{#if crawlWs.status === 'collecting'}
+				<div class="phase-indicator">
+					<span class="phase-label">🔍 페이지 수집 중...</span>
+					<span class="phase-info">
+						페이지 {crawlWs.pageProgress.page} | 누적 {crawlWs.pageProgress.accumulated}개
+					</span>
+				</div>
+			{:else if crawlWs.status === 'processing'}
+				<div class="phase-indicator processing">
+					<span class="phase-label">⚙️ 상세 정보 수집 중...</span>
+					<span class="phase-info">
+						{crawlWs.progress.progress} / {crawlWs.progress.total}
+					</span>
+				</div>
+			{/if}
+
 			<CrawlingStatus
 				sourceId="bizinfo"
 				sourceName="기업마당"
-				status={crawlStatus}
-				progress={crawlProgress.progress}
-				total={crawlProgress.total}
-				success={crawlProgress.success}
-				failed={crawlProgress.failed}
-				logs={crawlLogs}
-				{errorMessage}
+				status={crawlWs.status === 'collecting' || crawlWs.status === 'processing' ? 'running' : crawlWs.status}
+				progress={crawlWs.progress.progress}
+				total={crawlWs.progress.total}
+				success={crawlWs.progress.success}
+				failed={crawlWs.progress.failed}
+				logs={crawlWs.logs}
+				errorMessage={crawlWs.errorMessage}
 			/>
 		</Panel>
 	{/if}
 
-	<div bind:this={queuePanelRef} class="queue-panel {crawlStatus === 'completed' ? 'highlight-pulse' : ''}">
+	<!-- Tabs -->
+	<div class="tabs">
+		<button
+			class="tab"
+			class:active={activeTab === 'queue'}
+			onclick={() => (activeTab = 'queue')}
+		>
+			크롤링 대기열
+		</button>
+		<button
+			class="tab"
+			class:active={activeTab === 'published'}
+			onclick={() => (activeTab = 'published')}
+		>
+			게시된 공고
+		</button>
+	</div>
+
+	<!-- Tab Content -->
+	{#if activeTab === 'queue'}
 		<Panel title="크롤링 대기열">
 			<CrawlQueueTable
 				bind:items={queueItems}
 				onSelectionChange={(ids) => (selectedIds = ids)}
 				onRefresh={loadQueue}
 			/>
-		</Panel>
-	</div>
 
-	{#if selectedIds.length > 0}
-		<Panel title="태그 선택">
-			<div class="tag-selector">
-				<label>
-					<input type="checkbox" bind:group={selectedTags} value="중소기업" />
-					중소기업
-				</label>
-				<label>
-					<input type="checkbox" bind:group={selectedTags} value="스타트업" />
-					스타트업
-				</label>
-				<label>
-					<input type="checkbox" bind:group={selectedTags} value="수출" />
-					수출
-				</label>
-				<label>
-					<input type="checkbox" bind:group={selectedTags} value="금융지원" />
-					금융지원
-				</label>
-			</div>
+			{#if selectedIds.length > 0}
+				<div class="queue-actions">
+					<Button onclick={publishSelected} disabled={loading}>
+						선택 항목 게시 ({selectedIds.length})
+					</Button>
+				</div>
+			{/if}
 		</Panel>
+	{:else}
+		<Panel title="게시된 공고">
+			<PublishedNoticesList sourceId="bizinfo" category="business" />
+		</Panel>
+	{/if}
+
+	<!-- Add Notice Modal -->
+	{#if showAddModal}
+		<AddNoticeModal
+			category="business"
+			sourceId="bizinfo"
+			onClose={() => (showAddModal = false)}
+			onSuccess={() => {
+				loadQueue();
+				activeTab = 'published';
+			}}
+		/>
 	{/if}
 </div>
 
@@ -287,37 +239,105 @@
 		gap: var(--space-3);
 	}
 
-	.tag-selector {
+	.tabs {
 		display: flex;
-		gap: var(--space-4);
-		padding: var(--space-4);
-		border: var(--border-width) solid var(--hair);
+		gap: var(--space-2);
+		border-bottom: var(--border-width) solid var(--hair);
 	}
 
-	.tag-selector label {
+	.tab {
+		padding: var(--space-3) var(--space-4);
+		background: none;
+		border: none;
+		border-bottom: 2px solid transparent;
+		cursor: pointer;
+		font-size: var(--text-sm);
+		font-weight: var(--font-medium);
+		color: var(--muted);
+		transition: all 0.2s;
+	}
+
+	.tab:hover {
+		color: var(--fg);
+	}
+
+	.tab.active {
+		color: var(--fg);
+		border-bottom-color: var(--fg);
+	}
+
+	.queue-actions {
+		display: flex;
+		justify-content: space-between;
+		align-items: flex-start;
+		padding: var(--space-4);
+		border-top: var(--border-width) solid var(--hair);
+		margin-top: var(--space-4);
+		flex-wrap: wrap;
+		gap: var(--space-4);
+	}
+
+	.tag-selection-wrapper {
+		flex: 1;
+		min-width: 300px;
+	}
+
+	.crawler-card-content {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-4);
+	}
+
+	.crawler-description {
+		color: var(--muted);
+		font-size: var(--text-sm);
+		line-height: 1.6;
+	}
+
+	.phase-indicator {
 		display: flex;
 		align-items: center;
-		gap: var(--space-2);
-		cursor: pointer;
+		justify-content: space-between;
+		padding: var(--space-4);
+		margin-bottom: var(--space-4);
+		background-color: var(--surface-1);
+		border: var(--border-width) solid var(--hair);
+		font-family: var(--font-mono);
 	}
 
-	/* Queue panel highlight animation */
-	.queue-panel {
-		transition: all 0.3s ease;
+	.phase-label {
+		font-size: var(--text-base);
+		font-weight: var(--font-semibold);
+		color: var(--fg);
 	}
 
-	.queue-panel.highlight-pulse {
-		animation: pulse-border 2s ease-in-out 2;
+	.phase-info {
+		font-size: var(--text-sm);
+		color: var(--muted);
 	}
 
-	@keyframes pulse-border {
-		0%, 100% {
-			outline: 2px solid transparent;
-			outline-offset: 0px;
+	.phase-indicator.processing {
+		border-color: var(--fg);
+	}
+
+	@media (max-width: 768px) {
+		.page {
+			padding: var(--space-4);
 		}
-		50% {
-			outline: 2px solid var(--fg);
-			outline-offset: 4px;
+
+		.page-header {
+			flex-direction: column;
+			align-items: flex-start;
+			gap: var(--space-3);
+		}
+
+		.header-actions {
+			width: 100%;
+		}
+
+		.queue-actions {
+			flex-direction: column;
+			align-items: flex-start;
 		}
 	}
 </style>

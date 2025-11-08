@@ -31,6 +31,7 @@ class EventService:
             data: 이벤트 데이터
         """
         if not callback:
+            print(f"[EventService] No callback provided for event: {event_type}")
             return
 
         event = {
@@ -39,10 +40,17 @@ class EventService:
             **data
         }
 
+        print(f"[EventService] Sending event: {event_type} - {data.get('message', 'NO MESSAGE')[:50]}")
+        print(f"[EventService] callback type: {type(callback)}, is coroutine: {asyncio.iscoroutinefunction(callback)}")
+
         if asyncio.iscoroutinefunction(callback):
+            print(f"[EventService] Calling async callback...")
             await callback(json.dumps(event))
+            print(f"[EventService] Async callback completed")
         else:
+            print(f"[EventService] Calling sync callback...")
             callback(json.dumps(event))
+            print(f"[EventService] Sync callback completed")
 
     @staticmethod
     async def send_start(

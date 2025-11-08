@@ -11,7 +11,9 @@
 	import { Spinner } from '$lib/components/feedback';
 	import { toast } from '$lib/stores/toast';
 	import type { CategoryId, SourceId } from '$lib/constants/categories';
-	import { API_BASE_URL } from '$lib/config/api';
+	import { fetchNotices, bulkDeleteNotices } from '$lib/api/notices';
+	import { TAG_OPTIONS } from '$lib/constants/tags';
+	import { useSelection } from '$lib/composables/useSelection.svelte';
 
 	interface Props {
 		sourceId: SourceId; // 'ntis' | 'jbtp' | 'bizinfo'
@@ -39,9 +41,8 @@
 	let total = $state(0);
 	let loading = $state(false);
 
-	// Selection state
-	let selectedIds = $state<Set<number>>(new Set());
-	let allSelected = $state(false);
+	// Use selection composable
+	const selection = useSelection<Notice>();
 	let deleting = $state(false);
 
 	// Filters
@@ -54,15 +55,6 @@
 	let itemsPerPage = 20;
 	let totalPages = $derived(Math.ceil(total / itemsPerPage));
 
-	const tagOptions = [
-		{ value: '', label: '모든 태그' },
-		{ value: 'R&D', label: 'R&D' },
-		{ value: '바이오', label: '바이오' },
-		{ value: '창업', label: '창업' },
-		{ value: '기술이전', label: '기술이전' },
-		{ value: '스타트업', label: '스타트업' }
-	];
-
 	let isInitialMount = true;
 
 	onMount(() => {
@@ -73,72 +65,39 @@
 	async function loadNotices() {
 		loading = true;
 		try {
-			const params = new URLSearchParams({
+			const result = await fetchNotices({
 				source_id: sourceId,
 				category: category,
 				status: statusFilter,
 				limit: String(itemsPerPage),
-				offset: String((currentPage - 1) * itemsPerPage)
+				offset: String((currentPage - 1) * itemsPerPage),
+				search: searchQuery || undefined,
+				tag: selectedTag || undefined
 			});
 
-			if (searchQuery) {
-				params.append('search', searchQuery);
-			}
-
-			if (selectedTag) {
-				params.append('tag', selectedTag);
-			}
-
-			const res = await fetch(`${API_BASE_URL}/notices?${params}`);
-			const data = await res.json();
-
-			notices = data.items;
-			total = data.total;
+			notices = result.items;
+			total = result.total;
 		} catch (error) {
 			console.error('Failed to load notices:', error);
+			toast.error('공고 로드 실패');
 		} finally {
 			loading = false;
 		}
 	}
 
-	function toggleItem(id: number) {
-		const newSelectedIds = new Set(selectedIds);
-		if (newSelectedIds.has(id)) {
-			newSelectedIds.delete(id);
-		} else {
-			newSelectedIds.add(id);
-		}
-		selectedIds = newSelectedIds;
-		allSelected = selectedIds.size === notices.length && notices.length > 0;
-	}
-
 	async function deleteSelected() {
-		if (selectedIds.size === 0) return;
+		if (selection.selectedCount === 0) return;
 
-		if (!confirm(`선택한 ${selectedIds.size}개 공고를 삭제(아카이브)하시겠습니까?`)) {
+		if (!confirm(`선택한 ${selection.selectedCount}개 공고를 삭제(아카이브)하시겠습니까?`)) {
 			return;
 		}
 
 		deleting = true;
 		try {
-			const res = await fetch(`${API_BASE_URL}/notices/bulk-delete`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					notice_ids: Array.from(selectedIds)
-				})
-			});
-
-			const data = await res.json();
-
-			if (res.ok) {
-				toast.success(`${data.archived}개 공고가 삭제되었습니다`);
-				selectedIds = new Set();
-				allSelected = false;
-				await loadNotices();
-			} else {
-				toast.error('삭제 실패');
-			}
+			const result = await bulkDeleteNotices(Array.from(selection.selectedIds));
+			toast.success(`${result.archived}개 공고가 삭제되었습니다`);
+			selection.clearSelection();
+			await loadNotices();
 		} catch (error) {
 			console.error('Failed to delete notices:', error);
 			toast.error('삭제 중 오류 발생');
@@ -161,13 +120,13 @@
 	let previousAllSelected = false;
 	$effect(() => {
 		// Only react when allSelected actually changes (not on initial render)
-		if (allSelected !== previousAllSelected) {
-			if (allSelected) {
-				selectedIds = new Set(notices.map((notice: any) => notice.id));
+		if (selection.allSelected !== previousAllSelected) {
+			if (selection.allSelected) {
+				selection.selectedIds = new Set(notices.map((notice: any) => notice.id));
 			} else {
-				selectedIds = new Set();
+				selection.selectedIds = new Set();
 			}
-			previousAllSelected = allSelected;
+			previousAllSelected = selection.allSelected;
 		}
 	});
 
@@ -196,7 +155,7 @@
 			bind:value={searchQuery}
 			onkeydown={(e) => e.key === 'Enter' && handleSearch()}
 		/>
-		<Select options={tagOptions} bind:value={selectedTag} />
+		<Select options={TAG_OPTIONS} bind:value={selectedTag} />
 		<Button onclick={handleSearch}>검색</Button>
 		<Button variant="outline" onclick={loadNotices}>새로고침</Button>
 	</div>
@@ -205,16 +164,16 @@
 	<div class="selection-header">
 		<div class="selection-left">
 			<label class="select-all-label">
-				<Checkbox bind:checked={allSelected} />
+				<Checkbox bind:checked={selection.allSelected} />
 				<span class="select-all-text">전체 선택</span>
 			</label>
-			{#if selectedIds.size > 0}
-				<span class="selected-count"><strong>{selectedIds.size}</strong>개 선택됨</span>
+			{#if selection.selectedCount > 0}
+				<span class="selected-count"><strong>{selection.selectedCount}</strong>개 선택됨</span>
 			{:else}
 				<span class="notice-count">총 <strong>{total}</strong>개의 공고</span>
 			{/if}
 		</div>
-		{#if selectedIds.size > 0}
+		{#if selection.selectedCount > 0}
 			<Button variant="outline" size="sm" onclick={deleteSelected} disabled={deleting}>
 				{deleting ? '삭제 중...' : '선택 삭제'}
 			</Button>
@@ -239,8 +198,8 @@
 				<NoticeCard
 					{notice}
 					selectable={true}
-					selected={selectedIds.has(notice.id)}
-					onSelect={toggleItem}
+					selected={selection.isSelected(notice.id)}
+					onSelect={selection.toggleItem}
 				/>
 			{/each}
 		</div>

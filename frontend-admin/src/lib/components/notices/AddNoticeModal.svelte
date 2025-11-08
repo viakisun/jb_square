@@ -7,6 +7,8 @@
 	import { Input } from '$lib/components/ui/forms';
 	import { toast } from '$lib/stores/toast';
 	import { API_BASE_URL } from '$lib/config/api';
+	import { getLocationDisplay } from '$lib/constants/sources';
+	import { useFileUpload } from '$lib/composables/useFileUpload.svelte';
 
 	interface Props {
 		category: string;
@@ -16,17 +18,6 @@
 	}
 
 	let { category, sourceId, onClose, onSuccess }: Props = $props();
-
-	// Get display name for registration location
-	function getLocationDisplay(sourceId: string): string {
-		const locationMap: Record<string, string> = {
-			'ntis_rss': '정부공고 (NTIS)',
-			'jbtp': '지자체 공고 (사업공고)',
-			'jbtp_external': '지자체 공고 (유관기관공고)',
-			'bizinfo': '정부공고 (기업마당)'
-		};
-		return locationMap[sourceId] || `공고 (${sourceId})`;
-	}
 
 	let locationDisplay = $derived(getLocationDisplay(sourceId));
 
@@ -51,9 +42,10 @@
 	let availableTags = $state<Array<{ id: number; name: string; slug: string; color_hex: string }>>([]);
 	let loadingTags = $state(true);
 	let submitting = $state(false);
-	let uploadingFile = $state(false);
 	let attachmentMode = $state<'url' | 'upload'>('upload'); // Toggle between URL input and file upload
-	let isDragging = $state(false); // Drag and drop state
+
+	// Use file upload composable
+	const fileUpload = useFileUpload(10); // 10MB max
 
 	// Load tags on mount
 	$effect(() => {
@@ -140,83 +132,24 @@
 		attachments = attachments.filter((_, i) => i !== index);
 	}
 
-	async function uploadFile(file: File) {
-		// Validate file size (10MB)
-		const maxSize = 10 * 1024 * 1024;
-		if (file.size > maxSize) {
-			toast.error('파일 크기는 10MB 이하여야 합니다');
-			return;
-		}
-
-		uploadingFile = true;
-
-		try {
-			const formDataToSend = new FormData();
-			formDataToSend.append('file', file);
-
-			const res = await fetch(`${API_BASE_URL}/notices/upload-attachment`, {
-				method: 'POST',
-				body: formDataToSend
-			});
-
-			if (res.ok) {
-				const result = await res.json();
-				attachments = [...attachments, { filename: result.filename, url: result.url }];
-				toast.success('파일이 업로드되었습니다');
-			} else {
-				const error = await res.json();
-				toast.error(error.detail || '파일 업로드 실패');
-			}
-		} catch (error) {
-			console.error('File upload error:', error);
-			toast.error('파일 업로드 중 오류 발생');
-		} finally {
-			uploadingFile = false;
-		}
-	}
-
 	async function handleFileUpload(e: Event) {
 		const input = e.target as HTMLInputElement;
 		const file = input.files?.[0];
 
 		if (!file) return;
 
-		await uploadFile(file);
+		const result = await fileUpload.uploadFile(file);
+		if (result) {
+			attachments = [...attachments, result];
+		}
 		input.value = ''; // Reset input
 	}
 
-	// Drag and drop handlers
-	function handleDragEnter(e: DragEvent) {
-		e.preventDefault();
-		e.stopPropagation();
-		isDragging = true;
-	}
-
-	function handleDragLeave(e: DragEvent) {
-		e.preventDefault();
-		e.stopPropagation();
-		// Only set to false if leaving the drop zone itself
-		const target = e.target as HTMLElement;
-		if (target.classList.contains('file-upload-area')) {
-			isDragging = false;
-		}
-	}
-
-	function handleDragOver(e: DragEvent) {
-		e.preventDefault();
-		e.stopPropagation();
-	}
-
 	async function handleDrop(e: DragEvent) {
-		e.preventDefault();
-		e.stopPropagation();
-		isDragging = false;
-
-		const files = e.dataTransfer?.files;
-		if (!files || files.length === 0) return;
-
-		// Upload first file only
-		await uploadFile(files[0]);
+		const result = await fileUpload.handleDrop(e);
+		if (result) {
+			attachments = [...attachments, result];
+		}
 	}
 </script>
 
@@ -441,10 +374,10 @@
 				{:else}
 					<div
 						class="file-upload-area"
-						class:dragging={isDragging}
-						ondragenter={handleDragEnter}
-						ondragleave={handleDragLeave}
-						ondragover={handleDragOver}
+						class:dragging={fileUpload.isDragging}
+						ondragenter={fileUpload.handleDragEnter}
+						ondragleave={fileUpload.handleDragLeave}
+						ondragover={fileUpload.handleDragOver}
 						ondrop={handleDrop}
 					>
 						<input
@@ -453,13 +386,13 @@
 							class="file-input"
 							accept=".pdf,.hwp,.docx,.doc,.xls,.xlsx,.zip,.jpg,.jpeg,.png"
 							onchange={handleFileUpload}
-							disabled={uploadingFile}
+							disabled={fileUpload.uploading}
 						/>
 						<label for="file-upload" class="file-upload-label">
-							{#if uploadingFile}
+							{#if fileUpload.uploading}
 								<span class="upload-icon">⏳</span>
 								<span>업로드 중...</span>
-							{:else if isDragging}
+							{:else if fileUpload.isDragging}
 								<span class="upload-icon">📥</span>
 								<span>파일을 여기에 놓으세요</span>
 							{:else}

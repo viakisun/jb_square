@@ -5,6 +5,7 @@
 	 */
 
 	import { Button } from '$lib/components/ui/buttons';
+	import { getSourceLabel } from '$lib/constants/sources';
 
 	type NoticeItem = {
 		id: number;
@@ -23,8 +24,20 @@
 		contact?: string | null;
 		deadline?: string | null;
 		announcement_date?: string | null;
+		published_date?: string | null;
+		views?: number;
+		status?: string | null;
 		// Legacy support for crawl queue items
 		raw_data?: {
+			list?: {
+				ministry?: string;
+				organization?: string;
+				date_range?: string;
+				published_date?: string;
+				views?: string;
+				start_date?: string;
+				end_date?: string;
+			};
 			detail?: {
 				full_title?: string;
 				writer?: string;
@@ -33,6 +46,9 @@
 				status?: string;
 				deadline?: string;
 				d_day?: string;
+				content_html?: string;
+				content?: string;
+				attachments?: Array<{ filename: string; url: string }>;
 			};
 		};
 	};
@@ -75,15 +91,6 @@
 			onClose();
 		}
 	}
-
-	function getSourceLabel(sourceId: string): string {
-		const labels: Record<string, string> = {
-			jbtp: 'JBTP',
-			ntis: 'NTIS',
-			bizinfo: '기업마당'
-		};
-		return labels[sourceId] || sourceId;
-	}
 </script>
 
 {#if open && activeItem}
@@ -103,9 +110,50 @@
 
 			<!-- Body -->
 			<div class="modal-body">
-				<!-- Meta Information Grid (only for crawl queue items with detail) -->
-				{#if detail && (detail.writer || detail.published_date || detail.views !== undefined || detail.status || detail.deadline)}
-						<div class="meta-grid">
+				<!-- Meta Information Grid -->
+				{#if activeItem.crawler_source_id === 'bizinfo'}
+					<!-- Bizinfo: Use raw_data.list + typed columns -->
+					<div class="meta-grid">
+						{#if activeItem.raw_data?.list?.ministry}
+							<div class="meta-item">
+								<span class="meta-label">소관부처</span>
+								<span class="meta-value">{activeItem.raw_data.list.ministry}</span>
+							</div>
+						{/if}
+						{#if activeItem.organization}
+							<div class="meta-item">
+								<span class="meta-label">사업수행기관</span>
+								<span class="meta-value">{activeItem.organization}</span>
+							</div>
+						{/if}
+						{#if activeItem.raw_data?.list?.date_range}
+							<div class="meta-item">
+								<span class="meta-label">신청기간</span>
+								<span class="meta-value">{activeItem.raw_data.list.date_range}</span>
+							</div>
+						{/if}
+						{#if activeItem.published_date}
+							<div class="meta-item">
+								<span class="meta-label">게시일</span>
+								<span class="meta-value">{activeItem.published_date}</span>
+							</div>
+						{/if}
+						{#if activeItem.views}
+							<div class="meta-item">
+								<span class="meta-label">조회수</span>
+								<span class="meta-value">{activeItem.views.toLocaleString()}</span>
+							</div>
+						{/if}
+						{#if activeItem.status}
+							<div class="meta-item">
+								<span class="meta-label">상태</span>
+								<span class="meta-value status-value">{activeItem.status}</span>
+							</div>
+						{/if}
+					</div>
+				{:else if detail && (detail.writer || detail.published_date || detail.views !== undefined || detail.status || detail.deadline)}
+					<!-- Other crawlers: Use raw_data.detail -->
+					<div class="meta-grid">
 						{#if detail.writer}
 							<div class="meta-item">
 								<span class="meta-label">작성자</span>
@@ -208,9 +256,9 @@
 							</div>
 						</div>
 					{:else if detail?.content_html || detail?.content}
-						<!-- Fallback for crawl queue preview -->
+						<!-- Unified content rendering for all crawlers -->
 						<div class="content-section">
-							<h3 class="section-title">공고 내용</h3>
+							<h3 class="section-title">공고 상세</h3>
 							<div class="content-body">
 								{#if detail.content_html}
 									{@html detail.content_html}
@@ -263,11 +311,27 @@
 								{/each}
 							</ul>
 						</div>
-					{:else}
-					<div class="no-detail">
-						<p>상세 정보가 없습니다.</p>
-					</div>
-				{/if}
+					{/if}
+
+					<!-- No content fallback for Bizinfo -->
+					{#if activeItem.crawler_source_id === 'bizinfo' && !detail?.content_html && (!attachments || attachments.length === 0) && (!detail?.attachments || detail.attachments.length === 0)}
+						<div class="no-content-notice">
+							<p class="notice-title">상세 내용 보기</p>
+							<p class="notice-text">
+								기업마당 공고의 상세 내용은 원본 페이지에서 확인하실 수 있습니다.
+							</p>
+							{#if activeItem.link}
+								<a
+									href={activeItem.link}
+									target="_blank"
+									rel="noopener noreferrer"
+									class="original-link-button"
+								>
+									기업마당 원문 보기 →
+								</a>
+							{/if}
+						</div>
+					{/if}
 			</div>
 
 			<!-- Footer -->
@@ -596,6 +660,53 @@
 		color: var(--muted);
 	}
 
+	/* Bizinfo No Content Notice */
+	.no-content-notice {
+		padding: var(--space-8);
+		border: var(--border-width) solid var(--hair);
+		background-color: var(--surface-1);
+		text-align: center;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: var(--space-4);
+	}
+
+	.notice-title {
+		font-size: var(--text-base);
+		font-weight: var(--font-semibold);
+		color: var(--fg);
+		margin: 0;
+		text-transform: uppercase;
+		letter-spacing: var(--tracking-wide);
+	}
+
+	.notice-text {
+		font-size: var(--text-sm);
+		color: var(--muted);
+		margin: 0;
+		line-height: 1.6;
+	}
+
+	.original-link-button {
+		display: inline-block;
+		padding: var(--space-3) var(--space-6);
+		background-color: var(--fg);
+		color: var(--bg);
+		text-decoration: none;
+		font-size: var(--text-sm);
+		font-weight: var(--font-medium);
+		text-transform: uppercase;
+		letter-spacing: var(--tracking-wide);
+		transition: all var(--duration-base) var(--ease-out);
+		border: var(--border-width) solid var(--fg);
+	}
+
+	.original-link-button:hover {
+		background-color: var(--bg);
+		color: var(--fg);
+	}
+
 	/* Content Section */
 	.content-section {
 		padding: var(--space-4);
@@ -661,6 +772,207 @@
 		font-family: inherit;
 		font-size: var(--text-sm);
 		margin: 0;
+	}
+
+	/* Bizinfo Content Styling */
+	.bizinfo-content :global(.content-section) {
+		margin-bottom: var(--space-6);
+		padding-bottom: var(--space-4);
+		border-bottom: var(--border-width) solid var(--hair);
+	}
+
+	.bizinfo-content :global(.content-section:last-child) {
+		border-bottom: none;
+		margin-bottom: 0;
+	}
+
+	.bizinfo-content :global(h3) {
+		font-size: var(--text-sm);
+		font-weight: var(--font-semibold);
+		color: var(--fg);
+		margin-bottom: var(--space-3);
+		text-transform: uppercase;
+		letter-spacing: var(--tracking-wide);
+	}
+
+	/* ========================================
+     CONTENT BODY - Unified HTML rendering
+     ======================================== */
+
+	.content-body :global(p) {
+		margin-bottom: var(--space-3);
+		line-height: var(--leading-relaxed);
+	}
+
+	.content-body :global(ul),
+	.content-body :global(ol) {
+		margin-left: var(--space-6);
+		margin-bottom: var(--space-3);
+	}
+
+	.content-body :global(li) {
+		margin-bottom: var(--space-2);
+		line-height: var(--leading-relaxed);
+	}
+
+	.content-body :global(img) {
+		max-width: 100%;
+		height: auto;
+		display: block;
+		margin: var(--space-4) 0;
+		border: var(--border-width) solid var(--hair);
+	}
+
+	.content-body :global(a) {
+		color: var(--fg);
+		text-decoration: underline;
+		transition: opacity var(--duration-base) var(--ease-out);
+	}
+
+	.content-body :global(a:hover) {
+		opacity: 0.7;
+	}
+
+	.content-body :global(strong),
+	.content-body :global(b) {
+		font-weight: var(--font-semibold);
+		color: var(--fg);
+	}
+
+	.content-body :global(em),
+	.content-body :global(i) {
+		font-style: italic;
+	}
+
+	.content-body :global(table) {
+		width: 100%;
+		border-collapse: collapse;
+		margin: var(--space-4) 0;
+		font-size: var(--text-sm);
+	}
+
+	.content-body :global(th),
+	.content-body :global(td) {
+		padding: var(--space-3) var(--space-4);
+		border: var(--border-width) solid var(--hair);
+		text-align: left;
+		line-height: var(--leading-relaxed);
+	}
+
+	.content-body :global(th) {
+		background-color: var(--surface-1);
+		font-weight: var(--font-semibold);
+		color: var(--fg);
+	}
+
+	.content-body :global(tr:nth-child(even)) {
+		background-color: var(--ghost);
+	}
+
+	.content-body :global(blockquote) {
+		margin: var(--space-4) 0;
+		padding: var(--space-4);
+		border-left: 4px solid var(--fg);
+		background-color: var(--surface-1);
+		font-style: italic;
+	}
+
+	.content-body :global(pre) {
+		margin: var(--space-4) 0;
+		padding: var(--space-4);
+		background-color: var(--surface-1);
+		border: var(--border-width) solid var(--hair);
+		overflow-x: auto;
+		font-family: monospace;
+		font-size: var(--text-sm);
+		line-height: var(--leading-relaxed);
+	}
+
+	.content-body :global(code) {
+		padding: var(--space-1) var(--space-2);
+		background-color: var(--surface-1);
+		border: var(--border-width) solid var(--hair);
+		font-family: monospace;
+		font-size: var(--text-sm);
+	}
+
+	.content-body :global(pre code) {
+		padding: 0;
+		background: none;
+		border: none;
+	}
+
+	.content-body :global(h1),
+	.content-body :global(h2),
+	.content-body :global(h3),
+	.content-body :global(h4),
+	.content-body :global(h5),
+	.content-body :global(h6) {
+		font-weight: var(--font-semibold);
+		color: var(--fg);
+		margin-top: var(--space-4);
+		margin-bottom: var(--space-3);
+		line-height: var(--leading-tight);
+	}
+
+	.content-body :global(h1) {
+		font-size: var(--text-xl);
+	}
+
+	.content-body :global(h2) {
+		font-size: var(--text-lg);
+	}
+
+	.content-body :global(h3) {
+		font-size: var(--text-base);
+	}
+
+	.content-body :global(h4),
+	.content-body :global(h5),
+	.content-body :global(h6) {
+		font-size: var(--text-sm);
+	}
+
+	.content-body :global(hr) {
+		margin: var(--space-6) 0;
+		border: none;
+		border-top: var(--border-width) solid var(--hair);
+	}
+
+	.content-body :global(ul ul),
+	.content-body :global(ol ol),
+	.content-body :global(ul ol),
+	.content-body :global(ol ul) {
+		margin-left: var(--space-4);
+		margin-top: var(--space-2);
+		margin-bottom: 0;
+	}
+
+	.content-body :global(div) {
+		color: var(--fg);
+	}
+
+	.content-body :global(span) {
+		color: inherit;
+	}
+
+	/* Content section structure (for Bizinfo structured HTML) */
+	.content-body :global(.content-section) {
+		margin-bottom: var(--space-6);
+	}
+
+	.content-body :global(.content-section h3) {
+		font-size: var(--text-base);
+		font-weight: var(--font-semibold);
+		color: var(--fg);
+		margin-bottom: var(--space-3);
+		padding-bottom: var(--space-2);
+		border-bottom: var(--border-width) solid var(--hair);
+	}
+
+	.content-body :global(.content-section .content-body) {
+		font-size: var(--text-sm);
+		line-height: var(--leading-relaxed);
 	}
 
 	/* ========================================

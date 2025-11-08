@@ -7,4 +7,5 @@ export { default as CrawlingReport } from "./CrawlingReport.svelte";
 export { default as CrawlingSourceInfo } from "./CrawlingSourceInfo.svelte";
 export { default as JBTPConfigInline } from "./JBTPConfigInline.svelte";
 export { default as NTISConfigInline } from "./NTISConfigInline.svelte";
+export { default as BizinfoConfigInline } from "./BizinfoConfigInline.svelte";
 export { default as CrawlerConfigCard } from "./CrawlerConfigCard.svelte";

@@ -3,7 +3,7 @@ Rate Limiter for Web Crawling
 크롤링 요청 간격을 강제하는 RateLimiter 클래스
 """
 
-import time
+import asyncio
 from datetime import datetime
 from typing import Optional
 
@@ -25,7 +25,7 @@ class RateLimiter:
         self.total_waits = 0
         self.total_wait_time = 0.0
 
-    def wait(self) -> float:
+    async def wait(self) -> float:
         """
         마지막 요청 이후 interval 시간이 지나지 않았다면 대기합니다.
 
@@ -39,7 +39,7 @@ class RateLimiter:
 
             if elapsed < self.interval:
                 wait_time = self.interval - elapsed
-                time.sleep(wait_time)
+                await asyncio.sleep(wait_time)
                 waited = wait_time
                 self.total_waits += 1
                 self.total_wait_time += wait_time

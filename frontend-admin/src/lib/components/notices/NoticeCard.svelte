@@ -9,6 +9,8 @@
 	import { Checkbox } from '$lib/components/ui/forms';
 	import NoticePreviewModal from './NoticePreviewModal.svelte';
 	import NoticeTagEditor from './NoticeTagEditor.svelte';
+	import { formatDate, getDaysUntilDeadline } from '$lib/utils/date';
+	import { getSourceLabel } from '$lib/constants/sources';
 
 	type Notice = {
 		id: number;
@@ -60,8 +62,8 @@
 	}
 
 	function handleCardClick() {
-		if (selectable && onSelect) {
-			onSelect(notice.id);
+		if (selectable) {
+			showPreview = true;
 		}
 	}
 
@@ -79,44 +81,6 @@
 		}
 	}
 
-	function formatDate(dateString: string | null): string {
-		if (!dateString) return '-';
-		try {
-			const date = new Date(dateString);
-			return date.toLocaleDateString('ko-KR', {
-				year: 'numeric',
-				month: '2-digit',
-				day: '2-digit'
-			});
-		} catch {
-			return dateString;
-		}
-	}
-
-	function getSourceLabel(sourceId: string): string {
-		const labels: Record<string, string> = {
-			jbtp: 'JBTP 사업공고',
-			jbtp_external: 'JBTP 유관기관',
-			ntis: 'NTIS',
-			bizinfo: '기업마당',
-			manual: '수동등록'
-		};
-		return labels[sourceId] || sourceId;
-	}
-
-	function getDaysUntilDeadline(deadline: string | null): number | null {
-		if (!deadline) return null;
-		try {
-			const deadlineDate = new Date(deadline);
-			const today = new Date();
-			const diffTime = deadlineDate.getTime() - today.getTime();
-			const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-			return diffDays;
-		} catch {
-			return null;
-		}
-	}
-
 	const daysLeft = $derived(getDaysUntilDeadline(notice.deadline));
 </script>
 
@@ -129,7 +93,7 @@
 	role={selectable ? "button" : undefined}
 >
 	{#if selectable}
-		<div class="checkbox-column">
+		<div class="checkbox-column" onclick={(e) => e.stopPropagation()}>
 			<Checkbox checked={selected} onchange={handleCheckboxChange} />
 		</div>
 	{/if}
@@ -192,7 +156,7 @@
 			</div>
 		{/if}
 		<button class="edit-tags-button" onclick={openTagEditor} title="태그 편집">
-			편집
+			태그 편집
 		</button>
 	</div>
 

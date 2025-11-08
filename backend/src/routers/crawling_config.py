@@ -59,6 +59,7 @@ class NTISConfigUpdate(BaseModel):
 class BizinfoConfigUpdate(BaseModel):
     api_key: Optional[str] = None
     search_keywords: Optional[List[str]] = None
+    date_range_days: Optional[int] = None
     enabled: Optional[bool] = None
 
 
@@ -285,7 +286,12 @@ async def get_bizinfo_config(db: Session = Depends(get_db)):
     config = db.query(BizinfoConfig).first()
     if not config:
         # 기본 설정 생성
-        config = BizinfoConfig(api_key="", search_keywords=[], enabled=True)
+        config = BizinfoConfig(
+            api_key="",
+            search_keywords=[],
+            date_range_days=30,
+            enabled=True
+        )
         db.add(config)
         db.commit()
         db.refresh(config)
@@ -301,13 +307,20 @@ async def update_bizinfo_config(
     db_config = db.query(BizinfoConfig).first()
     if not db_config:
         # 없으면 생성
-        db_config = BizinfoConfig(api_key="", search_keywords=[], enabled=True)
+        db_config = BizinfoConfig(
+            api_key="",
+            search_keywords=[],
+            date_range_days=30,
+            enabled=True
+        )
         db.add(db_config)
 
     if config.api_key is not None:
         db_config.api_key = config.api_key
     if config.search_keywords is not None:
         db_config.search_keywords = config.search_keywords
+    if config.date_range_days is not None:
+        db_config.date_range_days = config.date_range_days
     if config.enabled is not None:
         db_config.enabled = config.enabled
 

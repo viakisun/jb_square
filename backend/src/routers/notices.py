@@ -431,12 +431,16 @@ async def crawl_source(websocket: WebSocket, source_id: str):
 
     - **source_id**: 'jbtp', 'jbtp_external', 'ntis_rss', 'bizinfo'
     """
+    print(f"[WebSocket] Connection attempt for source: {source_id}")
     await websocket.accept()
+    print(f"[WebSocket] Connection accepted for source: {source_id}")
 
     try:
         # Callback for sending real-time updates
         async def send_update(message: str):
+            print(f"[WebSocket send_update] Sending message: {message[:100]}...")
             await websocket.send_text(message)
+            print(f"[WebSocket send_update] Message sent successfully")
 
         # Execute crawler based on source_id
         if source_id == "jbtp":
@@ -562,6 +566,8 @@ async def publish_from_queue(
         content_viewer_url = None
         content_type = 'text'  # default
         attachment_links = []
+        application_start = None
+        application_end = None
 
         if queue_item.raw_data and isinstance(queue_item.raw_data, dict):
             detail = queue_item.raw_data.get('detail', {})
@@ -579,6 +585,19 @@ async def publish_from_queue(
                 # Extract attachments
                 if 'attachments' in detail and isinstance(detail['attachments'], list):
                     attachment_links = detail['attachments']
+
+                # Extract application dates (Bizinfo)
+                if 'application_start_date' in detail:
+                    try:
+                        application_start = datetime.fromisoformat(detail['application_start_date'].replace('Z', '+00:00'))
+                    except (ValueError, AttributeError):
+                        pass
+
+                if 'application_end_date' in detail:
+                    try:
+                        application_end = datetime.fromisoformat(detail['application_end_date'].replace('Z', '+00:00'))
+                    except (ValueError, AttributeError):
+                        pass
 
         # Create notice from queue item (use typed columns directly)
         notice = Notice(
@@ -598,6 +617,9 @@ async def publish_from_queue(
             department=queue_item.department,
             contact=queue_item.contact,
             crawler_extracted_at=queue_item.crawler_extracted_at,
+            # Application period dates
+            application_start=application_start,
+            application_end=application_end,
             # Content fields extracted from raw_data
             content=content_html,  # Store HTML in content field
             content_type=content_type,

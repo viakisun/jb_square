@@ -60,8 +60,8 @@
 				if (data) {
 					const configWithDisplay = {
 						...data,
-						name: sourceType === 'ntis' ? 'NTIS API 검색' : 'K-Startup API 검색',
-						board_url: sourceType === 'ntis' ? 'https://www.ntis.go.kr' : 'https://www.k-startup.go.kr'
+						name: sourceType === 'ntis' ? 'NTIS API 검색' : '기업마당 API 검색',
+						board_url: sourceType === 'ntis' ? 'https://www.ntis.go.kr' : 'https://www.bizinfo.go.kr'
 					};
 					configs = [configWithDisplay];
 				} else {

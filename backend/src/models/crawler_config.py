@@ -95,6 +95,7 @@ class BizinfoConfig(Base):
     id = Column(Integer, primary_key=True)
     api_key = Column(Text)
     search_keywords = Column(JSONB, default=[])
+    date_range_days = Column(Integer, default=30)  # 검색 기간 (일)
     enabled = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
@@ -106,6 +107,7 @@ class BizinfoConfig(Base):
             'api_key_length': len(self.api_key) if self.api_key else 0,
             'search_keywords': self.search_keywords or [],
             'keywords': self.search_keywords or [],  # 프론트엔드 호환성을 위한 별칭
+            'date_range_days': self.date_range_days or 30,
             'enabled': self.enabled,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,

@@ -8,7 +8,10 @@
 	import { Checkbox } from '$lib/components/ui/forms';
 	import NoticePreviewModal from './NoticePreviewModal.svelte';
 	import { toast } from '$lib/stores/toast';
-	import { API_BASE_URL } from '$lib/config/api';
+	import { bulkDeleteQueueItems } from '$lib/api/crawl-queue';
+	import { formatDate, getDaysUntilDeadline } from '$lib/utils/date';
+	import { getSourceLabel } from '$lib/constants/sources';
+	import { useSelection } from '$lib/composables/useSelection.svelte';
 
 	type QueueItem = {
 		id: number;
@@ -39,81 +42,45 @@
 
 	let { items = $bindable([]), onSelectionChange, onRefresh }: Props = $props();
 
-	let selectedIds = $state<Set<number>>(new Set());
-	let allSelected = $state(false);
+	// Use selection composable
+	const selection = useSelection<QueueItem>();
+
 	let expandedRows = $state<Set<number>>(new Set());
 	let previewItem = $state<QueueItem | null>(null);
 	let showPreview = $state(false);
 	let deleting = $state(false);
 
-	function toggleAll() {
-		if (allSelected) {
-			selectedIds = new Set();
-			allSelected = false;
-		} else {
-			selectedIds = new Set(items.map((item) => item.id));
-			allSelected = true;
-		}
-		onSelectionChange?.(Array.from(selectedIds));
-	}
+	// Sync selection state with parent component
+	$effect(() => {
+		onSelectionChange?.(Array.from(selection.selectedIds));
+	});
 
-	function toggleItem(id: number) {
-		const newSelectedIds = new Set(selectedIds);
-		if (newSelectedIds.has(id)) {
-			newSelectedIds.delete(id);
-		} else {
-			newSelectedIds.add(id);
-		}
-		selectedIds = newSelectedIds;
-		allSelected = selectedIds.size === items.length && items.length > 0;
-		onSelectionChange?.(Array.from(selectedIds));
-	}
+	// Update allSelected state based on items
+	$effect(() => {
+		selection.allSelected = selection.selectedIds.size === items.length && items.length > 0;
+	});
 
 	async function deleteSelected() {
-		if (selectedIds.size === 0) return;
+		if (selection.selectedCount === 0) return;
 
-		if (!confirm(`선택한 ${selectedIds.size}개 항목을 삭제하시겠습니까?`)) {
+		if (!confirm(`선택한 ${selection.selectedCount}개 항목을 삭제하시겠습니까?`)) {
 			return;
 		}
 
 		deleting = true;
-		const idsToDelete = Array.from(selectedIds);
-		let successCount = 0;
-		let failCount = 0;
-
 		try {
-			// Delete all selected items in parallel
-			const deletePromises = idsToDelete.map(async (id) => {
-				try {
-					const res = await fetch(`${API_BASE_URL}/notices/crawl-queue/${id}`, {
-						method: 'DELETE'
-					});
-					if (res.ok) {
-						successCount++;
-						return { id, success: true };
-					} else {
-						failCount++;
-						return { id, success: false };
-					}
-				} catch (error) {
-					failCount++;
-					return { id, success: false };
-				}
-			});
-
-			await Promise.all(deletePromises);
+			const result = await bulkDeleteQueueItems(Array.from(selection.selectedIds));
 
 			// Show result
-			if (successCount > 0) {
-				toast.success(`${successCount}개 항목이 삭제되었습니다`);
+			if (result.success > 0) {
+				toast.success(`${result.success}개 항목이 삭제되었습니다`);
 			}
-			if (failCount > 0) {
-				toast.error(`${failCount}개 항목 삭제 실패`);
+			if (result.failed > 0) {
+				toast.error(`${result.failed}개 항목 삭제 실패`);
 			}
 
 			// Clear selection and refresh
-			selectedIds = new Set();
-			allSelected = false;
+			selection.clearSelection();
 			onSelectionChange?.([]);
 			onRefresh?.();
 		} catch (error) {
@@ -122,43 +89,6 @@
 		} finally {
 			deleting = false;
 		}
-	}
-
-	function formatDate(dateString: string | null): string {
-		if (!dateString) return '-';
-		try {
-			const date = new Date(dateString);
-			return date.toLocaleDateString('ko-KR', {
-				year: 'numeric',
-				month: '2-digit',
-				day: '2-digit'
-			});
-		} catch {
-			return dateString;
-		}
-	}
-
-	function getDaysUntilDeadline(deadline: string | null): number | null {
-		if (!deadline) return null;
-		try {
-			const deadlineDate = new Date(deadline);
-			const today = new Date();
-			const diffTime = deadlineDate.getTime() - today.getTime();
-			const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-			return diffDays;
-		} catch {
-			return null;
-		}
-	}
-
-	function getSourceLabel(sourceId: string): string {
-		const labels: Record<string, string> = {
-			jbtp: 'JBTP 사업공고',
-			jbtp_external: 'JBTP 유관기관',
-			ntis: 'NTIS',
-			bizinfo: '기업마당'
-		};
-		return labels[sourceId] || sourceId;
 	}
 
 	function toggleExpand(id: number, event: Event) {
@@ -193,14 +123,14 @@
 	<!-- Header Actions -->
 	<div class="table-header">
 		<div class="selected-count">
-			{#if selectedIds.size > 0}
-				<span class="count">{selectedIds.size}개 선택됨</span>
+			{#if selection.selectedCount > 0}
+				<span class="count">{selection.selectedCount}개 선택됨</span>
 			{:else}
 				<span class="text-muted">항목을 선택하세요</span>
 			{/if}
 		</div>
 		<div class="header-actions">
-			{#if selectedIds.size > 0}
+			{#if selection.selectedCount > 0}
 				<Button variant="outline" size="sm" onclick={deleteSelected} disabled={deleting}>
 					{deleting ? '삭제 중...' : '선택 삭제'}
 				</Button>
@@ -219,8 +149,8 @@
 					<th class="col-checkbox">
 						<input
 							type="checkbox"
-							checked={allSelected}
-							onchange={toggleAll}
+							checked={selection.allSelected}
+							onchange={() => selection.toggleAll(items)}
 							class="table-checkbox"
 						/>
 					</th>
@@ -246,14 +176,14 @@
 					{#each items as item (item.id)}
 						<tr
 							class="data-row"
-							class:selected={selectedIds.has(item.id)}
-							onclick={() => toggleItem(item.id)}
+							class:selected={selection.isSelected(item.id)}
+							onclick={() => selection.toggleItem(item.id)}
 						>
 							<td class="col-checkbox">
 								<input
 									type="checkbox"
-									checked={selectedIds.has(item.id)}
-									onchange={() => toggleItem(item.id)}
+									checked={selection.isSelected(item.id)}
+									onchange={() => selection.toggleItem(item.id)}
 									class="table-checkbox"
 									onclick={(e) => e.stopPropagation()}
 								/>

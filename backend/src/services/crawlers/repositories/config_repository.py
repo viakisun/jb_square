@@ -138,5 +138,8 @@ class ConfigRepository:
         if source_id == 'ntis_rss':
             config = ConfigRepository.load_ntis_config()
             return config.date_range_days if config and config.date_range_days else 30
+        elif source_id == 'bizinfo':
+            config = ConfigRepository.load_bizinfo_config()
+            return config.date_range_days if config and config.date_range_days else 30
         else:
             return 30

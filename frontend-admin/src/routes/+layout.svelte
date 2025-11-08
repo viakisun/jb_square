@@ -33,7 +33,8 @@
 			icon: Briefcase,
 			children: [
 				{ path: '/notices/ntis', label: '정부 공고 (NTIS)', icon: Building2 },
-				{ path: '/notices/local', label: '지자체 공고 (JBTP)', icon: MapPin },
+				{ path: '/notices/jbtp', label: '지자체 사업공고', icon: MapPin },
+				{ path: '/notices/external', label: '유관기관 공고', icon: Building },
 				{ path: '/notices/business', label: '기업 맞춤형 지원사업', icon: Briefcase },
 				{ path: '/notices/rnd', label: '연구개발(R&D)', icon: FlaskConical },
 				{ path: '/notices/startup', label: '창업보육센터(BI)', icon: Rocket },

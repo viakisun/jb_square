@@ -1,17 +1,18 @@
 <script lang="ts">
 	/**
-	 * NTIS 정부 공고 페이지
-	 * NTIS 크롤링 + 게시된 공고 관리
+	 * 유관기관 공고 페이지 (External Organization Notices)
+	 * JBTP 유관기관 공고 크롤링 + 게시된 공고 관리
 	 */
 	import { onMount } from 'svelte';
 	import { Panel } from '$lib/components/layout';
 	import { Button } from '$lib/components/ui/buttons';
-	import { CrawlingStatus, NTISConfigInline } from '$lib/components/crawling';
+	import { CrawlingStatus } from '$lib/components/crawling';
 	import {
-		CrawlQueueTable,
 		PublishedNoticesList,
 		AddNoticeModal
 	} from '$lib/components/notices';
+	import ExternalNoticeQueueTable from '$lib/components/notices/ExternalNoticeQueueTable.svelte';
+	import JBTPConfigInline from '$lib/components/crawling/JBTPConfigInline.svelte';
 	import { toast } from '$lib/stores/toast';
 	import { API_BASE_URL, WS_BASE_URL } from '$lib/config/api';
 
@@ -25,14 +26,15 @@
 	let activeTab = $state<'queue' | 'published'>('queue');
 
 	// Queue state
-	let queueItems = $state([]);
+	let queueItems = $state<any[]>([]);
 	let selectedIds = $state<number[]>([]);
 	let loading = $state(false);
 
-	// Crawl state
-	let crawlStatus = $state<'idle' | 'running' | 'completed' | 'error' | 'stopped'>('idle');
+	// Crawl state (two-phase: collecting + processing)
+	let crawlStatus = $state<'idle' | 'collecting' | 'processing' | 'completed' | 'error' | 'stopped'>('idle');
 	let crawlLogs = $state<LogEntry[]>([]);
 	let crawlProgress = $state({ progress: 0, total: 0, success: 0, failed: 0 });
+	let pageProgress = $state({ page: 0, accumulated: 0 });
 	let errorMessage = $state('');
 
 	// Modal state
@@ -45,9 +47,13 @@
 	async function loadQueue() {
 		loading = true;
 		try {
-			const res = await fetch(`${API_BASE_URL}/notices/crawl-queue/list?source_id=ntis_rss`);
+			const res = await fetch(`${API_BASE_URL}/notices/crawl-queue/list?source_id=jbtp_external`);
 			const data = await res.json();
-			queueItems = data.items;
+			// Remove duplicates by ID
+			const uniqueItems = Array.from(
+				new Map(data.items.map((item: any) => [item.id, item])).values()
+			);
+			queueItems = uniqueItems;
 		} catch (error) {
 			console.error('Failed to load queue:', error);
 			toast.error('대기열 로드 실패');
@@ -56,15 +62,16 @@
 		}
 	}
 
-	async function crawlNTISRSS() {
+	async function crawlExternal() {
 		loading = true;
-		crawlStatus = 'running';
+		crawlStatus = 'collecting';
 		crawlLogs = [];
 		crawlProgress = { progress: 0, total: 0, success: 0, failed: 0 };
+		pageProgress = { page: 0, accumulated: 0 };
 		errorMessage = '';
 
 		try {
-			const ws = new WebSocket(`${WS_BASE_URL}/api/notices/crawl/ntis_rss`);
+			const ws = new WebSocket(`${WS_BASE_URL}/api/notices/crawl/jbtp_external`);
 
 			ws.onmessage = (event) => {
 				const data = JSON.parse(event.data);
@@ -72,14 +79,41 @@
 
 				switch (data.type) {
 					case 'start':
-						crawlLogs = [...crawlLogs, { timestamp, message: data.message || 'RSS 크롤링 시작...', type: 'info' }];
+						crawlLogs = [...crawlLogs, { timestamp, message: data.message || '크롤링 시작...', type: 'info' }];
 						break;
 
 					case 'log':
 						crawlLogs = [...crawlLogs, { timestamp, message: data.message, type: 'info' }];
 						break;
 
+					case 'page_progress':
+						crawlStatus = 'collecting';
+						pageProgress = {
+							page: data.page || 0,
+							accumulated: data.accumulated || 0
+						};
+						break;
+
+					case 'collection_complete':
+						crawlStatus = 'processing';
+						crawlLogs = [
+							...crawlLogs,
+							{
+								timestamp,
+								message: `✓ ${data.total_collected}개 공고 수집 완료. 상세 정보 수집 시작...`,
+								type: 'success'
+							}
+						];
+						break;
+
+					case 'item_added':
+						if (data.item) {
+							queueItems = [data.item, ...queueItems];
+						}
+						break;
+
 					case 'progress':
+						crawlStatus = 'processing';
 						crawlProgress = {
 							progress: data.progress || 0,
 							total: data.total || 0,
@@ -93,13 +127,13 @@
 
 					case 'complete':
 						crawlStatus = 'completed';
-						const totalCollected = data.total_collected || crawlProgress.success;
 						crawlLogs = [
 							...crawlLogs,
-							{ timestamp, message: data.message || 'RSS 크롤링 완료', type: 'success' },
-							{ timestamp, message: `📋 크롤링 대기열 탭에서 ${totalCollected}개의 공고를 확인하세요`, type: 'info' }
+							{ timestamp, message: data.message || '크롤링 완료', type: 'success' },
+							{ timestamp, message: `📋 크롤링 대기열 탭에서 ${crawlProgress.success}개의 공고를 확인하세요`, type: 'info' }
 						];
 						loading = false;
+						activeTab = 'queue';
 						break;
 
 					case 'error':
@@ -118,7 +152,7 @@
 			};
 
 			ws.onclose = () => {
-				if (crawlStatus === 'running') {
+				if (crawlStatus === 'collecting' || crawlStatus === 'processing') {
 					crawlStatus = 'completed';
 				}
 				loadQueue();
@@ -137,7 +171,6 @@
 			loading = false;
 		}
 	}
-
 
 	async function publishSelected() {
 		if (selectedIds.length === 0) return;
@@ -168,14 +201,14 @@
 </script>
 
 <svelte:head>
-	<title>정부 공고 (NTIS) - JB SQUARE</title>
+	<title>유관기관 공고 - JB SQUARE</title>
 </svelte:head>
 
 <div class="page">
 	<div class="page-header">
 		<div>
-			<h1 class="page-title">정부 공고 (NTIS)</h1>
-			<p class="page-subtitle">국가R&D 공고 크롤링 및 관리</p>
+			<h1 class="page-title">유관기관 공고</h1>
+			<p class="page-subtitle">JBTP 유관기관 공고 크롤링 및 관리</p>
 		</div>
 		<div class="header-actions">
 			<Button variant="outline" onclick={() => (showAddModal = true)}>
@@ -185,27 +218,43 @@
 	</div>
 
 	<!-- Crawler Config Panel -->
-	<Panel title="NTIS 국가R&D 크롤러">
+	<Panel title="JBTP 유관기관 크롤러">
 		<div class="crawler-card-content">
 			<p class="crawler-description">
-				NTIS RSS 피드를 통해 국가R&D 공고를 수집합니다.
+				전북테크노파크의 유관기관 공고를 수집합니다.
 			</p>
-			<Button variant="primary" onclick={crawlNTISRSS} disabled={loading}>
-				{loading ? '크롤링 중...' : 'RSS 크롤링 시작'}
+			<Button variant="primary" onclick={crawlExternal} disabled={loading}>
+				{loading ? '크롤링 중...' : '유관기관 크롤링 시작'}
 			</Button>
 		</div>
 	</Panel>
 
 	<!-- Crawling Configuration -->
-	<NTISConfigInline />
+	<JBTPConfigInline configType="external_notices" />
 
 	<!-- Crawling Status -->
 	{#if crawlStatus !== 'idle'}
 		<Panel title="크롤링 진행 상황">
+			{#if crawlStatus === 'collecting'}
+				<div class="phase-indicator">
+					<span class="phase-label">🔍 페이지 수집 중...</span>
+					<span class="phase-info">
+						페이지 {pageProgress.page} | 누적 {pageProgress.accumulated}개
+					</span>
+				</div>
+			{:else if crawlStatus === 'processing'}
+				<div class="phase-indicator processing">
+					<span class="phase-label">⚙️ 상세 정보 수집 중...</span>
+					<span class="phase-info">
+						{crawlProgress.progress} / {crawlProgress.total}
+					</span>
+				</div>
+			{/if}
+
 			<CrawlingStatus
-				sourceId="ntis"
-				sourceName="NTIS"
-				status={crawlStatus}
+				sourceId="jbtp_external"
+				sourceName="JBTP 유관기관"
+				status={crawlStatus === 'collecting' || crawlStatus === 'processing' ? 'running' : crawlStatus}
 				progress={crawlProgress.progress}
 				total={crawlProgress.total}
 				success={crawlProgress.success}
@@ -237,7 +286,7 @@
 	<!-- Tab Content -->
 	{#if activeTab === 'queue'}
 		<Panel title="크롤링 대기열">
-			<CrawlQueueTable
+			<ExternalNoticeQueueTable
 				bind:items={queueItems}
 				onSelectionChange={(ids) => (selectedIds = ids)}
 				onRefresh={loadQueue}
@@ -253,7 +302,7 @@
 		</Panel>
 	{:else}
 		<Panel title="게시된 공고">
-			<PublishedNoticesList sourceId="ntis_rss" category="government" />
+			<PublishedNoticesList sourceId="jbtp_external" category="government" />
 		</Panel>
 	{/if}
 
@@ -261,7 +310,7 @@
 	{#if showAddModal}
 		<AddNoticeModal
 			category="government"
-			sourceId="ntis_rss"
+			sourceId="jbtp_external"
 			onClose={() => (showAddModal = false)}
 			onSuccess={() => {
 				loadQueue();
@@ -315,6 +364,32 @@
 		color: var(--muted);
 		font-size: var(--text-sm);
 		line-height: 1.6;
+	}
+
+	.phase-indicator {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: var(--space-4);
+		margin-bottom: var(--space-4);
+		background-color: var(--surface-1);
+		border: var(--border-width) solid var(--hair);
+		font-family: var(--font-mono);
+	}
+
+	.phase-label {
+		font-size: var(--text-base);
+		font-weight: var(--font-semibold);
+		color: var(--fg);
+	}
+
+	.phase-info {
+		font-size: var(--text-sm);
+		color: var(--muted);
+	}
+
+	.phase-indicator.processing {
+		border-color: var(--fg);
 	}
 
 	.tabs {
