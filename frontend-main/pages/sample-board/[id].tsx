@@ -256,9 +256,16 @@ export default function NoticeDetailPage() {
               {/* 내용 */}
               {notice.content ? (
                 <div className="prose max-w-none mb-6">
-                  <div className="text-gray-700 whitespace-pre-wrap leading-relaxed">
-                    {notice.content}
-                  </div>
+                  {notice.content_type === 'html' ? (
+                    <div
+                      className="text-gray-700 leading-relaxed"
+                      dangerouslySetInnerHTML={{ __html: notice.content }}
+                    />
+                  ) : (
+                    <div className="text-gray-700 whitespace-pre-wrap leading-relaxed">
+                      {notice.content}
+                    </div>
+                  )}
                 </div>
               ) : (
                 <p className="text-gray-500 italic mb-6">내용이 없습니다.</p>
