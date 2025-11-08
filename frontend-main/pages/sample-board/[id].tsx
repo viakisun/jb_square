@@ -258,17 +258,12 @@ export default function NoticeDetailPage() {
                 <div className="mb-6">
                   {notice.content_type === 'html' ? (
                     <div
-                      className="prose prose-lg prose-slate max-w-none
-                        prose-headings:text-gray-900 prose-headings:font-bold
-                        prose-h3:text-xl prose-h3:mt-8 prose-h3:mb-4 prose-h3:pb-2 prose-h3:border-b-2 prose-h3:border-blue-500
-                        prose-p:text-gray-700 prose-p:leading-relaxed prose-p:my-4
-                        prose-ul:my-4 prose-li:my-2
-                        prose-strong:text-gray-900 prose-strong:font-semibold"
+                      className="notice-content-body"
                       dangerouslySetInnerHTML={{ __html: notice.content }}
                     />
                   ) : (
-                    <div className="text-gray-700 whitespace-pre-wrap leading-relaxed">
-                      {notice.content}
+                    <div className="notice-content-body">
+                      <pre className="whitespace-pre-wrap">{notice.content}</pre>
                     </div>
                   )}
                 </div>
@@ -313,59 +308,29 @@ export default function NoticeDetailPage() {
               {/* 첨부파일 */}
               {notice.attachment_links && notice.attachment_links.length > 0 && (
                 <div className="mb-6">
-                  <h3 className="text-sm font-semibold text-gray-700 mb-3">첨부파일</h3>
-                  <div className="space-y-2">
+                  <h3 className="text-sm font-semibold text-gray-700 mb-3 uppercase tracking-wide">
+                    첨부파일 ({notice.attachment_links.length})
+                  </h3>
+                  <ul className="attachment-list">
                     {notice.attachment_links.map((attachment, index) => {
-                      const getFileExtension = (filename: string) => {
-                        const ext = filename.split('.').pop()?.toLowerCase();
-                        return ext || '';
-                      };
-
-                      const getFileIcon = (ext: string) => {
-                        const iconColors: Record<string, string> = {
-                          'pdf': 'text-red-600',
-                          'hwp': 'text-blue-600',
-                          'doc': 'text-blue-700',
-                          'docx': 'text-blue-700',
-                          'xls': 'text-green-600',
-                          'xlsx': 'text-green-600',
-                          'ppt': 'text-orange-600',
-                          'pptx': 'text-orange-600',
-                          'zip': 'text-purple-600',
-                        };
-                        return iconColors[ext] || 'text-gray-600';
-                      };
-
-                      const ext = getFileExtension(attachment.filename);
-                      const iconColor = getFileIcon(ext);
                       const decodedFilename = decodeURIComponent(attachment.filename.replace(/\+/g, ' '));
 
                       return (
-                        <a
-                          key={index}
-                          href={attachment.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center p-3 bg-gray-50 hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors group"
-                        >
-                          <svg className={`w-8 h-8 mr-3 ${iconColor}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                          </svg>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-gray-900 truncate group-hover:text-blue-600">
-                              {decodedFilename}
-                            </p>
-                            <p className="text-xs text-gray-500 uppercase">
-                              {ext} 파일
-                            </p>
-                          </div>
-                          <svg className="w-5 h-5 text-gray-400 group-hover:text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                          </svg>
-                        </a>
+                        <li key={index} className="attachment-item">
+                          <span className="attachment-icon">📎</span>
+                          <span className="attachment-name">{decodedFilename}</span>
+                          <a
+                            href={attachment.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="attachment-download"
+                          >
+                            다운로드
+                          </a>
+                        </li>
                       );
                     })}
-                  </div>
+                  </ul>
                 </div>
               )}
             </div>
