@@ -124,6 +124,7 @@ class BaseCrawler(ABC):
         """
         return match_keywords(text, keywords)
 
+
     def parse_date(self, date_str: str) -> Optional[datetime]:
         """
         날짜 문자열 파싱
@@ -166,12 +167,14 @@ class BaseCrawler(ABC):
                 print(f"\n  처리 중: {title[:50]}...")
 
                 # 0. 키워드 필터링 (키워드가 설정되어 있으면)
+                matched_keywords = []
                 if keywords:
-                    matched = self.match_keywords(title, keywords)
-                    if not matched:
+                    matched_keywords = self.match_keywords(title, keywords)
+                    if not matched_keywords:
                         print(f"    → 키워드 매칭 안됨, 스킵")
                         skipped_filtered += 1
                         continue  # 키워드 매칭 안되면 저장하지 않음
+                    print(f"    → 매칭된 키워드: {matched_keywords}")
 
                 # 1. 이미 존재하는지 확인 (title + crawler_source_id로 중복 체크)
                 # 주의: notice_id가 NULL이고 rejection_status가 'rejected'가 아닌 것만 체크
@@ -229,6 +232,9 @@ class BaseCrawler(ABC):
                     except (ValueError, TypeError):
                         existing.views = 0
                     existing.status = notice.get('status')
+                    # matched_keywords 업데이트 (suggested_tags는 사용하지 않음)
+                    existing.matched_keywords = matched_keywords
+                    existing.suggested_tags = []
                     updated_existing += 1
                 else:
                     # 4. 새로운 항목 추가 (데이터베이스 트리거가 중복 체크 및 업데이트 처리)
@@ -283,7 +289,9 @@ class BaseCrawler(ABC):
                             department=notice.get('department'),
                             contact=notice.get('contact'),
                             views=views_int,
-                            status=notice.get('status')
+                            status=notice.get('status'),
+                            matched_keywords=matched_keywords,
+                            suggested_tags=[]  # 자동 태그 제안 사용하지 않음
                         )
                         db.add(queue_item)
                         db.flush()  # 즉시 실행하여 트리거 동작 확인

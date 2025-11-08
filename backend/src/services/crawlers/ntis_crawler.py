@@ -457,6 +457,25 @@ class NTISRSSCrawler(BaseCrawler):
         self.rss_url = "http://www.ntis.go.kr/rndgate/unRndRss.xml?prt=100&bbs=true"
         self.days_filter = 7  # 최근 7일 이내 데이터만 수집
 
+    def get_keywords(self):
+        """
+        NTIS 설정에서 검색 키워드 가져오기
+
+        Returns:
+            키워드 리스트
+        """
+        from src.models.crawler_config import NTISConfig
+        from src.core.database import SessionLocal
+
+        db = SessionLocal()
+        try:
+            config = db.query(NTISConfig).first()
+            if config and config.search_keywords:
+                return config.search_keywords
+            return []
+        finally:
+            db.close()
+
     def _clean_description(self, html_text: str) -> str:
         """HTML 태그 제거 및 텍스트 정리"""
         if not html_text:

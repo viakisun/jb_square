@@ -76,6 +76,9 @@ class Notice(Base):
     # Full-text Search (PostgreSQL specific)
     search_vector = Column(TSVECTOR)
 
+    # Raw crawled data (preserved from crawl queue)
+    raw_data = Column(JSON)
+
     # Check constraints
     __table_args__ = (
         CheckConstraint(
@@ -119,6 +122,7 @@ class Notice(Base):
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
             'created_by': self.created_by,
             'updated_by': self.updated_by,
+            'raw_data': self.raw_data,
         }
 
 
@@ -161,6 +165,7 @@ class CrawlQueue(Base):
     # Additional Metadata
     raw_data = Column(JSON)  # Full crawled data
     matched_keywords = Column(JSON, default=list)  # Keywords that matched this notice
+    suggested_tags = Column(JSON, default=list)  # Auto-suggested tags based on keywords
 
     # Timestamps
     created_at = Column(DateTime, default=datetime.now)
@@ -188,5 +193,6 @@ class CrawlQueue(Base):
             'rejected_by': self.rejected_by,
             'raw_data': self.raw_data,
             'matched_keywords': self.matched_keywords or [],
+            'suggested_tags': self.suggested_tags or [],
             'created_at': self.created_at.isoformat() if self.created_at else None,
         }

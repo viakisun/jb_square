@@ -51,6 +51,8 @@ class BinetConfigUpdate(BaseModel):
 class NTISConfigUpdate(BaseModel):
     api_key: Optional[str] = None
     search_keywords: Optional[List[str]] = None
+    keywords: Optional[List[str]] = None  # 프론트엔드 호환성을 위한 별칭
+    date_range_days: Optional[int] = None
     enabled: Optional[bool] = None
 
 
@@ -237,7 +239,7 @@ async def get_ntis_config(db: Session = Depends(get_db)):
     config = db.query(NTISConfig).first()
     if not config:
         # 기본 설정 생성
-        config = NTISConfig(api_key="", search_keywords=[], enabled=True)
+        config = NTISConfig(api_key="", search_keywords=[], date_range_days=30, enabled=True)
         db.add(config)
         db.commit()
         db.refresh(config)
@@ -253,13 +255,18 @@ async def update_ntis_config(
     db_config = db.query(NTISConfig).first()
     if not db_config:
         # 없으면 생성
-        db_config = NTISConfig(api_key="", search_keywords=[], enabled=True)
+        db_config = NTISConfig(api_key="", search_keywords=[], date_range_days=30, enabled=True)
         db.add(db_config)
 
     if config.api_key is not None:
         db_config.api_key = config.api_key
     if config.search_keywords is not None:
         db_config.search_keywords = config.search_keywords
+    # 프론트엔드에서 keywords를 보낼 경우 search_keywords로 처리
+    if config.keywords is not None:
+        db_config.search_keywords = config.keywords
+    if config.date_range_days is not None:
+        db_config.date_range_days = config.date_range_days
     if config.enabled is not None:
         db_config.enabled = config.enabled
 
