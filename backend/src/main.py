@@ -24,10 +24,12 @@ app = FastAPI(
 #         print(f"Warning: Could not initialize database: {str(e)}")
 
 # CORS 설정 (환경변수에서 허용 도메인 읽기)
-cors_origins = os.getenv(
+cors_origins_str = os.getenv(
     "CORS_ALLOWED_ORIGINS",
     "http://localhost:3000,http://localhost:5173,http://localhost:5174,http://localhost:5175"
-).split(",")
+)
+# 공백 제거하고 split
+cors_origins = [origin.strip() for origin in cors_origins_str.split(",")]
 
 app.add_middleware(
     CORSMiddleware,
