@@ -454,7 +454,9 @@ class NTISRSSCrawler(BaseCrawler):
 
     def __init__(self):
         super().__init__("ntis_rss")
-        self.rss_url = "http://www.ntis.go.kr/rndgate/unRndRss.xml?prt=100&bbs=true"
+        # RSS 피드에서 최대한 많은 항목 가져오기 (기본 100 → 500)
+        # prt 파라미터: 한 번에 가져올 항목 수
+        self.rss_url = "http://www.ntis.go.kr/rndgate/unRndRss.xml?prt=500&bbs=true"
         self.days_filter = self.get_date_range_days()  # DB 설정에서 기간 가져오기
 
     def get_date_range_days(self):
