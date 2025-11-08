@@ -21,6 +21,16 @@ class CrawlerStatus(str, Enum):
     STOPPED = "stopped"
 
 
+class CrawlerPhase(str, Enum):
+    """크롤러 실행 단계"""
+    INITIALIZING = "initializing"
+    LIST_COLLECTION = "list_collection"
+    FILTERING = "filtering"
+    DETAIL_CRAWLING = "detail_crawling"
+    SAVING = "saving"
+    COMPLETED = "completed"
+
+
 class BaseCrawler(ABC):
     """
     모든 크롤러의 기본 추상 클래스
@@ -31,11 +41,13 @@ class BaseCrawler(ABC):
     def __init__(self, source_id: str):
         """
         Args:
-            source_id: 크롤러 식별자 (예: 'jbtp', 'ntis', 'bizinfo')
+            source_id: 크롤러 식별자 (예: 'jbtp', 'ntis_rss', 'bizinfo')
         """
         self.source_id = source_id
         self.status: Dict = {
             "status": CrawlerStatus.IDLE,
+            "phase": None,
+            "phase_message": None,
             "progress": 0,
             "total": 0,
             "success": 0,
@@ -57,6 +69,8 @@ class BaseCrawler(ABC):
         """크롤러 상태 초기화"""
         self.status = {
             "status": CrawlerStatus.RUNNING,
+            "phase": CrawlerPhase.INITIALIZING,
+            "phase_message": "초기화 중...",
             "progress": 0,
             "total": 0,
             "success": 0,
@@ -74,10 +88,28 @@ class BaseCrawler(ABC):
 
         Args:
             callback: WebSocket 콜백 함수
-            event_type: 이벤트 타입 ('start', 'progress', 'complete', 'error', 'log')
+            event_type: 이벤트 타입 ('start', 'progress', 'complete', 'error', 'log', 'phase_change')
             data: 이벤트 데이터
         """
         await EventService.send_event(callback, event_type, data)
+
+    async def set_phase(self, callback: Optional[Callable], phase: CrawlerPhase, message: str):
+        """
+        크롤러 실행 단계 변경 및 알림
+
+        Args:
+            callback: WebSocket 콜백 함수
+            phase: 변경할 단계
+            message: 단계 설명 메시지
+        """
+        self.status["phase"] = phase
+        self.status["phase_message"] = message
+
+        await self.send_event(callback, "phase_change", {
+            "source_id": self.source_id,
+            "phase": phase,
+            "message": message
+        })
 
     def get_keywords(self) -> List[str]:
         """

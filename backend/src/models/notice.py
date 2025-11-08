@@ -33,7 +33,7 @@ class Notice(Base):
         nullable=False,
         # 'crawled' or 'manual'
     )
-    crawler_source_id = Column(String(50))  # 'jbtp', 'ntis', 'bizinfo', 'manual'
+    crawler_source_id = Column(String(50))  # 'jbtp', 'ntis_rss', 'bizinfo', 'manual'
     source_board_name = Column(String(100))     # Original board name
 
     # Categorization
@@ -66,6 +66,10 @@ class Notice(Base):
     department = Column(String(200))    # Department/division
     contact = Column(String(200))       # Contact information
     attachment_links = Column(JSON, default=list)  # Attachment URLs
+
+    # Content Type and Viewer
+    content_type = Column(String(20))   # 'text', 'html', 'pdf_viewer'
+    content_viewer_url = Column(Text)   # PDF viewer URL (for JBTP)
 
     # System Fields
     created_at = Column(DateTime, default=datetime.now)
@@ -118,6 +122,8 @@ class Notice(Base):
             'department': self.department,
             'contact': self.contact,
             'attachment_links': self.attachment_links or [],
+            'content_type': self.content_type,
+            'content_viewer_url': self.content_viewer_url,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
             'created_by': self.created_by,
@@ -136,7 +142,7 @@ class CrawlQueue(Base):
     id = Column(Integer, primary_key=True)
 
     # Source Information
-    crawler_source_id = Column(String(50), nullable=False)  # 'jbtp', 'ntis', 'bizinfo'
+    crawler_source_id = Column(String(50), nullable=False)  # 'jbtp', 'ntis_rss', 'bizinfo'
     source_board_name = Column(String(100))                     # Board name
 
     # Crawled Data

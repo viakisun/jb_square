@@ -56,7 +56,7 @@ class CrawlerManager:
                 "last_run": None,
                 "error_message": None
             },
-            "ntis": {
+            "ntis_rss": {
                 "status": CrawlerStatus.IDLE,
                 "progress": 0,
                 "total": 0,
@@ -88,7 +88,7 @@ class CrawlerManager:
         self.stop_flags: Dict[str, bool] = {
             "jbtp": False,
             "jbtp_external": False,
-            "ntis": False,
+            "ntis_rss": False,
             "bizinfo": False,
             "bi_center": False
         }
@@ -99,7 +99,7 @@ class CrawlerManager:
             "bizinfo": BizinfoCrawler(),
             "jbtp": JBTPCrawler(),
             "jbtp_external": JBTPExternalCrawler(),
-            "ntis": NTISCrawler(),
+            "ntis_rss": NTISCrawler(),
         }
 
     def get_status(self, source_id: str) -> dict:
@@ -622,17 +622,6 @@ class CrawlerManager:
             callback: 실시간 업데이트를 전송할 콜백 함수 (WebSocket send)
         """
         return await self.crawlers["jbtp_external"].run(callback)
-
-    async def execute_ntis(self, callback: Optional[Callable] = None):
-        """
-        NTIS API를 통해 R&D 공고를 수집합니다.
-
-        Note: NTIS는 웹 크롤링을 금지하고 있으며, 공식 OpenAPI를 제공합니다.
-        올바른 API 엔드포인트: https://www.ntis.go.kr/rndopen/openApi/public_project
-
-        API 신청: https://www.ntis.go.kr/rndopen/api/mng/apiMain.do
-        """
-        return await self.crawlers["ntis"].run(callback)
 
     async def execute_ntis_rss(self, callback: Optional[Callable] = None):
         """

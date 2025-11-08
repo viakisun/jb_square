@@ -12,7 +12,7 @@ CATEGORY_METADATA = {
         'id': 'government',
         'label': '정부 공고',
         'description': '중앙정부 및 지자체 공고',
-        'sources': ['ntis', 'jbtp'],  # NTIS: 중앙정부, JBTP: 지자체
+        'sources': ['ntis_rss', 'jbtp'],  # NTIS: 중앙정부, JBTP: 지자체
         'color': '#1E40AF'
     },
     'business': {
@@ -26,7 +26,7 @@ CATEGORY_METADATA = {
         'id': 'rnd',
         'label': '연구개발(R&D)',
         'description': 'R&D 관련 지원사업',
-        'sources': ['ntis', 'jbtp'],
+        'sources': ['ntis_rss', 'jbtp'],
         'color': '#7C3AED'
     },
     'startup': {
@@ -40,7 +40,7 @@ CATEGORY_METADATA = {
 
 # Source별 기본 카테고리 매핑
 SOURCE_DEFAULT_CATEGORY = {
-    'ntis': 'government',      # NTIS → 정부 공고
+    'ntis_rss': 'government',  # NTIS → 정부 공고
     'jbtp': 'government',      # JBTP → 정부 공고 (지자체)
     'bizinfo': 'business',     # Bizinfo → 기업 지원
     'manual': 'government'     # 수동 입력 기본값

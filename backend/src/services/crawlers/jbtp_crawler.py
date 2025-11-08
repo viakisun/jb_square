@@ -12,7 +12,7 @@ from typing import Callable, Optional
 from src.core.database import SessionLocal
 from src.models.notice import CrawlQueue, Notice
 from src.services.rate_limiter import RateLimiter
-from .base_crawler import BaseCrawler, CrawlerStatus
+from .base_crawler import BaseCrawler, CrawlerStatus, CrawlerPhase
 from .repositories import ConfigRepository, CrawlQueueRepository
 from .strategies import JBTPExtractionStrategy
 

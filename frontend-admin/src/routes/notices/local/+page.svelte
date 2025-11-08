@@ -79,6 +79,7 @@
 	// Modal state
 	// ============================================
 	let showAddModal = $state(false);
+	let publishedListKey = $state(0); // Key to force re-mount of published list
 
 	onMount(() => {
 		loadBusinessQueue();
@@ -553,7 +554,9 @@
 			</Panel>
 		{:else}
 			<Panel title="게시된 공고">
-				<PublishedNoticesList sourceId="jbtp" category="government" />
+				{#key publishedListKey}
+					<PublishedNoticesList sourceId="jbtp" category="government" />
+				{/key}
 			</Panel>
 		{/if}
 	</div>
@@ -662,6 +665,7 @@
 			onSuccess={() => {
 				loadBusinessQueue();
 				businessActiveTab = 'published';
+				publishedListKey++; // Force re-mount of published list
 			}}
 		/>
 	{/if}

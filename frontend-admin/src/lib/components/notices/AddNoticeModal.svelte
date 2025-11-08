@@ -17,10 +17,24 @@
 
 	let { category, sourceId, onClose, onSuccess }: Props = $props();
 
+	// Get display name for registration location
+	function getLocationDisplay(sourceId: string): string {
+		const locationMap: Record<string, string> = {
+			'ntis_rss': '정부공고 (NTIS)',
+			'jbtp': '지자체 공고 (사업공고)',
+			'jbtp_external': '지자체 공고 (유관기관공고)',
+			'bizinfo': '정부공고 (기업마당)'
+		};
+		return locationMap[sourceId] || `공고 (${sourceId})`;
+	}
+
+	let locationDisplay = $derived(getLocationDisplay(sourceId));
+
 	// Form state
 	let formData = $state({
 		title: '',
 		content: '',
+		content_type: 'text',
 		link: '',
 		organization: '',
 		department: '',
@@ -32,9 +46,32 @@
 	});
 
 	let selectedTags = $state<string[]>([]);
+	let attachments = $state<Array<{ filename: string; url: string }>>([]);
+	let newAttachment = $state({ filename: '', url: '' });
+	let availableTags = $state<Array<{ id: number; name: string; slug: string; color_hex: string }>>([]);
+	let loadingTags = $state(true);
 	let submitting = $state(false);
+	let uploadingFile = $state(false);
+	let attachmentMode = $state<'url' | 'upload'>('upload'); // Toggle between URL input and file upload
+	let isDragging = $state(false); // Drag and drop state
 
-	const availableTags = ['R&D', '바이오', '창업', '기술이전', '스타트업', '지원사업', '전북'];
+	// Load tags on mount
+	$effect(() => {
+		loadTags();
+	});
+
+	async function loadTags() {
+		try {
+			const res = await fetch(`${API_BASE_URL}/tags/active`);
+			if (res.ok) {
+				availableTags = await res.json();
+			}
+		} catch (error) {
+			console.error('Failed to load tags:', error);
+		} finally {
+			loadingTags = false;
+		}
+	}
 
 	async function handleSubmit(e: Event) {
 		e.preventDefault();
@@ -53,6 +90,7 @@
 				body: JSON.stringify({
 					title: formData.title,
 					content: formData.content || null,
+					content_type: formData.content_type,
 					link: formData.link || null,
 					category,
 					tags: selectedTags,
@@ -62,7 +100,8 @@
 					deadline: formData.deadline || null,
 					application_start: formData.application_start || null,
 					application_end: formData.application_end || null,
-					announcement_date: formData.announcement_date || null
+					announcement_date: formData.announcement_date || null,
+					attachment_links: attachments.length > 0 ? attachments : null
 				})
 			});
 
@@ -89,6 +128,96 @@
 			selectedTags = [...selectedTags, tag];
 		}
 	}
+
+	function addAttachment() {
+		if (newAttachment.filename.trim() && newAttachment.url.trim()) {
+			attachments = [...attachments, { ...newAttachment }];
+			newAttachment = { filename: '', url: '' };
+		}
+	}
+
+	function removeAttachment(index: number) {
+		attachments = attachments.filter((_, i) => i !== index);
+	}
+
+	async function uploadFile(file: File) {
+		// Validate file size (10MB)
+		const maxSize = 10 * 1024 * 1024;
+		if (file.size > maxSize) {
+			toast.error('파일 크기는 10MB 이하여야 합니다');
+			return;
+		}
+
+		uploadingFile = true;
+
+		try {
+			const formDataToSend = new FormData();
+			formDataToSend.append('file', file);
+
+			const res = await fetch(`${API_BASE_URL}/notices/upload-attachment`, {
+				method: 'POST',
+				body: formDataToSend
+			});
+
+			if (res.ok) {
+				const result = await res.json();
+				attachments = [...attachments, { filename: result.filename, url: result.url }];
+				toast.success('파일이 업로드되었습니다');
+			} else {
+				const error = await res.json();
+				toast.error(error.detail || '파일 업로드 실패');
+			}
+		} catch (error) {
+			console.error('File upload error:', error);
+			toast.error('파일 업로드 중 오류 발생');
+		} finally {
+			uploadingFile = false;
+		}
+	}
+
+	async function handleFileUpload(e: Event) {
+		const input = e.target as HTMLInputElement;
+		const file = input.files?.[0];
+
+		if (!file) return;
+
+		await uploadFile(file);
+		input.value = ''; // Reset input
+	}
+
+	// Drag and drop handlers
+	function handleDragEnter(e: DragEvent) {
+		e.preventDefault();
+		e.stopPropagation();
+		isDragging = true;
+	}
+
+	function handleDragLeave(e: DragEvent) {
+		e.preventDefault();
+		e.stopPropagation();
+		// Only set to false if leaving the drop zone itself
+		const target = e.target as HTMLElement;
+		if (target.classList.contains('file-upload-area')) {
+			isDragging = false;
+		}
+	}
+
+	function handleDragOver(e: DragEvent) {
+		e.preventDefault();
+		e.stopPropagation();
+	}
+
+	async function handleDrop(e: DragEvent) {
+		e.preventDefault();
+		e.stopPropagation();
+		isDragging = false;
+
+		const files = e.dataTransfer?.files;
+		if (!files || files.length === 0) return;
+
+		// Upload first file only
+		await uploadFile(files[0]);
+	}
 </script>
 
 <div class="modal-overlay" onclick={onClose}>
@@ -96,6 +225,14 @@
 		<div class="modal-header">
 			<h2>공고 수동 추가</h2>
 			<button class="close-button" onclick={onClose}>✕</button>
+		</div>
+
+		<!-- Registration Location Badge -->
+		<div class="location-badge-container">
+			<div class="location-badge">
+				<span class="location-icon">📍</span>
+				<span class="location-text">등록 위치: <strong>{locationDisplay}</strong></span>
+			</div>
 		</div>
 
 		<form class="modal-body" onsubmit={handleSubmit}>
@@ -111,13 +248,22 @@
 				/>
 			</div>
 
+			<!-- Content Type -->
+			<div class="form-group">
+				<label for="content_type">내용 유형</label>
+				<select id="content_type" class="select" bind:value={formData.content_type}>
+					<option value="text">텍스트</option>
+					<option value="html">HTML</option>
+				</select>
+			</div>
+
 			<!-- Content -->
 			<div class="form-group">
 				<label for="content">내용</label>
 				<textarea
 					id="content"
 					class="textarea"
-					placeholder="공고 내용을 입력하세요"
+					placeholder={formData.content_type === 'html' ? 'HTML 내용을 입력하세요' : '공고 내용을 입력하세요'}
 					bind:value={formData.content}
 					rows="6"
 				></textarea>
@@ -206,18 +352,124 @@
 			<!-- Tags -->
 			<div class="form-group">
 				<label>태그</label>
-				<div class="tag-selector">
-					{#each availableTags as tag}
+				{#if loadingTags}
+					<p class="loading-text">태그 로딩 중...</p>
+				{:else if availableTags.length > 0}
+					<div class="tag-selector">
+						{#each availableTags as tag}
+							<button
+								type="button"
+								class="tag-button"
+								class:selected={selectedTags.includes(tag.name)}
+								onclick={() => toggleTag(tag.name)}
+								style="--tag-color: {tag.color_hex || '#666'}"
+							>
+								{tag.name}
+							</button>
+						{/each}
+					</div>
+				{:else}
+					<p class="no-tags-text">사용 가능한 태그가 없습니다</p>
+				{/if}
+			</div>
+
+			<!-- Attachments -->
+			<div class="form-group">
+				<label>첨부파일</label>
+
+				<!-- Attachment Mode Toggle -->
+				<div class="attachment-mode-toggle">
+					<button
+						type="button"
+						class="mode-button"
+						class:active={attachmentMode === 'url'}
+						onclick={() => (attachmentMode = 'url')}
+					>
+						URL 입력
+					</button>
+					<button
+						type="button"
+						class="mode-button"
+						class:active={attachmentMode === 'upload'}
+						onclick={() => (attachmentMode = 'upload')}
+					>
+						파일 업로드
+					</button>
+				</div>
+
+				<!-- Attachment List -->
+				{#if attachments.length > 0}
+					<div class="attachment-list">
+						{#each attachments as attachment, index}
+							<div class="attachment-item">
+								<span class="attachment-icon">📎</span>
+								<span class="attachment-name">{attachment.filename}</span>
+								<button
+									type="button"
+									class="remove-button"
+									onclick={() => removeAttachment(index)}
+								>
+									✕
+								</button>
+							</div>
+						{/each}
+					</div>
+				{/if}
+
+				<!-- Add Attachment Form -->
+				{#if attachmentMode === 'url'}
+					<div class="attachment-input-group">
+						<Input
+							type="text"
+							placeholder="파일명 (예: 신청서.hwp)"
+							bind:value={newAttachment.filename}
+						/>
+						<Input
+							type="url"
+							placeholder="파일 URL"
+							bind:value={newAttachment.url}
+						/>
 						<button
 							type="button"
-							class="tag-button"
-							class:selected={selectedTags.includes(tag)}
-							onclick={() => toggleTag(tag)}
+							class="add-attachment-button"
+							onclick={addAttachment}
+							disabled={!newAttachment.filename.trim() || !newAttachment.url.trim()}
 						>
-							{tag}
+							추가
 						</button>
-					{/each}
-				</div>
+					</div>
+				{:else}
+					<div
+						class="file-upload-area"
+						class:dragging={isDragging}
+						ondragenter={handleDragEnter}
+						ondragleave={handleDragLeave}
+						ondragover={handleDragOver}
+						ondrop={handleDrop}
+					>
+						<input
+							type="file"
+							id="file-upload"
+							class="file-input"
+							accept=".pdf,.hwp,.docx,.doc,.xls,.xlsx,.zip,.jpg,.jpeg,.png"
+							onchange={handleFileUpload}
+							disabled={uploadingFile}
+						/>
+						<label for="file-upload" class="file-upload-label">
+							{#if uploadingFile}
+								<span class="upload-icon">⏳</span>
+								<span>업로드 중...</span>
+							{:else if isDragging}
+								<span class="upload-icon">📥</span>
+								<span>파일을 여기에 놓으세요</span>
+							{:else}
+								<span class="upload-icon">📎</span>
+								<span>파일을 드래그하거나 클릭하여 선택</span>
+							{/if}
+						</label>
+						<p class="file-upload-hint">PDF, HWP, DOC, XLS, ZIP, 이미지 (최대 10MB)</p>
+					</div>
+				{/if}
 			</div>
 		</form>
 
@@ -272,6 +524,30 @@
 		align-items: center;
 		padding: var(--space-5);
 		border-bottom: var(--border-width) solid var(--hair);
+	}
+
+	.location-badge-container {
+		padding: var(--space-4) var(--space-5) 0;
+	}
+
+	.location-badge {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--space-2);
+		padding: var(--space-2) var(--space-3);
+		background-color: var(--surface-1);
+		border: var(--border-width) solid var(--hair);
+		font-size: var(--text-sm);
+		color: var(--muted);
+	}
+
+	.location-icon {
+		font-size: var(--text-base);
+	}
+
+	.location-text strong {
+		color: var(--fg);
+		font-weight: var(--font-semibold);
 	}
 
 	.modal-header h2 {
@@ -340,6 +616,30 @@
 		border-color: var(--fg);
 	}
 
+	.select {
+		width: 100%;
+		padding: var(--space-3);
+		font-family: var(--font-sans);
+		font-size: var(--text-sm);
+		color: var(--fg);
+		background-color: var(--bg);
+		border: var(--border-width) solid var(--hair);
+		cursor: pointer;
+		transition: border-color var(--duration-fast) var(--ease-out);
+	}
+
+	.select:focus {
+		outline: none;
+		border-color: var(--fg);
+	}
+
+	.loading-text,
+	.no-tags-text {
+		font-size: var(--text-sm);
+		color: var(--muted);
+		padding: var(--space-3);
+	}
+
 	.tag-selector {
 		display: flex;
 		flex-wrap: wrap;
@@ -362,9 +662,173 @@
 	}
 
 	.tag-button.selected {
+		background-color: var(--tag-color, var(--fg));
+		color: var(--bg);
+		border-color: var(--tag-color, var(--fg));
+	}
+
+	/* Attachment Mode Toggle */
+	.attachment-mode-toggle {
+		display: flex;
+		gap: var(--space-2);
+		margin-bottom: var(--space-3);
+	}
+
+	.mode-button {
+		flex: 1;
+		padding: var(--space-2) var(--space-3);
+		background-color: var(--bg);
+		border: var(--border-width) solid var(--hair);
+		color: var(--muted);
+		font-size: var(--text-sm);
+		font-weight: var(--font-medium);
+		cursor: pointer;
+		transition: all var(--duration-fast) var(--ease-out);
+	}
+
+	.mode-button:hover {
+		border-color: var(--fg);
+		color: var(--fg);
+	}
+
+	.mode-button.active {
 		background-color: var(--fg);
 		color: var(--bg);
 		border-color: var(--fg);
+	}
+
+	/* File Upload */
+	.file-upload-area {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-2);
+		padding: var(--space-4);
+		border: 2px dashed var(--hair);
+		background-color: var(--surface-1);
+		transition: all var(--duration-fast) var(--ease-out);
+	}
+
+	.file-upload-area.dragging {
+		border-color: var(--fg);
+		background-color: var(--bg);
+		border-width: 2px;
+	}
+
+	.file-input {
+		display: none;
+	}
+
+	.file-upload-label {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: var(--space-2);
+		padding: var(--space-5) var(--space-4);
+		background-color: var(--bg);
+		border: var(--border-width) solid var(--hair);
+		color: var(--fg);
+		font-size: var(--text-sm);
+		font-weight: var(--font-medium);
+		text-align: center;
+		cursor: pointer;
+		transition: all var(--duration-fast) var(--ease-out);
+	}
+
+	.file-upload-label:hover {
+		background-color: var(--fg);
+		color: var(--bg);
+		border-color: var(--fg);
+	}
+
+	.upload-icon {
+		font-size: var(--text-2xl);
+	}
+
+	.file-upload-hint {
+		font-size: var(--text-xs);
+		color: var(--muted);
+		text-align: center;
+		margin: 0;
+	}
+
+	/* Attachments */
+	.attachment-list {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-2);
+		margin-bottom: var(--space-3);
+		padding: var(--space-3);
+		background-color: var(--surface-1);
+		border: var(--border-width) solid var(--hair);
+	}
+
+	.attachment-item {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+		padding: var(--space-2);
+		background-color: var(--bg);
+		border: var(--border-width) solid var(--hair);
+	}
+
+	.attachment-icon {
+		flex-shrink: 0;
+		font-size: var(--text-sm);
+	}
+
+	.attachment-name {
+		flex: 1;
+		font-size: var(--text-sm);
+		color: var(--fg);
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.remove-button {
+		padding: var(--space-1) var(--space-2);
+		background: none;
+		border: var(--border-width) solid var(--hair);
+		color: var(--muted);
+		font-size: var(--text-sm);
+		cursor: pointer;
+		transition: all var(--duration-fast) var(--ease-out);
+	}
+
+	.remove-button:hover {
+		background-color: var(--fg);
+		color: var(--bg);
+		border-color: var(--fg);
+	}
+
+	.attachment-input-group {
+		display: grid;
+		grid-template-columns: 1fr 2fr auto;
+		gap: var(--space-2);
+		align-items: end;
+	}
+
+	.add-attachment-button {
+		padding: var(--space-3);
+		background-color: var(--bg);
+		border: var(--border-width) solid var(--hair);
+		color: var(--fg);
+		font-size: var(--text-sm);
+		font-weight: var(--font-medium);
+		cursor: pointer;
+		transition: all var(--duration-fast) var(--ease-out);
+		white-space: nowrap;
+	}
+
+	.add-attachment-button:hover:not(:disabled) {
+		background-color: var(--fg);
+		color: var(--bg);
+		border-color: var(--fg);
+	}
+
+	.add-attachment-button:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
 	}
 
 	.modal-footer {
@@ -382,6 +846,10 @@
 
 		.modal-content {
 			max-height: 95vh;
+		}
+
+		.attachment-input-group {
+			grid-template-columns: 1fr;
 		}
 	}
 </style>

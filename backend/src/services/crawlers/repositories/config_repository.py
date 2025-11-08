@@ -115,7 +115,7 @@ class ConfigRepository:
         Returns:
             키워드 리스트
         """
-        if source_id == 'ntis':
+        if source_id == 'ntis_rss':
             config = ConfigRepository.load_ntis_config()
             return config.search_keywords if config else []
         elif source_id == 'bizinfo':
@@ -135,7 +135,7 @@ class ConfigRepository:
         Returns:
             검색 기간 (일 단위), 기본값 30일
         """
-        if source_id == 'ntis':
+        if source_id == 'ntis_rss':
             config = ConfigRepository.load_ntis_config()
             return config.date_range_days if config and config.date_range_days else 30
         else:

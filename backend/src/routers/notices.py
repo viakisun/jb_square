@@ -5,7 +5,7 @@ API endpoints for JB SQUARE notice management
 
 from datetime import datetime
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect, Query
+from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect, Query, UploadFile, File
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -13,6 +13,7 @@ from sqlalchemy import desc, or_, and_, cast, func
 from sqlalchemy.dialects.postgresql import JSONB
 
 from src.core.database import get_db
+from src.core.s3_client import s3_client
 from src.models.notice import Notice, CrawlQueue
 from src.services.crawler_manager import crawler_manager
 
@@ -24,10 +25,17 @@ router = APIRouter(prefix="/api/notices", tags=["notices"])
 # Pydantic Schemas
 # ============================================
 
+class AttachmentLink(BaseModel):
+    """Schema for attachment link"""
+    filename: str
+    url: str
+
+
 class NoticeCreate(BaseModel):
     """Schema for creating a notice manually"""
     title: str
     content: Optional[str] = None
+    content_type: Optional[str] = 'text'  # 'text', 'html'
     link: Optional[str] = None
     category: str  # 'government', 'business', 'rnd', 'startup'
     tags: List[str] = []
@@ -38,7 +46,7 @@ class NoticeCreate(BaseModel):
     application_start: Optional[str] = None
     application_end: Optional[str] = None
     announcement_date: Optional[str] = None
-    attachment_links: List[str] = []
+    attachment_links: List[AttachmentLink] = []
 
 
 class NoticeUpdate(BaseModel):
@@ -91,7 +99,7 @@ async def get_notices(
 
     - **category**: 'government', 'business', 'rnd', 'startup'
     - **status**: 'pending', 'published', 'archived'
-    - **source_id**: 'jbtp', 'ntis', 'bizinfo', 'manual'
+    - **source_id**: 'jbtp', 'ntis_rss', 'bizinfo', 'manual'
     - **tag**: Filter notices containing this tag
     - **search**: Full-text search in title and content
     """
@@ -167,9 +175,13 @@ async def create_manual_notice(
 ):
     """Create a notice manually (not from crawling)"""
 
+    # Convert attachment_links to dict format for JSON storage
+    attachment_links_json = [{"filename": att.filename, "url": att.url} for att in data.attachment_links] if data.attachment_links else []
+
     notice = Notice(
         title=data.title,
         content=data.content,
+        content_type=data.content_type,
         link=data.link,
         origin_type='manual',
         crawler_source_id='manual',
@@ -180,7 +192,7 @@ async def create_manual_notice(
         organization=data.organization,
         department=data.department,
         contact=data.contact,
-        attachment_links=data.attachment_links,
+        attachment_links=attachment_links_json,
         created_at=datetime.now()
     )
 
@@ -315,7 +327,61 @@ async def delete_notice(notice_id: int, db: Session = Depends(get_db)):
 
 
 # ============================================
-# 5-1. POST /api/notices/bulk-delete - Bulk delete notices
+# 5-1. POST /api/notices/upload-attachment - Upload file to S3
+# ============================================
+
+@router.post("/upload-attachment")
+async def upload_attachment(file: UploadFile = File(...)):
+    """
+    Upload attachment file to S3
+
+    Allowed file types: PDF, HWP, DOCX, XLS, XLSX, ZIP, JPG, PNG
+    Max file size: 10MB
+    """
+
+    # Validate file type
+    allowed_extensions = {'.pdf', '.hwp', '.docx', '.doc', '.xls', '.xlsx', '.zip', '.jpg', '.jpeg', '.png'}
+    file_ext = '.' + file.filename.split('.')[-1].lower() if '.' in file.filename else ''
+
+    if file_ext not in allowed_extensions:
+        raise HTTPException(
+            status_code=400,
+            detail=f"파일 형식이 지원되지 않습니다. 허용된 형식: {', '.join(allowed_extensions)}"
+        )
+
+    # Validate file size (10MB max)
+    MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB in bytes
+    file_size = 0
+    chunk_size = 1024 * 1024  # 1MB chunks
+
+    # Read file to check size
+    file_content = await file.read()
+    file_size = len(file_content)
+
+    if file_size > MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=400,
+            detail=f"파일 크기가 너무 큽니다. 최대 크기: 10MB"
+        )
+
+    # Reset file pointer
+    await file.seek(0)
+
+    try:
+        # Upload to S3
+        original_filename, s3_url = s3_client.upload_file(file, folder="attachments")
+
+        return {
+            "filename": original_filename,
+            "url": s3_url
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"파일 업로드 실패: {str(e)}")
+
+
+# ============================================
+# 5-2. POST /api/notices/bulk-delete - Bulk delete notices
 # ============================================
 
 @router.post("/bulk-delete")
@@ -363,7 +429,7 @@ async def crawl_source(websocket: WebSocket, source_id: str):
     """
     WebSocket endpoint for real-time crawling with progress updates
 
-    - **source_id**: 'jbtp', 'jbtp_external', 'ntis', 'ntis_rss', 'bizinfo'
+    - **source_id**: 'jbtp', 'jbtp_external', 'ntis_rss', 'bizinfo'
     """
     await websocket.accept()
 
@@ -377,8 +443,6 @@ async def crawl_source(websocket: WebSocket, source_id: str):
             await crawler_manager.execute_jbtp(callback=send_update)
         elif source_id == "jbtp_external":
             await crawler_manager.execute_jbtp_external(callback=send_update)
-        elif source_id == "ntis":
-            await crawler_manager.execute_ntis(callback=send_update)
         elif source_id == "ntis_rss":
             await crawler_manager.execute_ntis_rss(callback=send_update)
         elif source_id == "bizinfo":
@@ -412,7 +476,7 @@ async def get_crawl_queue(
     """
     Get items in the crawl queue (pending review)
 
-    - **source_id**: Filter by 'jbtp', 'ntis', 'bizinfo'
+    - **source_id**: Filter by 'jbtp', 'ntis_rss', 'bizinfo'
 
     Returns items with `already_exists` flag if title already in notices table
     """
@@ -493,6 +557,29 @@ async def publish_from_queue(
             failed_ids.append({"id": queue_id, "reason": "Not found"})
             continue
 
+        # Extract content data from raw_data
+        content_html = None
+        content_viewer_url = None
+        content_type = 'text'  # default
+        attachment_links = []
+
+        if queue_item.raw_data and isinstance(queue_item.raw_data, dict):
+            detail = queue_item.raw_data.get('detail', {})
+            if detail:
+                # Extract HTML content (NTIS)
+                if 'content_html' in detail:
+                    content_html = detail['content_html']
+                    content_type = 'html'
+
+                # Extract PDF viewer URL (JBTP)
+                if 'content_viewer_url' in detail:
+                    content_viewer_url = detail['content_viewer_url']
+                    content_type = 'pdf_viewer'
+
+                # Extract attachments
+                if 'attachments' in detail and isinstance(detail['attachments'], list):
+                    attachment_links = detail['attachments']
+
         # Create notice from queue item (use typed columns directly)
         notice = Notice(
             title=queue_item.title,
@@ -511,7 +598,12 @@ async def publish_from_queue(
             department=queue_item.department,
             contact=queue_item.contact,
             crawler_extracted_at=queue_item.crawler_extracted_at,
-            # Preserve raw crawled data for preview modal
+            # Content fields extracted from raw_data
+            content=content_html,  # Store HTML in content field
+            content_type=content_type,
+            content_viewer_url=content_viewer_url,
+            attachment_links=attachment_links,
+            # Preserve raw crawled data for debugging
             raw_data=queue_item.raw_data,
             created_at=datetime.now()
         )

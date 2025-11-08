@@ -12,7 +12,7 @@ from html import unescape
 from bs4 import BeautifulSoup
 
 from src.services.rate_limiter import RateLimiter
-from .base_crawler import BaseCrawler, CrawlerStatus
+from .base_crawler import BaseCrawler, CrawlerStatus, CrawlerPhase
 from .repositories import ConfigRepository
 
 
@@ -25,7 +25,7 @@ class NTISCrawler(BaseCrawler):
     """
 
     def __init__(self):
-        super().__init__("ntis")
+        super().__init__("ntis_rss")
         # RSS 피드에서 최대한 많은 항목 가져오기 (기본 100 → 500)
         # prt 파라미터: 한 번에 가져올 항목 수
         self.rss_url = "http://www.ntis.go.kr/rndgate/unRndRss.xml?prt=500&bbs=true"
@@ -287,7 +287,9 @@ class NTISCrawler(BaseCrawler):
                 "message": "NTIS RSS 피드 수집을 시작합니다..."
             })
 
-            # RSS 피드 다운로드
+            # Phase 1: RSS 피드 다운로드 및 파싱
+            await self.set_phase(callback, CrawlerPhase.LIST_COLLECTION, "RSS 피드 수집 중...")
+
             await self.send_event(callback, "log", {
                 "source_id": self.source_id,
                 "message": f"RSS 피드 다운로드 중... ({self.rss_url})"
@@ -336,8 +338,8 @@ class NTISCrawler(BaseCrawler):
                 else:
                     self.status["failed"] += 1
 
-                # 진행상황 업데이트 (10개마다)
-                if (idx + 1) % 10 == 0 or idx + 1 == len(items):
+                # 진행상황 업데이트 (3개마다 - 더 자주 업데이트)
+                if (idx + 1) % 3 == 0 or idx + 1 == len(items):
                     self.status["progress"] = idx + 1
                     await self.send_event(callback, "progress", {
                         "source_id": self.source_id,
@@ -345,7 +347,8 @@ class NTISCrawler(BaseCrawler):
                         "total": len(items),
                         "percentage": int((idx + 1) / len(items) * 100),
                         "success": self.status["success"],
-                        "failed": self.status["failed"]
+                        "failed": self.status["failed"],
+                        "message": f"RSS 아이템 파싱 중... ({idx + 1}/{len(items)})"
                     })
 
             await self.send_event(callback, "log", {
@@ -353,7 +356,9 @@ class NTISCrawler(BaseCrawler):
                 "message": f"\n아이템 변환 완료: {len(notices)}개 (성공: {self.status['success']}, 실패: {self.status['failed']})"
             })
 
-            # 날짜 필터링
+            # Phase 2: 날짜 필터링
+            await self.set_phase(callback, CrawlerPhase.FILTERING, "날짜 및 키워드 필터링 중...")
+
             await self.send_event(callback, "log", {
                 "source_id": self.source_id,
                 "message": f"최근 {self.days_filter}일 이내 데이터 필터링 중..."
@@ -366,10 +371,12 @@ class NTISCrawler(BaseCrawler):
                 "message": f"날짜 필터링 완료: {len(filtered_notices)}개 항목 (총 {len(notices)}개 중)"
             })
 
-            # 2단계: 상세 페이지 크롤링 (JBTP 방식)
+            # Phase 3: 상세 페이지 크롤링
+            await self.set_phase(callback, CrawlerPhase.DETAIL_CRAWLING, f"상세 정보 수집 중... (0/{len(filtered_notices)})")
+
             await self.send_event(callback, "log", {
                 "source_id": self.source_id,
-                "message": f"\n=== 2단계: 상세 페이지 크롤링 시작 ({len(filtered_notices)}개) ==="
+                "message": f"\n=== 상세 페이지 크롤링 시작 ({len(filtered_notices)}개) ==="
             })
 
             # HTTP session 생성
@@ -435,8 +442,12 @@ class NTISCrawler(BaseCrawler):
                 else:
                     detail_failed += 1
 
-                # 진행상황 업데이트
+                # 진행상황 업데이트 (매 항목마다)
                 self.status["progress"] = idx + 1
+
+                # Phase 메시지도 함께 업데이트
+                await self.set_phase(callback, CrawlerPhase.DETAIL_CRAWLING, f"상세 정보 수집 중... ({idx + 1}/{len(filtered_notices)})")
+
                 await self.send_event(callback, "progress", {
                     "source_id": self.source_id,
                     "progress": idx + 1,
@@ -452,7 +463,9 @@ class NTISCrawler(BaseCrawler):
                 "message": f"\n상세 페이지 크롤링 완료: 성공 {detail_success}개, 실패 {detail_failed}개"
             })
 
-            # 키워드 매칭 및 DB 저장
+            # Phase 4: 키워드 매칭 및 DB 저장
+            await self.set_phase(callback, CrawlerPhase.SAVING, "키워드 매칭 및 DB 저장 중...")
+
             keywords = self.get_keywords()
 
             await self.send_event(callback, "log", {
@@ -467,7 +480,9 @@ class NTISCrawler(BaseCrawler):
                 "message": f"DB 저장 완료"
             })
 
-            # 완료
+            # Phase 5: 완료
+            await self.set_phase(callback, CrawlerPhase.COMPLETED, "크롤링 완료")
+
             self.status["status"] = CrawlerStatus.COMPLETED
             await self.send_event(callback, "complete", {
                 "source_id": self.source_id,

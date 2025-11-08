@@ -49,7 +49,7 @@ async def websocket_crawling(websocket: WebSocket, source_id: str):
         # 크롤러 실행 함수 매핑
         crawler_functions = {
             "jbtp": crawler_manager.execute_jbtp,
-            "ntis": crawler_manager.execute_ntis,
+            "ntis_rss": crawler_manager.execute_ntis_rss,
             "bizinfo": crawler_manager.execute_bizinfo,
             "bi_center": crawler_manager.execute_bi_center
         }
@@ -87,9 +87,9 @@ async def start_crawling(source_id: str):
     크롤링을 시작합니다.
 
     Args:
-        source_id: 크롤링 소스 ID (jbtp, ntis, bizinfo, bi_center)
+        source_id: 크롤링 소스 ID (jbtp, ntis_rss, bizinfo, bi_center)
     """
-    valid_sources = ["jbtp", "ntis", "bizinfo", "bi_center"]
+    valid_sources = ["jbtp", "ntis_rss", "bizinfo", "bi_center"]
 
     if source_id not in valid_sources:
         raise HTTPException(status_code=400, detail="Invalid source_id")
@@ -103,7 +103,7 @@ async def start_crawling(source_id: str):
     # 비동기 태스크로 크롤러 시작
     crawler_functions = {
         "jbtp": crawler_manager.execute_jbtp,
-        "ntis": crawler_manager.execute_ntis,
+        "ntis_rss": crawler_manager.execute_ntis_rss,
         "bizinfo": crawler_manager.execute_bizinfo,
         "bi_center": crawler_manager.execute_bi_center
     }
@@ -126,7 +126,7 @@ async def stop_crawling(source_id: str):
     Args:
         source_id: 크롤링 소스 ID
     """
-    valid_sources = ["jbtp", "ntis", "bizinfo", "bi_center"]
+    valid_sources = ["jbtp", "ntis_rss", "bizinfo", "bi_center"]
 
     if source_id not in valid_sources:
         raise HTTPException(status_code=400, detail="Invalid source_id")
@@ -148,7 +148,7 @@ async def get_crawling_status(source_id: str):
     Args:
         source_id: 크롤링 소스 ID
     """
-    valid_sources = ["jbtp", "ntis", "bizinfo", "bi_center"]
+    valid_sources = ["jbtp", "ntis_rss", "bizinfo", "bi_center"]
 
     if source_id not in valid_sources:
         raise HTTPException(status_code=400, detail="Invalid source_id")
@@ -179,7 +179,7 @@ async def get_keywords(source_id: str, db: Session = Depends(get_db)):
     Args:
         source_id: 크롤링 소스 ID (jbtp, ntis, bizinfo, bi_center)
     """
-    valid_sources = ["jbtp", "ntis", "bizinfo", "bi_center"]
+    valid_sources = ["jbtp", "ntis_rss", "bizinfo", "bi_center"]
 
     if source_id not in valid_sources:
         raise HTTPException(status_code=400, detail="Invalid source_id")
@@ -209,7 +209,7 @@ async def update_keywords(source_id: str, keywords: List[str], db: Session = Dep
         source_id: 크롤링 소스 ID
         keywords: 키워드 배열
     """
-    valid_sources = ["jbtp", "ntis", "bizinfo", "bi_center"]
+    valid_sources = ["jbtp", "ntis_rss", "bizinfo", "bi_center"]
 
     if source_id not in valid_sources:
         raise HTTPException(status_code=400, detail="Invalid source_id")
@@ -246,7 +246,7 @@ async def get_crawl_results(
         limit: 조회할 개수 (기본 100)
         offset: 오프셋 (기본 0)
     """
-    valid_sources = ["jbtp", "ntis", "bizinfo", "bi_center"]
+    valid_sources = ["jbtp", "ntis_rss", "bizinfo", "bi_center"]
 
     if source_id not in valid_sources:
         raise HTTPException(status_code=400, detail="Invalid source_id")
@@ -275,7 +275,7 @@ async def get_crawl_report(source_id: str, db: Session = Depends(get_db)):
     Args:
         source_id: 크롤링 소스 ID
     """
-    valid_sources = ["jbtp", "ntis", "bizinfo", "bi_center"]
+    valid_sources = ["jbtp", "ntis_rss", "bizinfo", "bi_center"]
 
     if source_id not in valid_sources:
         raise HTTPException(status_code=400, detail="Invalid source_id")
