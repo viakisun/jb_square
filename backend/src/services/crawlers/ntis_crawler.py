@@ -455,7 +455,26 @@ class NTISRSSCrawler(BaseCrawler):
     def __init__(self):
         super().__init__("ntis_rss")
         self.rss_url = "http://www.ntis.go.kr/rndgate/unRndRss.xml?prt=100&bbs=true"
-        self.days_filter = 7  # 최근 7일 이내 데이터만 수집
+        self.days_filter = self.get_date_range_days()  # DB 설정에서 기간 가져오기
+
+    def get_date_range_days(self):
+        """
+        NTIS 설정에서 검색 기간 가져오기
+
+        Returns:
+            검색 기간 (일 단위), 기본값 30일
+        """
+        from src.models.crawler_config import NTISConfig
+        from src.core.database import SessionLocal
+
+        db = SessionLocal()
+        try:
+            config = db.query(NTISConfig).first()
+            if config and config.date_range_days:
+                return config.date_range_days
+            return 30  # 기본값
+        finally:
+            db.close()
 
     def get_keywords(self):
         """
