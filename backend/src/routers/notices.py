@@ -511,6 +511,8 @@ async def publish_from_queue(
             department=queue_item.department,
             contact=queue_item.contact,
             crawler_extracted_at=queue_item.crawler_extracted_at,
+            # Preserve raw crawled data for preview modal
+            raw_data=queue_item.raw_data,
             created_at=datetime.now()
         )
 

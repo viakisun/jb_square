@@ -8,6 +8,7 @@
 	import { Button } from '$lib/components/ui/buttons';
 	import { Checkbox } from '$lib/components/ui/forms';
 	import NoticePreviewModal from './NoticePreviewModal.svelte';
+	import NoticeTagEditor from './NoticeTagEditor.svelte';
 
 	type Notice = {
 		id: number;
@@ -31,9 +32,10 @@
 		onSelect?: (id: number) => void;
 	};
 
-	let { notice, selectable = false, selected = false, onSelect }: Props = $props();
+	let { notice = $bindable(), selectable = false, selected = false, onSelect }: Props = $props();
 
 	let showPreview = $state(false);
+	let showTagEditor = $state(false);
 
 	function openPreview(event: Event) {
 		event.stopPropagation();
@@ -42,6 +44,19 @@
 
 	function closePreview() {
 		showPreview = false;
+	}
+
+	function openTagEditor(event: Event) {
+		event.stopPropagation();
+		showTagEditor = true;
+	}
+
+	function closeTagEditor() {
+		showTagEditor = false;
+	}
+
+	function handleTagsUpdated(updatedTags: string[]) {
+		notice.tags = updatedTags;
 	}
 
 	function handleCardClick() {
@@ -163,18 +178,23 @@
 	</div>
 
 	<!-- Tags -->
-	{#if notice.tags && notice.tags.length > 0}
-		<div class="card-tags">
-			{#each notice.tags as tag}
-				<Badge variant="outline">{tag}</Badge>
-			{/each}
-		</div>
-	{:else}
-		<div class="tag-warning">
-			<span class="warning-icon">⚠️</span>
-			<span class="warning-text">태그 미지정</span>
-		</div>
-	{/if}
+	<div class="tags-section">
+		{#if notice.tags && notice.tags.length > 0}
+			<div class="card-tags">
+				{#each notice.tags as tag}
+					<Badge variant="outline">{tag}</Badge>
+				{/each}
+			</div>
+		{:else}
+			<div class="tag-warning">
+				<span class="warning-icon">⚠️</span>
+				<span class="warning-text">태그 미지정</span>
+			</div>
+		{/if}
+		<button class="edit-tags-button" onclick={openTagEditor} title="태그 편집">
+			편집
+		</button>
+	</div>
 
 	<!-- Footer -->
 	<div class="card-footer">
@@ -202,7 +222,17 @@
 
 <!-- Preview Modal -->
 {#if showPreview}
-	<NoticePreviewModal notice={notice} onClose={closePreview} />
+	<NoticePreviewModal notice={notice} open={showPreview} onClose={closePreview} />
+{/if}
+
+<!-- Tag Editor -->
+{#if showTagEditor}
+	<NoticeTagEditor
+		noticeId={notice.id}
+		currentTags={notice.tags || []}
+		onClose={closeTagEditor}
+		onSuccess={handleTagsUpdated}
+	/>
 {/if}
 
 <style>
@@ -359,10 +389,18 @@
      TAGS
      ======================================== */
 
+	.tags-section {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: var(--space-3);
+	}
+
 	.card-tags {
 		display: flex;
 		flex-wrap: wrap;
 		gap: var(--space-2);
+		flex: 1;
 	}
 
 	.tag-warning {
@@ -372,6 +410,7 @@
 		padding: var(--space-2) var(--space-3);
 		background-color: var(--color-warning-bg);
 		border: var(--border-width) solid var(--border-color);
+		flex: 1;
 	}
 
 	.warning-icon {
@@ -383,6 +422,25 @@
 		font-size: var(--text-sm);
 		font-weight: var(--font-medium);
 		color: var(--fg);
+	}
+
+	.edit-tags-button {
+		padding: var(--space-1) var(--space-3);
+		background: none;
+		border: var(--border-width) solid var(--hair);
+		color: var(--fg);
+		font-size: var(--text-xs);
+		font-weight: var(--font-medium);
+		text-transform: uppercase;
+		letter-spacing: var(--tracking-wide);
+		cursor: pointer;
+		transition: all var(--duration-base) var(--ease-out);
+		flex-shrink: 0;
+	}
+
+	.edit-tags-button:hover {
+		background-color: var(--fg);
+		color: var(--bg);
 	}
 
 	/* ========================================

@@ -5,7 +5,7 @@
 
 export type CategoryId = "government" | "business" | "rnd" | "startup";
 
-export type SourceId = "ntis" | "jbtp" | "jbtp_external" | "bizinfo" | "manual";
+export type SourceId = "ntis" | "ntis_rss" | "jbtp" | "jbtp_external" | "bizinfo" | "manual";
 
 export interface CategoryMetadata {
   id: CategoryId;
@@ -29,7 +29,7 @@ export const CATEGORY_METADATA: Record<CategoryId, CategoryMetadata> = {
     id: "government",
     label: "정부 공고",
     description: "중앙정부 및 지자체 공고",
-    sources: ["ntis", "jbtp"],
+    sources: ["ntis", "ntis_rss", "jbtp"],
     color: "#1E40AF",
   },
   business: {
@@ -43,7 +43,7 @@ export const CATEGORY_METADATA: Record<CategoryId, CategoryMetadata> = {
     id: "rnd",
     label: "연구개발(R&D)",
     description: "R&D 관련 지원사업",
-    sources: ["ntis", "jbtp"],
+    sources: ["ntis", "ntis_rss", "jbtp"],
     color: "#7C3AED",
   },
   startup: {
@@ -58,6 +58,7 @@ export const CATEGORY_METADATA: Record<CategoryId, CategoryMetadata> = {
 // Source별 기본 카테고리 매핑
 export const SOURCE_DEFAULT_CATEGORY: Record<SourceId, CategoryId> = {
   ntis: "government", // NTIS → 정부 공고
+  ntis_rss: "government", // NTIS RSS → 정부 공고
   jbtp: "government", // JBTP → 정부 공고 (지자체)
   jbtp_external: "government", // JBTP 유관기관공고 → 정부 공고
   bizinfo: "business", // Bizinfo → 기업 지원

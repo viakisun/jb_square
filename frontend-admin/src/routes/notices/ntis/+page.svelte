@@ -6,7 +6,7 @@
 	import { onMount } from 'svelte';
 	import { Panel } from '$lib/components/layout';
 	import { Button } from '$lib/components/ui/buttons';
-	import { CrawlingStatus, CrawlerConfigCard } from '$lib/components/crawling';
+	import { CrawlingStatus, CrawlerConfigCard, NTISConfigInline } from '$lib/components/crawling';
 	import {
 		CrawlQueueTable,
 		PublishedNoticesList,
@@ -28,6 +28,7 @@
 	let queueItems = $state([]);
 	let selectedIds = $state<number[]>([]);
 	let selectedTags = $state<string[]>([]);
+	let availableTags = $state<string[]>([]);
 	let loading = $state(false);
 
 	// Crawl state
@@ -41,6 +42,28 @@
 
 	onMount(() => {
 		loadQueue();
+		loadAvailableTags();
+	});
+
+	// Load available tags from API
+	async function loadAvailableTags() {
+		try {
+			const res = await fetch(`${API_BASE_URL}/tags/active`);
+			if (!res.ok) throw new Error('Failed to load tags');
+			const data = await res.json();
+			availableTags = data.tags?.map((tag: any) => tag.name) || [];
+		} catch (error) {
+			console.error('Failed to load tags:', error);
+			toast.error('태그 목록을 불러오지 못했습니다');
+			availableTags = [];
+		}
+	}
+
+	// Clear tags when selection changes
+	$effect(() => {
+		if (selectedIds.length === 0) {
+			selectedTags = [];
+		}
 	});
 
 	async function loadQueue() {
@@ -197,6 +220,9 @@
 		</div>
 	</Panel>
 
+	<!-- Crawling Configuration -->
+	<NTISConfigInline />
+
 	<!-- Crawling Status -->
 	{#if crawlStatus !== 'idle'}
 		<Panel title="크롤링 진행 상황">
@@ -245,18 +271,12 @@
 				<div class="queue-actions">
 					<div class="tag-selector">
 						<label class="tag-label">태그:</label>
-						<label>
-							<input type="checkbox" bind:group={selectedTags} value="R&D" />
-							R&D
-						</label>
-						<label>
-							<input type="checkbox" bind:group={selectedTags} value="바이오" />
-							바이오
-						</label>
-						<label>
-							<input type="checkbox" bind:group={selectedTags} value="창업" />
-							창업
-						</label>
+						{#each availableTags as tag}
+							<label>
+								<input type="checkbox" bind:group={selectedTags} value={tag} />
+								{tag}
+							</label>
+						{/each}
 					</div>
 					<Button onclick={publishSelected} disabled={loading}>
 						선택 항목 게시 ({selectedIds.length})
@@ -266,7 +286,7 @@
 		</Panel>
 	{:else}
 		<Panel title="게시된 공고">
-			<PublishedNoticesList sourceId="ntis" category="government" />
+			<PublishedNoticesList sourceId="ntis_rss" category="government" />
 		</Panel>
 	{/if}
 
@@ -274,7 +294,7 @@
 	{#if showAddModal}
 		<AddNoticeModal
 			category="government"
-			sourceId="ntis"
+			sourceId="ntis_rss"
 			onClose={() => (showAddModal = false)}
 			onSuccess={() => {
 				loadQueue();

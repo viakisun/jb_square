@@ -27,6 +27,7 @@
 		already_exists?: boolean;
 		existing_notice_id?: number;
 		matched_keywords?: string[];
+		suggested_tags?: string[];
 		raw_data?: any;
 	};
 
@@ -417,7 +418,7 @@
 	}
 
 	.col-keywords {
-		width: 200px;
+		width: 150px;
 	}
 
 	.col-date {
