@@ -13,6 +13,7 @@ from bs4 import BeautifulSoup
 
 from src.services.rate_limiter import RateLimiter
 from .base_crawler import BaseCrawler, CrawlerStatus
+from .repositories import ConfigRepository
 
 
 class NTISCrawler(BaseCrawler):
@@ -28,45 +29,7 @@ class NTISCrawler(BaseCrawler):
         # RSS 피드에서 최대한 많은 항목 가져오기 (기본 100 → 500)
         # prt 파라미터: 한 번에 가져올 항목 수
         self.rss_url = "http://www.ntis.go.kr/rndgate/unRndRss.xml?prt=500&bbs=true"
-        self.days_filter = self.get_date_range_days()  # DB 설정에서 기간 가져오기
-
-    def get_date_range_days(self):
-        """
-        NTIS 설정에서 검색 기간 가져오기
-
-        Returns:
-            검색 기간 (일 단위), 기본값 30일
-        """
-        from src.models.crawler_config import NTISConfig
-        from src.core.database import SessionLocal
-
-        db = SessionLocal()
-        try:
-            config = db.query(NTISConfig).first()
-            if config and config.date_range_days:
-                return config.date_range_days
-            return 30  # 기본값
-        finally:
-            db.close()
-
-    def get_keywords(self):
-        """
-        NTIS 설정에서 검색 키워드 가져오기
-
-        Returns:
-            키워드 리스트
-        """
-        from src.models.crawler_config import NTISConfig
-        from src.core.database import SessionLocal
-
-        db = SessionLocal()
-        try:
-            config = db.query(NTISConfig).first()
-            if config and config.search_keywords:
-                return config.search_keywords
-            return []
-        finally:
-            db.close()
+        self.days_filter = ConfigRepository.get_date_range_days(self.source_id)  # DB 설정에서 기간 가져오기
 
     def _clean_description(self, html_text: str) -> str:
         """HTML 태그 제거 및 텍스트 정리"""

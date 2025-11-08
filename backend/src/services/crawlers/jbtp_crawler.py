@@ -4,18 +4,17 @@ JBTP Crawler
 """
 
 import asyncio
-import re
 import requests
 from bs4 import BeautifulSoup
-from datetime import datetime, timedelta, date
-from typing import Callable, List, Optional, Dict
-from dateutil import parser
+from datetime import datetime, timedelta
+from typing import Callable, Optional
 
 from src.core.database import SessionLocal
-from src.models.crawler_config import JBTPConfig
 from src.models.notice import CrawlQueue, Notice
 from src.services.rate_limiter import RateLimiter
 from .base_crawler import BaseCrawler, CrawlerStatus
+from .repositories import ConfigRepository, CrawlQueueRepository
+from .strategies import JBTPExtractionStrategy
 
 
 class JBTPCrawler(BaseCrawler):
@@ -27,18 +26,6 @@ class JBTPCrawler(BaseCrawler):
 
     def __init__(self):
         super().__init__("jbtp")
-
-    def _load_jbtp_configs(self, config_type: str = 'notices') -> List[tuple]:
-        """JBTP 설정을 DB에서 로드합니다. (게시판명, URL, 키워드, date_range_days) 반환"""
-        db = SessionLocal()
-        try:
-            configs = db.query(JBTPConfig).filter(
-                JBTPConfig.config_type == config_type,
-                JBTPConfig.enabled == True
-            ).all()
-            return [(c.name, c.board_url, c.keywords or [], c.date_range_days or 30) for c in configs]
-        finally:
-            db.close()
 
     def _parse_jbtp_data(self, notice: dict) -> dict:
         """
@@ -82,245 +69,6 @@ class JBTPCrawler(BaseCrawler):
 
         return parsed
 
-    def _save_single_notice(self, notice: dict, keywords: List[str], db) -> tuple:
-        """
-        단일 공고를 notice_crawl_queue에 저장합니다.
-
-        Args:
-            notice: 공고 데이터
-            keywords: 키워드 리스트
-            db: 데이터베이스 세션
-
-        Returns:
-            tuple[str, List[str], Optional[CrawlQueue]]: (상태, 매칭된 키워드 리스트, 저장된 객체)
-            상태: 'added', 'updated', 'rejected', 'duplicate', 'no_match'
-        """
-        title = notice['title']
-
-        # 키워드 매칭 확인
-        matched_keywords = []
-        if keywords:
-            matched_keywords = self.match_keywords(title, keywords)
-
-        # Parse structured data from raw_data
-        parsed_data = self._parse_jbtp_data(notice)
-
-        # 1. 이미 존재하는지 확인 (title + crawler_source_id로 중복 체크)
-        # 주의: notice_id가 NULL이고 rejection_status가 'rejected'가 아닌 것만 체크
-        existing = db.query(CrawlQueue).filter(
-            CrawlQueue.crawler_source_id == self.source_id,
-            CrawlQueue.title == title,
-            CrawlQueue.notice_id.is_(None)
-        ).first()
-
-        if existing:
-            # 2. 거부된 항목이면 스킵 (다시 추가하지 않음)
-            if existing.rejection_status == 'rejected':
-                return ('rejected', matched_keywords, None)
-
-            # 3. 기존 항목 업데이트 (최신 정보 반영)
-            existing.link = notice.get('link')
-            existing.source_board_name = notice.get('board')
-            existing.raw_data = notice
-            existing.matched_keywords = matched_keywords
-            existing.crawler_extracted_at = datetime.now()
-            # Update parsed fields
-            existing.deadline = parsed_data.get('deadline')
-            existing.published_date = parsed_data.get('published_date')
-            existing.organization = parsed_data.get('organization')
-            existing.department = parsed_data.get('department')
-            existing.contact = parsed_data.get('contact')
-            existing.views = parsed_data.get('views', 0)
-            existing.status = parsed_data.get('status')
-            return ('updated', matched_keywords, existing)
-        else:
-            # 4. 새로운 항목 추가 (데이터베이스 트리거가 중복 체크 및 업데이트 처리)
-            # 트리거가 자동으로 중복 감지 시 기존 항목 업데이트하므로 try-except 사용
-            try:
-                queue_item = CrawlQueue(
-                    crawler_source_id=self.source_id,
-                    title=title,
-                    link=notice.get('link'),
-                    source_board_name=notice.get('board'),
-                    raw_data=notice,
-                    matched_keywords=matched_keywords,
-                    crawler_extracted_at=datetime.now(),
-                    rejection_status=None,  # NULL = pending review
-                    # Structured fields
-                    deadline=parsed_data.get('deadline'),
-                    published_date=parsed_data.get('published_date'),
-                    organization=parsed_data.get('organization'),
-                    department=parsed_data.get('department'),
-                    contact=parsed_data.get('contact'),
-                    views=parsed_data.get('views', 0),
-                    status=parsed_data.get('status')
-                )
-                db.add(queue_item)
-                db.flush()  # 즉시 실행하여 트리거 동작 확인
-                return ('added', matched_keywords, queue_item)
-            except Exception as e:
-                # 트리거에 의한 중복 업데이트인 경우 무시
-                db.rollback()
-                print(f"Item likely updated by trigger: {title[:50]}...")
-                return ('updated', matched_keywords, None)
-
-    def _extract_jbtp_meta_info(self, bbs_view, detail: dict) -> None:
-        """
-        JBTP 상세 페이지에서 메타 정보를 추출합니다.
-
-        Args:
-            bbs_view: BeautifulSoup 객체 (.bbs_view 영역)
-            detail: 추출된 정보를 저장할 딕셔너리
-        """
-        try:
-            # 제목 추출
-            title_elem = bbs_view.select_one('.bbs_vtop h4')
-            if title_elem:
-                detail['full_title'] = title_elem.get_text(strip=True)
-
-            # 메타 정보 추출 (작성자, 작성일, 조회수, 상태, 마감일)
-            txt_list = bbs_view.select('.bbs_vtop ul.txt_list li')
-            for li in txt_list:
-                strong = li.find('strong')
-                span = li.find('span')
-
-                if not strong or not span:
-                    continue
-
-                label = strong.get_text(strip=True).rstrip(':').strip()
-                value = span.get_text(strip=True)
-
-                if label == '작성자':
-                    detail['writer'] = value
-                elif label == '작성일':
-                    detail['published_date'] = value
-                elif label == '조회수':
-                    # 숫자로 변환 시도 (실패 시 문자열 그대로)
-                    try:
-                        detail['views'] = int(value.replace(',', ''))
-                    except ValueError:
-                        detail['views'] = value
-                elif label == '상태':
-                    detail['status'] = value
-                elif label == '마감일':
-                    detail['deadline'] = value
-                    # D-day 정보 추출
-                    em = span.find('em', class_='dday')
-                    if em:
-                        detail['d_day'] = em.get_text(strip=True)
-        except Exception as e:
-            print(f"Error extracting meta info: {str(e)}")
-
-    def _extract_jbtp_attachments(self, bbs_view, detail: dict) -> None:
-        """
-        JBTP 상세 페이지에서 첨부파일 정보를 추출합니다.
-
-        Args:
-            bbs_view: BeautifulSoup 객체 (.bbs_view 영역)
-            detail: 추출된 정보를 저장할 딕셔너리
-        """
-        try:
-            file_dl = bbs_view.select('.bbs_filedown dl dd')
-            if not file_dl:
-                return
-
-            detail['attachments'] = []
-            for dd in file_dl:
-                # 파일명 추출 (불필요한 텍스트 제거)
-                filename = dd.get_text(strip=True)
-                filename = filename.replace('미리보기', '').replace('다운로드', '').strip()
-
-                if not filename:
-                    continue
-
-                # 다운로드 링크 추출
-                download_link = dd.select_one('a.sbtn_down')
-                if download_link:
-                    file_url = download_link.get('href', '')
-
-                    # 상대 URL을 절대 URL로 변환
-                    if file_url and not file_url.startswith('http'):
-                        file_url = 'https://www.jbtp.or.kr' + file_url
-
-                    if file_url:
-                        detail['attachments'].append({
-                            'filename': filename,
-                            'url': file_url
-                        })
-        except Exception as e:
-            print(f"Error extracting attachments: {str(e)}")
-
-    def _extract_jbtp_content_viewer(self, bbs_view, detail: dict) -> None:
-        """
-        JBTP 상세 페이지에서 콘텐츠 뷰어 정보를 추출합니다.
-
-        Args:
-            bbs_view: BeautifulSoup 객체 (.bbs_view 영역)
-            detail: 추출된 정보를 저장할 딕셔너리
-        """
-        try:
-            content_iframe = bbs_view.select_one('.bbs_con iframe')
-            if content_iframe:
-                iframe_src = content_iframe.get('src', '')
-                if iframe_src:
-                    # 상대 URL을 절대 URL로 변환
-                    if iframe_src.startswith('/'):
-                        detail['content_viewer_url'] = 'https://www.jbtp.or.kr' + iframe_src
-                    else:
-                        detail['content_viewer_url'] = iframe_src
-                    detail['content_type'] = 'pdf_viewer'
-        except Exception as e:
-            print(f"Error extracting content viewer: {str(e)}")
-
-    async def _fetch_jbtp_detail(self, session, url: str, rate_limiter) -> dict:
-        """
-        JBTP 상세 페이지에서 정보를 추출합니다.
-
-        Args:
-            session: requests.Session
-            url: 상세 페이지 URL
-            rate_limiter: RateLimiter 인스턴스
-
-        Returns:
-            dict: 상세 정보 (오류 발생 시 'error' 키 포함)
-        """
-        detail = {}
-
-        try:
-            # Rate limiting 적용
-            rate_limiter.wait()
-
-            # HTTP 요청
-            response = session.get(url, timeout=10)
-
-            # 응답 상태 확인
-            if response.status_code != 200:
-                detail['error'] = f"HTTP {response.status_code}"
-                return detail
-
-            # HTML 파싱
-            soup = BeautifulSoup(response.text, 'html.parser')
-            bbs_view = soup.select_one('.bbs_view')
-
-            if not bbs_view:
-                detail['error'] = "상세 페이지 구조를 찾을 수 없습니다"
-                return detail
-
-            # 각 섹션별 정보 추출
-            self._extract_jbtp_meta_info(bbs_view, detail)
-            self._extract_jbtp_attachments(bbs_view, detail)
-            self._extract_jbtp_content_viewer(bbs_view, detail)
-
-        except requests.exceptions.Timeout:
-            detail['error'] = "요청 시간 초과"
-        except requests.exceptions.RequestException as e:
-            detail['error'] = f"네트워크 오류: {str(e)}"
-        except Exception as e:
-            detail['error'] = f"예상치 못한 오류: {str(e)}"
-            print(f"Error fetching JBTP detail from {url}: {str(e)}")
-
-        return detail
-
     async def execute(self, callback: Optional[Callable] = None):
         """크롤링 실행"""
         try:
@@ -340,7 +88,7 @@ class JBTPCrawler(BaseCrawler):
             })
 
             # 크롤링할 게시판 목록 (DB에서 로드)
-            board_configs = self._load_jbtp_configs('notices')
+            board_configs = ConfigRepository.load_jbtp_configs('notices')
 
             # 초기값: 아직 공고 개수를 모르므로 0으로 시작
             self.status["total"] = 0
@@ -672,8 +420,8 @@ class JBTPCrawler(BaseCrawler):
 
                                 board_checked_count += 1
 
-                                # 상세 페이지 크롤링
-                                detail_data = await self._fetch_jbtp_detail(session, notice_row['link'], rate_limiter)
+                                # 상세 페이지 크롤링 (JBTPExtractionStrategy 사용)
+                                detail_data = await JBTPExtractionStrategy.fetch_detail(session, notice_row['link'], rate_limiter)
 
                                 notice_data = {
                                     'title': notice_row['title'],
