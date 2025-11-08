@@ -22,7 +22,7 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import api from '@/lib/api/client';
 import { Notice } from '@/lib/api/types';
-import { formatDate, formatDateSimple, getDeadlineStatus, getDaysUntilDeadline } from '@/lib/utils/date';
+import { formatDate, getDeadlineStatus, getDaysUntilDeadline } from '@/lib/utils/date';
 import { getErrorMessage, logError } from '@/lib/utils/errors';
 
 /**
@@ -138,6 +138,7 @@ export default function NoticeDetailPage() {
    */
   const categoryColors: Record<Notice['category'], { bg: string; text: string }> = {
     government: { bg: 'bg-blue-100', text: 'text-blue-800' },
+    local_government: { bg: 'bg-teal-100', text: 'text-teal-800' },
     business: { bg: 'bg-green-100', text: 'text-green-800' },
     rnd: { bg: 'bg-purple-100', text: 'text-purple-800' },
     startup: { bg: 'bg-orange-100', text: 'text-orange-800' }
@@ -148,6 +149,7 @@ export default function NoticeDetailPage() {
    */
   const categoryNames: Record<Notice['category'], string> = {
     government: '정부사업',
+    local_government: '지자체사업',
     business: '민간사업',
     rnd: 'R&D',
     startup: '스타트업'
@@ -253,8 +255,36 @@ export default function NoticeDetailPage() {
 
             {/* 본문 섹션 */}
             <div className="p-6">
-              {/* 내용 */}
-              {notice.content ? (
+              {/* PDF 뷰어 (JBTP, 유관기관 등) */}
+              {notice.content_type === 'pdf_viewer' && notice.content_viewer_url ? (
+                <div className="mb-6">
+                  <h3 className="text-base font-semibold text-gray-900 mb-4">공고 문서</h3>
+                  <div className="bg-white border border-gray-300 rounded-lg overflow-hidden" style={{ height: '800px' }}>
+                    <iframe
+                      src={notice.content_viewer_url}
+                      className="w-full h-full"
+                      title="공고 문서 뷰어"
+                      sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
+                      referrerPolicy="no-referrer-when-downgrade"
+                      allow="fullscreen"
+                    />
+                  </div>
+                  <div className="mt-3 text-sm text-gray-600">
+                    <p className="mb-2">문서가 보이지 않나요?</p>
+                    <a
+                      href={notice.content_viewer_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center text-blue-600 hover:text-blue-700 font-medium"
+                    >
+                      <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                      </svg>
+                      새 창에서 열기
+                    </a>
+                  </div>
+                </div>
+              ) : notice.content ? (
                 <div className="mb-6">
                   {notice.content_type === 'html' ? (
                     <div
@@ -267,12 +297,39 @@ export default function NoticeDetailPage() {
                     </div>
                   )}
                 </div>
+              ) : notice.link ? (
+                <div className="mb-6 bg-blue-50 border-l-4 border-blue-600 p-6 rounded-r-lg">
+                  <div className="flex items-start">
+                    <svg className="w-6 h-6 text-blue-600 mr-3 mt-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <div>
+                      <h3 className="text-base font-semibold text-blue-900 mb-2">상세 내용 안내</h3>
+                      <p className="text-sm text-blue-800 mb-4">
+                        이 공고는 외부 사이트에서 제공됩니다. 자세한 내용은 아래 원문 링크를 확인해주세요.
+                      </p>
+                      <a
+                        href={notice.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center px-5 py-2.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm"
+                      >
+                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                        </svg>
+                        원문 보기
+                      </a>
+                    </div>
+                  </div>
+                </div>
               ) : (
-                <p className="text-gray-500 italic mb-6">내용이 없습니다.</p>
+                <div className="mb-6 bg-gray-50 border border-gray-200 p-6 rounded-lg text-center">
+                  <p className="text-gray-500 italic">상세 내용이 제공되지 않습니다.</p>
+                </div>
               )}
 
-              {/* 외부 링크 */}
-              {notice.link && (
+              {/* 외부 링크 (content가 있는 경우에만 별도 표시) */}
+              {notice.content && notice.link && (
                 <div className="mb-6">
                   <a
                     href={notice.link}

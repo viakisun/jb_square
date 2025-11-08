@@ -141,10 +141,20 @@ async def get_notices(
     # Apply pagination
     notices = query.offset(offset).limit(limit).all()
 
+    # Calculate pagination info
+    page = (offset // limit) + 1 if limit > 0 else 1
+    total_pages = (total + limit - 1) // limit if limit > 0 else 1
+    has_next = offset + limit < total
+    has_prev = offset > 0
+
     return {
         "total": total,
         "offset": offset,
         "limit": limit,
+        "page": page,
+        "total_pages": total_pages,
+        "has_next": has_next,
+        "has_prev": has_prev,
         "items": [notice.to_dict() for notice in notices]
     }
 
@@ -563,6 +573,7 @@ async def publish_from_queue(
 
         # Extract content data from raw_data
         content_html = None
+        content_text = None
         content_viewer_url = None
         content_type = 'text'  # default
         attachment_links = []
@@ -576,6 +587,14 @@ async def publish_from_queue(
                 if 'content_html' in detail:
                     content_html = detail['content_html']
                     content_type = 'html'
+
+                # Extract plain text content (NTIS detail page)
+                if 'content' in detail and detail['content']:
+                    content_text = detail['content']
+                    # If no HTML content was found, use the text content
+                    if not content_html:
+                        content_html = content_text
+                        content_type = 'text'
 
                 # Extract PDF viewer URL (JBTP)
                 if 'content_viewer_url' in detail:
