@@ -3,17 +3,13 @@ Base Crawler
 모든 크롤러의 기본 클래스
 """
 
-import asyncio
-import json
 from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import Callable, Dict, List, Optional
 from enum import Enum
 
-from src.core.database import SessionLocal, CrawlerConfig
-from src.models.notice import CrawlQueue
-from src.services.rate_limiter import RateLimiter
-from src.services.utils import match_keywords, parse_date
+from .services import EventService, KeywordService
+from .repositories import ConfigRepository, CrawlQueueRepository
 
 
 class CrawlerStatus(str, Enum):
@@ -74,46 +70,31 @@ class BaseCrawler(ABC):
         """
         WebSocket을 통해 이벤트 전송
 
+        EventService로 위임합니다.
+
         Args:
             callback: WebSocket 콜백 함수
             event_type: 이벤트 타입 ('start', 'progress', 'complete', 'error', 'log')
             data: 이벤트 데이터
         """
-        if not callback:
-            return
-
-        event = {
-            "type": event_type,
-            "timestamp": datetime.now().isoformat(),
-            **data
-        }
-
-        if asyncio.iscoroutinefunction(callback):
-            await callback(json.dumps(event))
-        else:
-            callback(json.dumps(event))
+        await EventService.send_event(callback, event_type, data)
 
     def get_keywords(self) -> List[str]:
         """
         DB에서 크롤러의 키워드 가져오기
 
+        ConfigRepository로 위임합니다.
+
         Returns:
             키워드 리스트
         """
-        db = SessionLocal()
-        try:
-            config = db.query(CrawlerConfig).filter(
-                CrawlerConfig.source_id == self.source_id
-            ).first()
-            if config and config.keywords:
-                return config.keywords
-            return []
-        finally:
-            db.close()
+        return ConfigRepository.get_keywords(self.source_id)
 
     def match_keywords(self, text: str, keywords: List[str]) -> List[str]:
         """
         텍스트에서 키워드 매칭
+
+        KeywordService로 위임합니다.
 
         Args:
             text: 검색할 텍스트
@@ -122,202 +103,19 @@ class BaseCrawler(ABC):
         Returns:
             매칭된 키워드 리스트
         """
-        return match_keywords(text, keywords)
-
-
-    def parse_date(self, date_str: str) -> Optional[datetime]:
-        """
-        날짜 문자열 파싱
-
-        Args:
-            date_str: 날짜 문자열
-
-        Returns:
-            datetime 객체 또는 None
-        """
-        return parse_date(date_str)
+        return KeywordService.match_keywords(text, keywords)
 
     def save_results(self, notices: List[dict], keywords: List[str]):
         """
-        크롤링 결과를 notice_crawl_queue에 저장합니다 (검토 대기).
-        중복 및 거부된 항목은 스킵합니다.
-        키워드 필터링: keywords가 있으면, 제목에 키워드가 포함된 공고만 저장합니다.
+        크롤링 결과를 notice_crawl_queue에 저장합니다.
+
+        CrawlQueueRepository로 위임합니다.
 
         Args:
             notices: 공고 리스트
             keywords: 키워드 리스트
         """
-        db = SessionLocal()
-        try:
-            # DEBUG: Log what we're processing
-            print(f"\n[{self.source_id}] save_results 시작")
-            print(f"  - 공고 개수: {len(notices)}")
-            print(f"  - 키워드: {keywords}")
-
-            skipped_rejected = 0
-            skipped_duplicates = 0
-            skipped_filtered = 0
-            added_new = 0
-            updated_existing = 0
-
-            for notice in notices:
-                title = notice['title']
-
-                # DEBUG: Log each notice being processed
-                print(f"\n  처리 중: {title[:50]}...")
-
-                # 0. 키워드 필터링 (키워드가 설정되어 있으면)
-                matched_keywords = []
-                if keywords:
-                    matched_keywords = self.match_keywords(title, keywords)
-                    if not matched_keywords:
-                        print(f"    → 키워드 매칭 안됨, 스킵")
-                        skipped_filtered += 1
-                        continue  # 키워드 매칭 안되면 저장하지 않음
-                    print(f"    → 매칭된 키워드: {matched_keywords}")
-
-                # 1. 이미 존재하는지 확인 (title + crawler_source_id로 중복 체크)
-                # 주의: notice_id가 NULL이고 rejection_status가 'rejected'가 아닌 것만 체크
-                existing = db.query(CrawlQueue).filter(
-                    CrawlQueue.crawler_source_id == self.source_id,
-                    CrawlQueue.title == title,
-                    CrawlQueue.notice_id.is_(None)
-                ).first()
-
-                # DEBUG: Log existence check result
-                print(f"    → 기존 항목 존재 여부: {existing is not None}")
-
-                if existing:
-                    # 2. 거부된 항목이면 스킵 (다시 추가하지 않음)
-                    if existing.rejection_status == 'rejected':
-                        print(f"    → 거부된 항목, 스킵")
-                        skipped_rejected += 1
-                        continue
-
-                    # 3. 기존 항목이 있으면 데이터 업데이트 (최신 정보 반영)
-                    print(f"    → 기존 항목 업데이트 (ID: {existing.id})")
-                    existing.link = notice.get('link')
-                    existing.source_board_name = notice.get('board')
-                    # notice에 raw_data 키가 있으면 그 값만 저장, 없으면 notice 전체 저장
-                    existing.raw_data = notice.get('raw_data', notice)
-                    existing.crawler_extracted_at = datetime.now()
-                    # 구조화된 필드 업데이트
-                    # deadline 처리: 이미 datetime 객체이거나 문자열일 수 있음
-                    deadline_value = notice.get('deadline')
-                    if deadline_value:
-                        if isinstance(deadline_value, datetime):
-                            existing.deadline = deadline_value
-                        else:
-                            existing.deadline = self.parse_date(deadline_value)
-                    else:
-                        existing.deadline = None
-
-                    # published_date 처리: 이미 datetime 객체이거나 문자열일 수 있음
-                    published_value = notice.get('published_date')
-                    if published_value:
-                        if isinstance(published_value, datetime):
-                            existing.published_date = published_value.date()
-                        else:
-                            parsed = self.parse_date(published_value)
-                            existing.published_date = parsed.date() if parsed else None
-                    else:
-                        existing.published_date = None
-                    existing.organization = notice.get('organization')
-                    existing.department = notice.get('department')
-                    existing.contact = notice.get('contact')
-                    # views 필드 안전하게 처리
-                    views_value = notice.get('views', 0)
-                    try:
-                        existing.views = int(views_value) if views_value else 0
-                    except (ValueError, TypeError):
-                        existing.views = 0
-                    existing.status = notice.get('status')
-                    # matched_keywords 업데이트 (suggested_tags는 사용하지 않음)
-                    existing.matched_keywords = matched_keywords
-                    existing.suggested_tags = []
-                    updated_existing += 1
-                else:
-                    # 4. 새로운 항목 추가 (데이터베이스 트리거가 중복 체크 및 업데이트 처리)
-                    # 트리거가 자동으로 중복 감지 시 기존 항목 업데이트하므로 try-except 사용
-                    try:
-                        print(f"    → 신규 항목 추가 시도")
-
-                        # deadline 처리: 이미 datetime 객체이거나 문자열일 수 있음
-                        deadline_value = notice.get('deadline')
-                        if deadline_value:
-                            if isinstance(deadline_value, datetime):
-                                deadline_dt = deadline_value
-                            else:
-                                deadline_dt = self.parse_date(deadline_value)
-                        else:
-                            deadline_dt = None
-
-                        # published_date 처리: 이미 datetime 객체이거나 문자열일 수 있음
-                        published_value = notice.get('published_date')
-                        if published_value:
-                            if isinstance(published_value, datetime):
-                                published_dt = published_value
-                            else:
-                                published_dt = self.parse_date(published_value)
-                        else:
-                            published_dt = None
-
-                        # views 필드 안전하게 처리 (문자열일 경우 정수로 변환)
-                        views_value = notice.get('views', 0)
-                        print(f"    → views_value 원본: {repr(views_value)} (타입: {type(views_value)})")
-                        try:
-                            views_int = int(views_value) if views_value else 0
-                            print(f"    → views_int 변환 후: {views_int}")
-                        except (ValueError, TypeError) as ve:
-                            print(f"    → views 변환 실패: {ve}")
-                            views_int = 0
-
-                        print(f"    → CrawlQueue 객체 생성 시작...")
-                        queue_item = CrawlQueue(
-                            crawler_source_id=self.source_id,
-                            title=title,
-                            link=notice.get('link'),
-                            source_board_name=notice.get('board'),
-                            # notice에 raw_data 키가 있으면 그 값만 저장, 없으면 notice 전체 저장
-                            raw_data=notice.get('raw_data', notice),
-                            crawler_extracted_at=datetime.now(),
-                            rejection_status=None,  # NULL = pending review
-                            # 구조화된 필드 추가
-                            deadline=deadline_dt if deadline_dt else None,  # Keep as datetime
-                            published_date=published_dt.date() if published_dt else None,
-                            organization=notice.get('organization'),
-                            department=notice.get('department'),
-                            contact=notice.get('contact'),
-                            views=views_int,
-                            status=notice.get('status'),
-                            matched_keywords=matched_keywords,
-                            suggested_tags=[]  # 자동 태그 제안 사용하지 않음
-                        )
-                        db.add(queue_item)
-                        db.flush()  # 즉시 실행하여 트리거 동작 확인
-                        print(f"    → 신규 항목 추가 성공!")
-                        added_new += 1
-                    except Exception as e:
-                        # 트리거에 의한 중복 업데이트인 경우 무시
-                        print(f"    → 예외 발생: {str(e)}")
-                        db.rollback()
-                        # logger.debug(f"Item likely updated by trigger: {title[:50]}...")
-                        updated_existing += 1
-                        continue
-
-            print(f"\n  commit 전 상태: 신규={added_new}, 업데이트={updated_existing}")
-            db.commit()
-            print(f"  commit 성공!")
-
-            # 통계 출력 (로깅용)
-            print(f"[{self.source_id}] 저장 완료: 신규={added_new}, 업데이트={updated_existing}, "
-                  f"키워드 필터={skipped_filtered}, 거부됨 스킵={skipped_rejected}, 중복 스킵={skipped_duplicates}")
-
-        except Exception as e:
-            print(f"Error saving crawl results: {str(e)}")
-            db.rollback()
-        finally:
-            db.close()
+        CrawlQueueRepository.save_results(notices, keywords, self.source_id)
 
     @abstractmethod
     async def execute(self, callback: Optional[Callable] = None):
