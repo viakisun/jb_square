@@ -34,12 +34,21 @@
 		category: string;
 	}
 
+	interface ColorPreset {
+		name: string;
+		category: string;
+		color: string; // Single color (changed from colors: string[])
+		text_color: string; // Pre-calculated text color
+		description: string;
+	}
+
 	let tags = $state<Tag[]>([]);
 	let isLoading = $state(false);
 	let showCreateForm = $state(false);
 	let editingTag = $state<Tag | null>(null);
 	let selectedCategory = $state<string>('all');
 	let categories = $state<string[]>([]);
+	let colorPresets = $state<ColorPreset[]>([]);
 
 	// Form state
 	let formData = $state<TagFormData>({
@@ -53,6 +62,7 @@
 	$effect(() => {
 		loadTags();
 		loadCategories();
+		loadColorPresets();
 	});
 
 	const filteredTags = $derived(
@@ -60,6 +70,26 @@
 			? tags
 			: tags.filter((t) => t.category === selectedCategory)
 	);
+
+	/**
+	 * Calculate text color based on background brightness
+	 * Uses relative luminance formula (WCAG)
+	 */
+	function getTextColor(hexColor: string): string {
+		// Remove # if present
+		const hex = hexColor.replace('#', '');
+
+		// Convert to RGB
+		const r = parseInt(hex.substring(0, 2), 16) / 255;
+		const g = parseInt(hex.substring(2, 4), 16) / 255;
+		const b = parseInt(hex.substring(4, 6), 16) / 255;
+
+		// Calculate relative luminance
+		const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+
+		// Return white for dark backgrounds, black for light backgrounds
+		return luminance > 0.45 ? '#000000' : '#FFFFFF';
+	}
 
 	async function loadTags() {
 		isLoading = true;
@@ -82,6 +112,16 @@
 			categories = data.categories || [];
 		} catch (error) {
 			console.error('Failed to load categories:', error);
+		}
+	}
+
+	async function loadColorPresets() {
+		try {
+			const response = await fetch(`${API_BASE_URL}/tags/color-presets`);
+			const data = await response.json();
+			colorPresets = data.presets || [];
+		} catch (error) {
+			console.error('Failed to load color presets:', error);
 		}
 	}
 
@@ -267,20 +307,41 @@
 					fullWidth
 				/>
 
-				<div class="color-input-group">
-					<Input
-						label="색상"
-						type="text"
-						bind:value={formData.color_hex}
-						placeholder="#E3F2FD"
-						fullWidth
-					/>
-					<input
-						type="color"
-						bind:value={formData.color_hex}
-						class="color-picker"
-						aria-label="색상 선택"
-					/>
+				<div class="color-section">
+					<span class="color-label">색상 선택</span>
+
+					<!-- Color Presets -->
+					{#if colorPresets.length > 0}
+						<div class="color-presets">
+							{#each colorPresets as preset}
+								<div class="preset-group">
+									<span class="preset-name">{preset.name}</span>
+									<button
+										type="button"
+										class="preset-color-btn"
+										class:selected={formData.color_hex === preset.color}
+										style="background-color: {preset.color}; color: {preset.text_color}"
+										onclick={() => (formData.color_hex = preset.color)}
+										title="{preset.color} - {preset.description}"
+									>
+										{#if formData.color_hex === preset.color}✓{/if}
+									</button>
+								</div>
+							{/each}
+						</div>
+					{/if}
+
+					<!-- Current Color Preview -->
+					<div class="color-preview">
+						<span class="preview-label">선택된 색상:</span>
+						<div
+							class="preview-tag"
+							style="background-color: {formData.color_hex}; color: {getTextColor(formData.color_hex)}"
+						>
+							{formData.name || '태그 이름'}
+						</div>
+						<span class="preview-code">{formData.color_hex}</span>
+					</div>
 				</div>
 
 				<Input
@@ -326,63 +387,124 @@
 						{#if editingTag && editingTag.id === tag.id}
 							<!-- Edit Row -->
 							<tr class="edit-row">
-								<td>
-									<div class="tag-preview" style="background-color: {editingTag.color_hex}">
-										{editingTag.name}
-									</div>
-								</td>
-								<td>
-									<input
-										type="text"
-										bind:value={editingTag.name}
-										class="inline-input"
-										placeholder="태그 이름"
-									/>
-								</td>
-								<td>
-									<input
-										type="text"
-										bind:value={editingTag.slug}
-										class="inline-input"
-										placeholder="slug"
-									/>
-								</td>
-								<td>
-									<input
-										type="text"
-										bind:value={editingTag.description}
-										class="inline-input"
-										placeholder="설명"
-									/>
-								</td>
-								<td>
-									<input
-										type="text"
-										bind:value={editingTag.category}
-										class="inline-input"
-										placeholder="카테고리"
-									/>
-								</td>
-								<td>{tag.usage_count}</td>
-								<td>
-									<button
-										class="status-badge"
-										class:active={editingTag?.is_active}
-										onclick={() => {
-											if (editingTag) {
-												editingTag.is_active = !editingTag.is_active;
-											}
-										}}
-									>
-										{editingTag?.is_active ? '활성' : '비활성'}
-									</button>
-								</td>
-								<td>
-									<div class="action-buttons">
-										<Button size="sm" variant="primary" onclick={() => editingTag && updateTag(editingTag)}>
-											저장
-										</Button>
-										<Button size="sm" variant="outline" onclick={cancelEdit}>취소</Button>
+								<td colspan="8">
+									<div class="edit-form">
+										<div class="edit-form-grid">
+											<!-- Preview -->
+											<div class="edit-field">
+												<label class="edit-label">미리보기</label>
+												<div
+													class="tag-preview"
+													style="background-color: {editingTag.color_hex}; color: {getTextColor(
+														editingTag.color_hex
+													)}"
+												>
+													{editingTag.name}
+												</div>
+											</div>
+
+											<!-- Name -->
+											<div class="edit-field">
+												<label class="edit-label">이름</label>
+												<input
+													type="text"
+													bind:value={editingTag.name}
+													class="inline-input"
+													placeholder="태그 이름"
+												/>
+											</div>
+
+											<!-- Slug -->
+											<div class="edit-field">
+												<label class="edit-label">슬러그</label>
+												<input
+													type="text"
+													bind:value={editingTag.slug}
+													class="inline-input"
+													placeholder="slug"
+												/>
+											</div>
+
+											<!-- Description -->
+											<div class="edit-field">
+												<label class="edit-label">설명</label>
+												<input
+													type="text"
+													bind:value={editingTag.description}
+													class="inline-input"
+													placeholder="설명"
+												/>
+											</div>
+
+											<!-- Category -->
+											<div class="edit-field">
+												<label class="edit-label">카테고리</label>
+												<input
+													type="text"
+													bind:value={editingTag.category}
+													class="inline-input"
+													placeholder="카테고리"
+												/>
+											</div>
+
+											<!-- Status -->
+											<div class="edit-field">
+												<label class="edit-label">상태</label>
+												<button
+													class="status-badge"
+													class:active={editingTag?.is_active}
+													onclick={() => {
+														if (editingTag) {
+															editingTag.is_active = !editingTag.is_active;
+														}
+													}}
+												>
+													{editingTag?.is_active ? '활성' : '비활성'}
+												</button>
+											</div>
+										</div>
+
+										<!-- Color Section -->
+										<div class="edit-color-section">
+											<label class="edit-label">색상 선택</label>
+
+											<!-- Color Presets -->
+											{#if colorPresets.length > 0}
+												<div class="edit-color-presets">
+													{#each colorPresets as preset}
+														<div class="edit-preset-group">
+															<span class="preset-name">{preset.name}</span>
+															<button
+																type="button"
+																class="preset-color-btn"
+																class:selected={editingTag.color_hex === preset.color}
+																style="background-color: {preset.color}; color: {preset.text_color}"
+																onclick={() => {
+																	if (editingTag) editingTag.color_hex = preset.color;
+																}}
+																title="{preset.color} - {preset.description}"
+															>
+																{#if editingTag.color_hex === preset.color}✓{/if}
+															</button>
+														</div>
+													{/each}
+												</div>
+											{/if}
+
+											<!-- Current Color Display -->
+											<div class="color-preview">
+												<span class="preview-label">선택된 색상:</span>
+												<span class="preview-code">{editingTag.color_hex}</span>
+											</div>
+										</div>
+
+										<!-- Actions -->
+										<div class="edit-actions">
+											<Button size="sm" variant="primary" onclick={() => editingTag && updateTag(editingTag)}>
+												저장
+											</Button>
+											<Button size="sm" variant="outline" onclick={cancelEdit}>취소</Button>
+										</div>
 									</div>
 								</td>
 							</tr>
@@ -390,7 +512,10 @@
 							<!-- Normal Row -->
 							<tr>
 								<td>
-									<div class="tag-preview" style="background-color: {tag.color_hex}">
+									<div
+										class="tag-preview"
+										style="background-color: {tag.color_hex}; color: {getTextColor(tag.color_hex)}"
+									>
 										{tag.name}
 									</div>
 								</td>
@@ -531,18 +656,111 @@
 		margin-bottom: var(--space-6);
 	}
 
-	.color-input-group {
+	/* ========================================
+     COLOR SECTION
+     ======================================== */
+
+	.color-section {
 		display: flex;
-		gap: var(--space-2);
-		align-items: flex-end;
+		flex-direction: column;
+		gap: var(--space-4);
+		padding: var(--space-4);
+		background-color: var(--surface-1);
+		border: var(--border-width) solid var(--hair);
+		grid-column: 1 / -1;
 	}
 
-	.color-picker {
-		width: 50px;
+	.color-label {
+		font-size: var(--text-sm);
+		font-weight: var(--font-semibold);
+		color: var(--fg);
+		text-transform: uppercase;
+		letter-spacing: var(--tracking-wide);
+	}
+
+	/* Color Presets */
+	.color-presets {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-3);
+	}
+
+	.preset-group {
+		display: flex;
+		align-items: center;
+		gap: var(--space-3);
+	}
+
+	.preset-name {
+		font-size: var(--text-xs);
+		font-weight: var(--font-medium);
+		color: var(--muted);
+		min-width: 100px;
+		text-transform: uppercase;
+		letter-spacing: var(--tracking-wide);
+	}
+
+	.preset-colors {
+		display: flex;
+		gap: var(--space-2);
+		flex-wrap: wrap;
+	}
+
+	.preset-color-btn {
+		width: 40px;
 		height: 40px;
 		border: var(--border-width) solid var(--hair);
 		cursor: pointer;
-		background: transparent;
+		transition: all var(--duration-fast) var(--ease-out);
+		font-size: var(--text-lg);
+		font-weight: var(--font-bold);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.preset-color-btn:hover {
+		transform: scale(1.1);
+		border-color: var(--fg);
+		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+	}
+
+	.preset-color-btn.selected {
+		border-width: 3px;
+		border-color: var(--fg);
+		box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--fg);
+	}
+
+	/* Color Preview */
+	.color-preview {
+		display: flex;
+		align-items: center;
+		gap: var(--space-3);
+		padding-top: var(--space-3);
+		border-top: var(--border-width) solid var(--hair);
+	}
+
+	.preview-label {
+		font-size: var(--text-sm);
+		font-weight: var(--font-medium);
+		color: var(--muted);
+	}
+
+	.preview-tag {
+		padding: var(--space-2) var(--space-4);
+		font-size: var(--text-sm);
+		font-weight: var(--font-medium);
+		border: var(--border-width) solid var(--hair);
+		transition: all var(--duration-fast) var(--ease-out);
+	}
+
+	.preview-code {
+		font-family: var(--font-mono);
+		font-size: var(--text-xs);
+		color: var(--muted);
+		padding: var(--space-1) var(--space-2);
+		background-color: var(--surface-1);
+		border: var(--border-width) solid var(--hair);
 	}
 
 	.form-actions {
@@ -596,6 +814,68 @@
 
 	.edit-row {
 		background-color: var(--surface-1);
+	}
+
+	/* ========================================
+     EDIT FORM (inline expanded)
+     ======================================== */
+
+	.edit-form {
+		padding: var(--space-6);
+		background-color: var(--surface-1);
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-6);
+	}
+
+	.edit-form-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+		gap: var(--space-4);
+	}
+
+	.edit-field {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-2);
+	}
+
+	.edit-label {
+		font-size: var(--text-xs);
+		font-weight: var(--font-semibold);
+		color: var(--muted);
+		text-transform: uppercase;
+		letter-spacing: var(--tracking-wide);
+	}
+
+	/* Edit Color Section */
+	.edit-color-section {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-4);
+		padding: var(--space-4);
+		background-color: var(--bg);
+		border: var(--border-width) solid var(--hair);
+	}
+
+	.edit-color-presets {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-2);
+	}
+
+	.edit-preset-group {
+		display: flex;
+		align-items: center;
+		gap: var(--space-3);
+	}
+
+	.edit-actions {
+		display: flex;
+		gap: var(--space-3);
+		justify-content: flex-end;
+		padding-top: var(--space-4);
+		border-top: var(--border-width) solid var(--hair);
 	}
 
 	/* ========================================

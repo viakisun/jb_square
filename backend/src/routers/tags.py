@@ -6,6 +6,7 @@ Endpoints for managing content tags
 from datetime import datetime
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
@@ -89,6 +90,55 @@ async def list_active_tags(db: Session = Depends(get_db)):
         "tags": [tag.to_dict() for tag in tags],
         "total": len(tags)
     }
+
+
+@router.get("/stats/categories")
+async def get_tag_categories(db: Session = Depends(get_db)):
+    """Get list of unique categories"""
+
+    categories = db.query(ContentTag.category).distinct().all()
+    categories = [cat[0] for cat in categories if cat[0]]  # Filter out None
+
+    return {
+        "categories": categories,
+        "total": len(categories)
+    }
+
+
+@router.get("/color-presets")
+async def get_color_presets(db: Session = Depends(get_db)):
+    """
+    Get predefined color presets for tag styling
+    Returns color schemes from the database (1 color per preset)
+    """
+    # Query color_schemes table
+    result = db.execute(
+        text("""
+        SELECT
+            display_name,
+            category,
+            color_hex,
+            text_color,
+            description
+        FROM color_schemes
+        WHERE is_active = true
+        ORDER BY id
+        """)
+    )
+
+    schemes = result.fetchall()
+
+    presets = []
+    for scheme in schemes:
+        presets.append({
+            "name": scheme[0],  # display_name
+            "category": scheme[1],  # category
+            "color": scheme[2],  # color_hex (single color)
+            "text_color": scheme[3],  # text_color
+            "description": scheme[4]  # description
+        })
+
+    return {"presets": presets}
 
 
 @router.get("/{tag_id}")
@@ -246,3 +296,39 @@ async def get_tag_categories(db: Session = Depends(get_db)):
         "categories": categories,
         "total": len(categories)
     }
+
+
+@router.get("/color-presets")
+async def get_color_presets(db: Session = Depends(get_db)):
+    """
+    Get predefined color presets for tag styling
+    Returns color schemes from the database (1 color per preset)
+    """
+    # Query color_schemes table
+    result = db.execute(
+        text("""
+        SELECT
+            display_name,
+            category,
+            color_hex,
+            text_color,
+            description
+        FROM color_schemes
+        WHERE is_active = true
+        ORDER BY id
+        """)
+    )
+
+    schemes = result.fetchall()
+
+    presets = []
+    for scheme in schemes:
+        presets.append({
+            "name": scheme[0],  # display_name
+            "category": scheme[1],  # category
+            "color": scheme[2],  # color_hex (single color)
+            "text_color": scheme[3],  # text_color
+            "description": scheme[4]  # description
+        })
+
+    return {"presets": presets}
