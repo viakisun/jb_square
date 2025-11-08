@@ -20,7 +20,6 @@ from src.core.database import SessionLocal, CrawlerConfig, CrawlResult
 from src.models.notice import CrawlQueue
 from src.models.crawler_config import JBTPConfig, BinetConfig
 from src.services.crawlers import BICenterCrawler, BizinfoCrawler, JBTPCrawler, JBTPExternalCrawler, NTISCrawler
-from src.services.crawlers.ntis_crawler import NTISRSSCrawler
 
 
 class CrawlerStatus(str, Enum):
@@ -66,15 +65,6 @@ class CrawlerManager:
                 "last_run": None,
                 "error_message": None
             },
-            "ntis_rss": {
-                "status": CrawlerStatus.IDLE,
-                "progress": 0,
-                "total": 0,
-                "success": 0,
-                "failed": 0,
-                "last_run": None,
-                "error_message": None
-            },
             "bizinfo": {
                 "status": CrawlerStatus.IDLE,
                 "progress": 0,
@@ -99,7 +89,6 @@ class CrawlerManager:
             "jbtp": False,
             "jbtp_external": False,
             "ntis": False,
-            "ntis_rss": False,
             "bizinfo": False,
             "bi_center": False
         }
@@ -111,7 +100,6 @@ class CrawlerManager:
             "jbtp": JBTPCrawler(),
             "jbtp_external": JBTPExternalCrawler(),
             "ntis": NTISCrawler(),
-            "ntis_rss": NTISRSSCrawler(),
         }
 
     def get_status(self, source_id: str) -> dict:
