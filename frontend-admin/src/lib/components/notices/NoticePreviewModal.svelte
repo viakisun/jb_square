@@ -6,30 +6,34 @@
 
 	import { Button } from '$lib/components/ui/buttons';
 
-	type NoticeDetail = {
-		full_title?: string;
-		writer?: string;
-		published_date?: string;
-		views?: number;
-		status?: string;
-		deadline?: string;
-		d_day?: string;
-		attachments?: Array<{ filename: string; url: string }>;
-		content_viewer_url?: string;
-		content_type?: string;
-		content?: string;  // 본문 텍스트
-		content_html?: string;  // 본문 HTML
-	};
-
 	type NoticeItem = {
 		id: number;
 		title: string;
+		content?: string | null;
 		link?: string | null;
 		crawler_source_id: string;
 		source_board_name?: string | null;
 		source_date_string?: string;
+		// Direct fields (from typed columns)
+		content_type?: string | null;
+		content_viewer_url?: string | null;
+		attachment_links?: Array<{ filename: string; url: string }> | null;
+		organization?: string | null;
+		department?: string | null;
+		contact?: string | null;
+		deadline?: string | null;
+		announcement_date?: string | null;
+		// Legacy support for crawl queue items
 		raw_data?: {
-			detail?: NoticeDetail;
+			detail?: {
+				full_title?: string;
+				writer?: string;
+				published_date?: string;
+				views?: number;
+				status?: string;
+				deadline?: string;
+				d_day?: string;
+			};
 		};
 	};
 
@@ -43,7 +47,13 @@
 	let { item, notice, open = false, onClose }: Props = $props();
 
 	let activeItem = $derived(item || notice);
+
+	// Use direct fields from notice, fallback to raw_data for crawl queue preview
 	let detail = $derived(activeItem?.raw_data?.detail);
+	let contentType = $derived(activeItem?.content_type);
+	let contentViewerUrl = $derived(activeItem?.content_viewer_url);
+	let content = $derived(activeItem?.content);
+	let attachments = $derived(activeItem?.attachment_links);
 
 	// Debug logging
 	$effect(() => {
@@ -93,9 +103,8 @@
 
 			<!-- Body -->
 			<div class="modal-body">
-				{#if detail}
-					<!-- Meta Information Grid -->
-					{#if detail.writer || detail.published_date || detail.views !== undefined || detail.status || detail.deadline}
+				<!-- Meta Information Grid (only for crawl queue items with detail) -->
+				{#if detail && (detail.writer || detail.published_date || detail.views !== undefined || detail.status || detail.deadline)}
 						<div class="meta-grid">
 						{#if detail.writer}
 							<div class="meta-item">
@@ -133,10 +142,33 @@
 							</div>
 						{/if}
 					</div>
-					{/if}
+				{/if}
 
-					<!-- Content Viewer -->
-					{#if detail.content_viewer_url}
+				<!-- Content Viewer (for JBTP PDF viewer) -->
+				{#if contentType === 'pdf_viewer' && contentViewerUrl}
+						<div class="content-viewer-section">
+							<h3 class="section-title">문서 내용</h3>
+							<div class="pdf-viewer-container">
+								<iframe
+									src={contentViewerUrl}
+									class="pdf-iframe"
+									title="공고 문서"
+									frameborder="0"
+								></iframe>
+							</div>
+							<div class="viewer-footer">
+								<a
+									href={contentViewerUrl}
+									target="_blank"
+									rel="noopener noreferrer"
+									class="viewer-link"
+								>
+									새 창에서 열기 →
+								</a>
+							</div>
+						</div>
+					{:else if detail?.content_viewer_url}
+						<!-- Fallback for crawl queue preview -->
 						<div class="content-viewer-section">
 							<h3 class="section-title">문서 내용</h3>
 							<div class="pdf-viewer-container">
@@ -160,8 +192,23 @@
 						</div>
 					{/if}
 
-					<!-- Content HTML (for NTIS RSS and other sources) -->
-					{#if detail.content_html || detail.content}
+					<!-- Content HTML (for NTIS and other sources) -->
+					{#if contentType === 'html' && content}
+						<div class="content-section">
+							<h3 class="section-title">공고 내용</h3>
+							<div class="content-body">
+								{@html content}
+							</div>
+						</div>
+					{:else if contentType === 'text' && content}
+						<div class="content-section">
+							<h3 class="section-title">공고 내용</h3>
+							<div class="content-body">
+								<pre class="content-text">{content}</pre>
+							</div>
+						</div>
+					{:else if detail?.content_html || detail?.content}
+						<!-- Fallback for crawl queue preview -->
 						<div class="content-section">
 							<h3 class="section-title">공고 내용</h3>
 							<div class="content-body">
@@ -175,7 +222,28 @@
 					{/if}
 
 					<!-- Attachments -->
-					{#if detail.attachments && detail.attachments.length > 0}
+					{#if attachments && attachments.length > 0}
+						<div class="attachments-section">
+							<h3 class="section-title">첨부파일 ({attachments.length})</h3>
+							<ul class="attachments-list">
+								{#each attachments as attachment}
+									<li class="attachment-item">
+										<span class="attachment-icon">📎</span>
+										<span class="attachment-name">{attachment.filename}</span>
+										<a
+											href={attachment.url}
+											target="_blank"
+											rel="noopener noreferrer"
+											class="attachment-download"
+										>
+											다운로드
+										</a>
+									</li>
+								{/each}
+							</ul>
+						</div>
+					{:else if detail?.attachments && detail.attachments.length > 0}
+						<!-- Fallback for crawl queue preview -->
 						<div class="attachments-section">
 							<h3 class="section-title">첨부파일 ({detail.attachments.length})</h3>
 							<ul class="attachments-list">
@@ -195,8 +263,7 @@
 								{/each}
 							</ul>
 						</div>
-					{/if}
-				{:else}
+					{:else}
 					<div class="no-detail">
 						<p>상세 정보가 없습니다.</p>
 					</div>
