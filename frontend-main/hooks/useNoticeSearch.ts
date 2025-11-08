@@ -174,7 +174,7 @@ export function useNoticeSearch(options: SearchOptions = {}): UseNoticeSearchRet
     } finally {
       setLoading(false);
     }
-  }, [searchQuery, minLength, additionalFilters]);
+  }, [minLength, additionalFilters]);
 
   /**
    * 검색 결과 초기화
@@ -205,13 +205,37 @@ export function useNoticeSearch(options: SearchOptions = {}): UseNoticeSearchRet
 
     // 검색어가 최소 길이 미만이면 결과 초기화
     if (searchQuery.trim().length < minLength) {
-      clearResults();
+      setResults([]);
+      setTotalResults(0);
+      setError(null);
+      setHasSearched(false);
       return;
     }
 
     // 새로운 디바운스 타이머 설정
-    debounceTimer.current = setTimeout(() => {
-      search();
+    debounceTimer.current = setTimeout(async () => {
+      setLoading(true);
+      setError(null);
+      setHasSearched(true);
+
+      try {
+        const response = await api.notices.search(searchQuery, {
+          ...additionalFilters,
+          limit: 50  // 검색 결과는 기본 50개까지
+        });
+
+        setResults(response.items);
+        setTotalResults(response.total);
+      } catch (err) {
+        const errorMessage = getErrorMessage(err, '검색 중 오류가 발생했습니다.');
+        setError(errorMessage);
+        logError(err, `공고 검색 실패 (검색어: ${searchQuery})`);
+
+        setResults([]);
+        setTotalResults(0);
+      } finally {
+        setLoading(false);
+      }
     }, debounceDelay);
 
     // 클린업: 컴포넌트 언마운트 시 타이머 정리
@@ -220,7 +244,7 @@ export function useNoticeSearch(options: SearchOptions = {}): UseNoticeSearchRet
         clearTimeout(debounceTimer.current);
       }
     };
-  }, [searchQuery, debounceDelay, minLength, disableAutoSearch, search, clearResults]);
+  }, [searchQuery, debounceDelay, minLength, disableAutoSearch, additionalFilters]);
 
   return {
     searchQuery,
