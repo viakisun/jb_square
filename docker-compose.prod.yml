@@ -39,7 +39,7 @@ services:
     image: 711678334703.dkr.ecr.ap-northeast-2.amazonaws.com/jb-square:frontend-main-latest
     container_name: jb2-frontend-main-prod
     environment:
-      - NEXT_PUBLIC_API_URL=/api
+      - NEXT_PUBLIC_API_BASE_URL=/api
     expose:
       - "3100"
     depends_on:
