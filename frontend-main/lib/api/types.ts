@@ -323,3 +323,60 @@ export interface BICenterListResponse {
   /** 전체 센터 개수 */
   total: number;
 }
+
+/**
+ * 입주기업 (BI Company) 데이터 인터페이스
+ *
+ * 백엔드 BICompany 모델과 1:1 매핑됩니다.
+ */
+export interface BICompany {
+  /** 입주기업 고유 ID (Primary Key) */
+  id: number;
+
+  /** 소속 센터 ID (Foreign Key) */
+  center_id: number;
+
+  /** 기업명 */
+  company_name: string;
+
+  /** 사업 분야 (예: 'IT', '바이오', '제조') */
+  business_field: string | null;
+
+  /** 제품/서비스 설명 */
+  product: string | null;
+
+  /** 입주 시작일 (예: '2023-03-01') */
+  entry_date: string | null;
+
+  /** 입주 상태 (예: '입주중', '졸업', '퇴거') */
+  status: string | null;
+
+  /** 생성 일시 (ISO 8601 형식) */
+  created_at: string;
+
+  /** 수정 일시 (ISO 8601 형식) */
+  updated_at: string;
+
+  /** 소속 센터 정보 (검색 API에서 포함됨) */
+  center?: {
+    id: number;
+    center_name: string;
+    org_name: string;
+    region: string;
+    city: string | null;
+  };
+}
+
+/**
+ * BI Company 목록 응답 인터페이스
+ */
+export interface BICompanyListResponse {
+  /** 입주기업 목록 */
+  items: BICompany[];
+
+  /** 전체 기업 개수 */
+  total: number;
+
+  /** 센터 정보 (센터별 조회 시 포함됨) */
+  center?: BICenter;
+}

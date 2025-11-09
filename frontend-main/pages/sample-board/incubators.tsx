@@ -158,15 +158,21 @@ export default function IncubatorsPage() {
               {centers.length > 0 && (
                 <div className="space-y-4">
                   {centers.map((center) => (
-                    <div
+                    <Link
                       key={center.id}
-                      className="p-6 bg-white border border-gray-200 rounded-lg hover:shadow-md transition-shadow"
+                      href={`/sample-board/incubators/${center.id}`}
+                      className="block p-6 bg-white border border-gray-200 rounded-lg hover:shadow-lg hover:border-blue-300 transition-all duration-200 group"
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
-                          <h3 className="text-xl font-bold text-gray-900 mb-2">
-                            {center.center_name}
-                          </h3>
+                          <div className="flex items-center gap-2 mb-2">
+                            <h3 className="text-xl font-bold text-gray-900 group-hover:text-blue-600 transition-colors">
+                              {center.center_name}
+                            </h3>
+                            <svg className="w-5 h-5 text-gray-400 group-hover:text-blue-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                            </svg>
+                          </div>
                           <p className="text-sm text-gray-600 mb-3">
                             {center.org_name}
                           </p>
@@ -194,7 +200,7 @@ export default function IncubatorsPage() {
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                                 </svg>
-                                <span>입주기업 {center.companies_count}개</span>
+                                <span className="font-medium">입주기업 {center.companies_count}개</span>
                               </div>
                             )}
 
@@ -215,9 +221,9 @@ export default function IncubatorsPage() {
                           )}
                         </div>
 
-                        {center.vacant_rooms && (
+                        {center.vacant_rooms && center.vacant_rooms !== '0' && (
                           <div className="ml-6 flex-shrink-0">
-                            <div className="px-5 py-3 bg-green-50 border border-green-200 rounded-lg text-center">
+                            <div className="px-5 py-3 bg-green-50 border border-green-200 rounded-lg text-center group-hover:bg-green-100 transition-colors">
                               <div className="text-xs text-green-600 font-medium mb-1">공실</div>
                               <div className="text-2xl font-bold text-green-700">
                                 {center.vacant_rooms}
@@ -226,7 +232,7 @@ export default function IncubatorsPage() {
                           </div>
                         )}
                       </div>
-                    </div>
+                    </Link>
                   ))}
                 </div>
               )}
