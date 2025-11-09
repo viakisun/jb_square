@@ -156,6 +156,76 @@ async def list_companies_by_center(
     }
 
 
+@router.get("/companies/all")
+async def get_all_companies(
+    center_id: Optional[int] = None,
+    business_field: Optional[str] = None,
+    region: Optional[str] = None,
+    status: Optional[str] = None,
+    skip: int = 0,
+    limit: int = 50,
+    db: Session = Depends(get_db)
+):
+    """
+    전체 입주기업 목록을 조회합니다.
+
+    Args:
+        center_id: 센터 ID 필터 (선택)
+        business_field: 사업 분야 필터 (선택)
+        region: 지역 필터 (선택)
+        status: 입주 상태 필터 (선택)
+        skip: 건너뛸 개수
+        limit: 가져올 최대 개수
+        db: Database session
+    """
+    companies_query = db.query(BICompany)
+
+    # 센터 ID 필터
+    if center_id:
+        companies_query = companies_query.filter(BICompany.center_id == center_id)
+
+    # 업종 필터
+    if business_field:
+        companies_query = companies_query.filter(
+            BICompany.business_field.contains(business_field)
+        )
+
+    # 지역 필터 (센터의 지역으로 필터링)
+    if region:
+        companies_query = companies_query.join(BICenter).filter(
+            BICenter.region.contains(region)
+        )
+
+    # 상태 필터
+    if status:
+        companies_query = companies_query.filter(BICompany.status == status)
+
+    companies_query = companies_query.order_by(desc(BICompany.created_at))
+
+    total = companies_query.count()
+    companies = companies_query.offset(skip).limit(limit).all()
+
+    # 각 회사의 센터 정보 포함
+    items_with_center = []
+    for company in companies:
+        company_dict = company.to_dict()
+        center = db.query(BICenter).filter(BICenter.id == company.center_id).first()
+        if center:
+            company_dict['center'] = {
+                'id': center.id,
+                'center_name': center.center_name,
+                'org_name': center.org_name,
+                'region': center.region,
+                'city': center.city
+            }
+        items_with_center.append(company_dict)
+
+    return {
+        "total": total,
+        "items": items_with_center
+    }
+
+
 @router.get("/companies/search")
 async def search_companies(
     query: Optional[str] = None,

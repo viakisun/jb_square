@@ -300,6 +300,12 @@ export interface BICenter {
   /** 위치/주소 정보 */
   location: string | null;
 
+  /** 위도 (Latitude) */
+  latitude: number | null;
+
+  /** 경도 (Longitude) */
+  longitude: number | null;
+
   /** 센터 웹사이트 URL */
   center_url: string | null;
 

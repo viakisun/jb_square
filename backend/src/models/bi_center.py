@@ -4,7 +4,7 @@ SQLAlchemy ORM models for startup incubator centers and tenant companies
 """
 
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, DECIMAL
 from sqlalchemy.orm import relationship
 from src.core.database import Base
 
@@ -27,6 +27,8 @@ class BICenter(Base):
     specialization = Column(Text)
     vacant_rooms = Column(String(50))
     location = Column(String(500))
+    latitude = Column(DECIMAL(10, 7))  # 위도 (예: 35.8522191)
+    longitude = Column(DECIMAL(10, 7))  # 경도 (예: 127.1234567)
     center_url = Column(String(500))
 
     # Statistics
@@ -51,6 +53,8 @@ class BICenter(Base):
             'specialization': self.specialization,
             'vacant_rooms': self.vacant_rooms,
             'location': self.location,
+            'latitude': float(self.latitude) if self.latitude is not None else None,
+            'longitude': float(self.longitude) if self.longitude is not None else None,
             'center_url': self.center_url,
             'companies_count': self.companies_count,
             'created_at': self.created_at.isoformat() if self.created_at else None,

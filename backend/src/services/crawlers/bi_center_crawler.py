@@ -174,17 +174,44 @@ class BICenterCrawler(BaseCrawler):
                             pass
 
                     # 지도보기 링크에서 위치 좌표 추출
+                    # OpenWindow1('center_id', 'latitude') 형식 - 경도는 제공되지 않음
                     location_coords = ''
+                    latitude = None
+                    longitude = None
+                    center_id = None
+
                     try:
                         map_link = cols[8].find_element(By.TAG_NAME, 'a')
                         onclick = map_link.get_attribute('onclick')
+
                         if onclick and 'OpenWindow1' in onclick:
                             import re
                             match = re.search(r"OpenWindow1\('([^']+)','([^']+)'\)", onclick)
                             if match:
-                                location_coords = match.group(2)
-                    except:
-                        pass
+                                # 첫 번째 파라미터: 센터 ID (center_id)
+                                # 두 번째 파라미터: 위도 (latitude)
+                                # 경도는 onclick에서 제공되지 않음
+                                center_id = match.group(1)
+                                latitude_str = match.group(2)
+
+                                try:
+                                    latitude = float(latitude_str)
+                                    location_coords = latitude_str  # 기존 location 필드 호환성 유지
+
+                                    await self.send_event(callback, "log", {
+                                        "source_id": self.source_id,
+                                        "message": f"  ✓ {center_name} 좌표: 위도={latitude} (경도는 제공안됨)"
+                                    })
+                                except ValueError:
+                                    await self.send_event(callback, "log", {
+                                        "source_id": self.source_id,
+                                        "message": f"  ⚠ {center_name} 위도 변환 실패: {latitude_str}"
+                                    })
+                    except Exception as e:
+                        await self.send_event(callback, "log", {
+                            "source_id": self.source_id,
+                            "message": f"  ⚠ {center_name} 좌표 추출 실패: {str(e)}"
+                        })
 
                     center_data = {
                         'region': '전북특별자치도',
@@ -195,6 +222,8 @@ class BICenterCrawler(BaseCrawler):
                         'specialization': specialization,
                         'vacant_rooms': vacant_rooms,
                         'location': location_coords,
+                        'latitude': latitude,
+                        'longitude': longitude,
                         'center_seq': center_seq,
                         'center_url': '',  # 상세 페이지에서 수집
                         'companies': []
@@ -331,6 +360,8 @@ class BICenterCrawler(BaseCrawler):
                         existing.specialization = center_data['specialization']
                         existing.vacant_rooms = center_data['vacant_rooms']
                         existing.location = center_data['location']
+                        existing.latitude = center_data.get('latitude')
+                        existing.longitude = center_data.get('longitude')
                         existing.companies_count = len(center_data['companies'])
                         center_obj = existing
                     else:
@@ -344,6 +375,8 @@ class BICenterCrawler(BaseCrawler):
                             specialization=center_data['specialization'],
                             vacant_rooms=center_data['vacant_rooms'],
                             location=center_data['location'],
+                            latitude=center_data.get('latitude'),
+                            longitude=center_data.get('longitude'),
                             companies_count=len(center_data['companies'])
                         )
                         db.add(center_obj)
