@@ -160,7 +160,6 @@ async def list_companies_by_center(
 async def search_companies(
     query: Optional[str] = None,
     business_field: Optional[str] = None,
-    status: Optional[str] = None,
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db)
@@ -171,7 +170,6 @@ async def search_companies(
     Args:
         query: 검색어 (기업명 또는 제품명)
         business_field: 업종 필터
-        status: 상태 필터
         skip: 건너뛸 개수
         limit: 가져올 최대 개수
         db: Database session
@@ -190,10 +188,6 @@ async def search_companies(
         companies_query = companies_query.filter(
             BICompany.business_field.contains(business_field)
         )
-
-    # 상태 필터
-    if status:
-        companies_query = companies_query.filter(BICompany.status == status)
 
     companies_query = companies_query.order_by(desc(BICompany.created_at))
 
@@ -236,19 +230,10 @@ async def get_bi_stats(db: Session = Depends(get_db)):
         func.count(BICenter.id).label('count')
     ).group_by(BICenter.region).all()
 
-    # 상태별 입주기업 수
-    companies_by_status = db.query(
-        BICompany.status,
-        func.count(BICompany.id).label('count')
-    ).group_by(BICompany.status).all()
-
     return {
         "total_centers": total_centers,
         "total_companies": total_companies,
         "centers_by_region": [
             {"region": r, "count": c} for r, c in centers_by_region
-        ],
-        "companies_by_status": [
-            {"status": s, "count": c} for s, c in companies_by_status
         ]
     }

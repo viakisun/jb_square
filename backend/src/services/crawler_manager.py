@@ -20,6 +20,7 @@ from src.core.database import SessionLocal, CrawlerConfig, CrawlResult
 from src.models.notice import CrawlQueue
 from src.models.crawler_config import JBTPConfig, BinetConfig
 from src.services.crawlers import BICenterCrawler, BizinfoCrawler, JBTPCrawler, JBTPExternalCrawler, NTISCrawler
+from src.constants.sources import NoticeSource
 
 
 class CrawlerStatus(str, Enum):
@@ -38,7 +39,7 @@ class CrawlerManager:
 
     def __init__(self):
         self.crawlers_status: Dict[str, dict] = {
-            "jbtp": {
+            NoticeSource.JBTP_LOCAL: {
                 "status": CrawlerStatus.IDLE,
                 "progress": 0,
                 "total": 0,
@@ -47,7 +48,7 @@ class CrawlerManager:
                 "last_run": None,
                 "error_message": None
             },
-            "jbtp_external": {
+            NoticeSource.JBTP_EXTERNAL: {
                 "status": CrawlerStatus.IDLE,
                 "progress": 0,
                 "total": 0,
@@ -56,7 +57,7 @@ class CrawlerManager:
                 "last_run": None,
                 "error_message": None
             },
-            "ntis_rss": {
+            NoticeSource.NTIS_RSS: {
                 "status": CrawlerStatus.IDLE,
                 "progress": 0,
                 "total": 0,
@@ -65,7 +66,7 @@ class CrawlerManager:
                 "last_run": None,
                 "error_message": None
             },
-            "bizinfo": {
+            NoticeSource.BIZINFO_API: {
                 "status": CrawlerStatus.IDLE,
                 "progress": 0,
                 "total": 0,
@@ -86,20 +87,20 @@ class CrawlerManager:
         }
 
         self.stop_flags: Dict[str, bool] = {
-            "jbtp": False,
-            "jbtp_external": False,
-            "ntis_rss": False,
-            "bizinfo": False,
+            NoticeSource.JBTP_LOCAL: False,
+            NoticeSource.JBTP_EXTERNAL: False,
+            NoticeSource.NTIS_RSS: False,
+            NoticeSource.BIZINFO_API: False,
             "bi_center": False
         }
 
         # Refactored crawler instances
         self.crawlers = {
             "bi_center": BICenterCrawler(),
-            "bizinfo": BizinfoCrawler(),
-            "jbtp": JBTPCrawler(),
-            "jbtp_external": JBTPExternalCrawler(),
-            "ntis_rss": NTISCrawler(),
+            NoticeSource.BIZINFO_API: BizinfoCrawler(),
+            NoticeSource.JBTP_LOCAL: JBTPCrawler(),
+            NoticeSource.JBTP_EXTERNAL: JBTPExternalCrawler(),
+            NoticeSource.NTIS_RSS: NTISCrawler(),
         }
 
     def get_status(self, source_id: str) -> dict:
@@ -612,7 +613,7 @@ class CrawlerManager:
         Args:
             callback: 실시간 업데이트를 전송할 콜백 함수 (WebSocket send)
         """
-        return await self.crawlers["jbtp"].run(callback)
+        return await self.crawlers[NoticeSource.JBTP_LOCAL].run(callback)
 
     async def execute_jbtp_external(self, callback: Optional[Callable] = None):
         """
@@ -621,7 +622,7 @@ class CrawlerManager:
         Args:
             callback: 실시간 업데이트를 전송할 콜백 함수 (WebSocket send)
         """
-        return await self.crawlers["jbtp_external"].run(callback)
+        return await self.crawlers[NoticeSource.JBTP_EXTERNAL].run(callback)
 
     async def execute_ntis_rss(self, callback: Optional[Callable] = None):
         """
@@ -630,7 +631,7 @@ class CrawlerManager:
         RSS URL: http://www.ntis.go.kr/rndgate/unRndRss.xml?prt=100&bbs=true
         최근 7일 이내 데이터를 키워드 필터링하여 수집합니다.
         """
-        return await self.crawlers["ntis_rss"].run(callback)
+        return await self.crawlers[NoticeSource.NTIS_RSS].run(callback)
 
     async def execute_bizinfo(self, callback: Optional[Callable] = None):
         """
@@ -638,7 +639,7 @@ class CrawlerManager:
 
         API: https://www.bizinfo.go.kr/web/lay1/program/S1T175C174/apiDetail.do
         """
-        return await self.crawlers["bizinfo"].run(callback)
+        return await self.crawlers[NoticeSource.BIZINFO_API].run(callback)
 
     async def execute_bi_center(self, callback: Optional[Callable] = None):
         """

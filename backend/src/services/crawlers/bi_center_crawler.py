@@ -49,6 +49,7 @@ class BICenterCrawler(BaseCrawler):
             from selenium.webdriver.chrome.options import Options
             from selenium.webdriver.common.by import By
             from webdriver_manager.chrome import ChromeDriverManager
+            import os
 
             chrome_options = Options()
             chrome_options.add_argument('--headless')
@@ -57,8 +58,41 @@ class BICenterCrawler(BaseCrawler):
             chrome_options.add_argument('--disable-gpu')
             chrome_options.add_argument('--window-size=1920,1080')
 
+            # ChromeDriver 경로 가져오기
+            driver_path = ChromeDriverManager().install()
+
+            # webdriver-manager가 잘못된 파일을 선택하는 경우가 있으므로
+            # 실제 chromedriver 실행 파일 찾기
+            import glob
+            if 'chromedriver-mac' in driver_path or 'THIRD_PARTY' in driver_path:
+                # chromedriver-mac-arm64 디렉토리에서 실제 chromedriver 찾기
+                driver_dir = os.path.dirname(driver_path)
+                # chromedriver 파일 검색 (실행 파일만)
+                potential_paths = [
+                    os.path.join(driver_dir, 'chromedriver'),
+                    os.path.join(driver_dir, '..', 'chromedriver'),
+                ]
+                for path in potential_paths:
+                    if os.path.isfile(path):
+                        driver_path = path
+                        break
+                else:
+                    # glob으로 검색
+                    search_pattern = os.path.join(driver_dir, '**/chromedriver')
+                    found = glob.glob(search_pattern, recursive=True)
+                    if found:
+                        # 실행 파일인 것만 선택 (텍스트 파일 제외)
+                        for f in found:
+                            if os.path.isfile(f) and not f.endswith('.chromedriver'):
+                                driver_path = f
+                                break
+
+            # 실행 권한 확인 및 부여
+            if os.path.exists(driver_path) and os.path.isfile(driver_path):
+                os.chmod(driver_path, 0o755)
+
             driver = webdriver.Chrome(
-                service=Service(ChromeDriverManager().install()),
+                service=Service(driver_path),
                 options=chrome_options
             )
 
@@ -214,13 +248,14 @@ class BICenterCrawler(BaseCrawler):
                         companies = []
                         for company_row in company_rows:
                             company_cols = company_row.find_elements(By.TAG_NAME, 'td')
+
+                            # 테이블 구조: [순서번호, 회사명, 업종, 제품, 빈값]
+                            # 컬럼 0 (순서번호)는 무시하고 컬럼 1부터 읽음
                             if len(company_cols) >= 5:
                                 company = {
-                                    'company_name': company_cols[0].text.strip(),
-                                    'business_field': company_cols[1].text.strip(),
-                                    'product': company_cols[2].text.strip(),
-                                    'entry_date': company_cols[3].text.strip(),
-                                    'status': company_cols[4].text.strip()
+                                    'company_name': company_cols[1].text.strip(),  # 컬럼 1: 회사명
+                                    'business_field': company_cols[2].text.strip(),  # 컬럼 2: 업종
+                                    'product': company_cols[3].text.strip(),  # 컬럼 3: 제품
                                 }
                                 companies.append(company)
 
@@ -312,7 +347,8 @@ class BICenterCrawler(BaseCrawler):
                             companies_count=len(center_data['companies'])
                         )
                         db.add(center_obj)
-                        total_centers += 1
+
+                    total_centers += 1
 
                     db.flush()  # center_obj.id를 얻기 위해
 
@@ -325,9 +361,7 @@ class BICenterCrawler(BaseCrawler):
                             center_id=center_obj.id,
                             company_name=company_data['company_name'],
                             business_field=company_data['business_field'],
-                            product=company_data['product'],
-                            entry_date=company_data['entry_date'],
-                            status=company_data['status']
+                            product=company_data['product']
                         )
                         db.add(company_obj)
                         total_companies += 1

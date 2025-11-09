@@ -153,7 +153,7 @@ class JBTPExtractionStrategy:
 
         try:
             # Rate limiting 적용 (0.5초 간격)
-            rate_limiter.wait()
+            await rate_limiter.wait()
 
             # HTTP 요청
             response = session.get(url, timeout=10)

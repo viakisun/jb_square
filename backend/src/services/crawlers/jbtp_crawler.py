@@ -4,14 +4,18 @@ JBTP Crawler
 """
 
 import asyncio
+import re
 import requests
 from bs4 import BeautifulSoup
-from datetime import datetime, timedelta
-from typing import Callable, Optional
+from datetime import datetime, timedelta, date
+from dateutil import parser
+from typing import Callable, Optional, List
 
 from src.core.database import SessionLocal
 from src.models.notice import CrawlQueue, Notice
 from src.services.rate_limiter import RateLimiter
+from src.services.utils.crawler_utils import parse_date
+from src.constants.sources import NoticeSource
 from .base_crawler import BaseCrawler, CrawlerStatus, CrawlerPhase
 from .repositories import ConfigRepository, CrawlQueueRepository
 from .strategies import JBTPExtractionStrategy
@@ -25,7 +29,7 @@ class JBTPCrawler(BaseCrawler):
     """
 
     def __init__(self):
-        super().__init__("jbtp")
+        super().__init__(NoticeSource.JBTP_LOCAL)
 
     def _parse_jbtp_data(self, notice: dict) -> dict:
         """
@@ -50,24 +54,105 @@ class JBTPCrawler(BaseCrawler):
         else:
             parsed['deadline'] = None
 
-        # 2. Parse published_date
+        # 2. Parse published_date (작성일) - announcement_date로도 저장
         published_date_str = detail.get('published_date')
         if published_date_str:
             try:
-                parsed['published_date'] = date.fromisoformat(published_date_str)
+                # YYYY-MM-DD 형식으로 파싱
+                parsed_date = parser.parse(published_date_str).date()
+                parsed['published_date'] = parsed_date
+                parsed['announcement_date'] = parsed_date  # 공고일로도 사용
             except:
                 parsed['published_date'] = None
+                parsed['announcement_date'] = None
         else:
             parsed['published_date'] = None
+            parsed['announcement_date'] = None
 
         # 3. Extract other fields
-        parsed['organization'] = detail.get('writer')  # JBTP uses 'writer'
+        parsed['organization'] = '(재)전북테크노파크'  # JBTP는 항상 전북테크노파크
         parsed['department'] = None  # Not available in JBTP
         parsed['contact'] = None  # Not available in JBTP
         parsed['views'] = detail.get('views', 0)
         parsed['status'] = detail.get('status')  # '접수중', '마감'
 
         return parsed
+
+    def _save_single_notice(self, notice: dict, keywords: List[str], db) -> tuple:
+        """
+        단일 공고를 notice_crawl_queue에 저장합니다.
+
+        Args:
+            notice: 공고 데이터
+            keywords: 키워드 리스트
+            db: 데이터베이스 세션
+
+        Returns:
+            tuple[str, List[str], Optional[CrawlQueue]]: (상태, 매칭된 키워드 리스트, 저장된 객체)
+            상태: 'added', 'updated', 'rejected', 'duplicate', 'no_match'
+        """
+        title = notice['title']
+
+        # 키워드 매칭 확인
+        matched_keywords = []
+        if keywords:
+            matched_keywords = self.match_keywords(title, keywords)
+
+        # Parse structured data from raw_data
+        parsed_data = self._parse_jbtp_data(notice)
+
+        # 1. 이미 존재하는지 확인 (title + crawler_source_id로 중복 체크)
+        existing = db.query(CrawlQueue).filter(
+            CrawlQueue.crawler_source_id == self.source_id,
+            CrawlQueue.title == title,
+            CrawlQueue.notice_id.is_(None)
+        ).first()
+
+        if existing:
+            if existing.rejection_status == 'rejected':
+                return ('rejected', matched_keywords, None)
+
+            # Update existing
+            existing.link = notice.get('link')
+            existing.source_board_name = notice.get('board')
+            existing.raw_data = notice
+            existing.matched_keywords = matched_keywords
+            existing.crawler_extracted_at = datetime.now()
+            existing.deadline = parsed_data.get('deadline')
+            existing.published_date = parsed_data.get('published_date')
+            existing.organization = parsed_data.get('organization')
+            existing.department = parsed_data.get('department')
+            existing.contact = parsed_data.get('contact')
+            existing.views = parsed_data.get('views', 0)
+            existing.status = parsed_data.get('status')
+            return ('updated', matched_keywords, existing)
+        else:
+            # Add new
+            try:
+                queue_item = CrawlQueue(
+                    crawler_source_id=self.source_id,
+                    title=title,
+                    link=notice.get('link'),
+                    source_board_name=notice.get('board'),
+                    raw_data=notice,
+                    matched_keywords=matched_keywords,
+                    crawler_extracted_at=datetime.now(),
+                    rejection_status=None,
+                    deadline=parsed_data.get('deadline'),
+                    published_date=parsed_data.get('published_date'),
+                    organization=parsed_data.get('organization'),
+                    department=parsed_data.get('department'),
+                    contact=parsed_data.get('contact'),
+                    views=parsed_data.get('views', 0),
+                    status=parsed_data.get('status')
+                )
+                db.add(queue_item)
+                db.flush()
+                return ('added', matched_keywords, queue_item)
+            except Exception as e:
+                db.rollback()
+                print(f"Item likely updated by trigger: {title[:50]}...")
+                return ('updated', matched_keywords, None)
 
     async def execute(self, callback: Optional[Callable] = None):
         """크롤링 실행"""
@@ -113,7 +198,7 @@ class JBTPCrawler(BaseCrawler):
                         return
 
                     # Rate limiting
-                    waited = rate_limiter.wait()
+                    waited = await rate_limiter.wait()
 
                     await self.send_event(callback, "log", {
                         "source_id": self.source_id,
@@ -216,8 +301,15 @@ class JBTPCrawler(BaseCrawler):
                                             posted_date = cols[6].get_text(strip=True) if len(cols) > 6 else ''
 
                                             # 날짜 필터링: 게시일 A일 이내 OR 마감일 미래
-                                            posted_datetime = self.parse_date(posted_date)
-                                            deadline_datetime = self.parse_date(deadline)
+                                            print(f"[DEBUG] Before parse_date - posted_date: {posted_date}, deadline: {deadline}")
+                                            try:
+                                                posted_datetime = parse_date(posted_date)
+                                                print(f"[DEBUG] After parse_date - posted_datetime: {posted_datetime}, type: {type(posted_datetime)}")
+                                                deadline_datetime = parse_date(deadline)
+                                                print(f"[DEBUG] After parse_date - deadline_datetime: {deadline_datetime}, type: {type(deadline_datetime)}")
+                                            except Exception as e:
+                                                print(f"[ERROR] parse_date failed: {e}")
+                                                raise
 
                                             should_collect = False
                                             reason = ""
@@ -301,7 +393,7 @@ class JBTPCrawler(BaseCrawler):
                                 break
 
                             # Rate limiting between pages
-                            rate_limiter.wait()
+                            await rate_limiter.wait()
                             await asyncio.sleep(0)  # WebSocket flush
 
                             # 페이지 증가
@@ -480,7 +572,7 @@ class JBTPCrawler(BaseCrawler):
                                 })
 
                                 # 0.5초 대기 + WebSocket flush
-                                rate_limiter.wait()
+                                await rate_limiter.wait()
                                 await asyncio.sleep(0)
 
                             # 게시판 완료 요약

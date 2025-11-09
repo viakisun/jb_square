@@ -15,6 +15,7 @@ from src.core.database import SessionLocal
 from src.models.crawler_config import JBTPConfig
 from src.models.notice import CrawlQueue, Notice
 from src.services.rate_limiter import RateLimiter
+from src.constants.sources import NoticeSource
 from .base_crawler import BaseCrawler, CrawlerStatus
 
 
@@ -26,7 +27,7 @@ class JBTPExternalCrawler(BaseCrawler):
     """
 
     def __init__(self):
-        super().__init__("jbtp_external")
+        super().__init__(NoticeSource.JBTP_EXTERNAL)
 
     def _load_jbtp_external_configs(self) -> List[tuple]:
         """JBTP 유관기관공고 설정을 DB에서 로드합니다. (게시판명, URL, 키워드, date_range_days) 반환"""
@@ -39,6 +40,41 @@ class JBTPExternalCrawler(BaseCrawler):
             return [(c.name, c.board_url, c.keywords or [], c.date_range_days or 30) for c in configs]
         finally:
             db.close()
+
+    def parse_date(self, date_str: str) -> Optional[datetime]:
+        """
+        날짜 문자열을 datetime 객체로 파싱
+
+        지원 형식:
+        - YYYY-MM-DD
+        - YYYY.MM.DD
+        - YYYY/MM/DD
+
+        Args:
+            date_str: 날짜 문자열
+
+        Returns:
+            datetime 객체 또는 None
+        """
+        if not date_str:
+            return None
+
+        # 구분자 정규화
+        normalized = date_str.replace('.', '-').replace('/', '-')
+
+        date_formats = [
+            '%Y-%m-%d %H:%M:%S',
+            '%Y-%m-%d %H:%M',
+            '%Y-%m-%d',
+        ]
+
+        for fmt in date_formats:
+            try:
+                return datetime.strptime(normalized.strip(), fmt)
+            except ValueError:
+                continue
+
+        return None
 
     def _parse_jbtp_data(self, notice: dict) -> dict:
         """
@@ -63,18 +99,24 @@ class JBTPExternalCrawler(BaseCrawler):
         else:
             parsed['deadline'] = None
 
-        # 2. Parse published_date
+        # 2. Parse published_date (작성일) - announcement_date로도 저장
         published_date_str = detail.get('published_date')
         if published_date_str:
             try:
-                parsed['published_date'] = date.fromisoformat(published_date_str)
+                # YYYY-MM-DD 형식으로 파싱
+                parsed_date = parser.parse(published_date_str).date()
+                parsed['published_date'] = parsed_date
+                parsed['announcement_date'] = parsed_date  # 공고일로도 사용
             except:
                 parsed['published_date'] = None
+                parsed['announcement_date'] = None
         else:
             parsed['published_date'] = None
+            parsed['announcement_date'] = None
 
-        # 3. Extract other fields (유관기관공고의 경우 organization이 제공됨)
-        parsed['organization'] = notice.get('organization') or detail.get('writer')
+        # 3. Extract other fields
+        # 유관기관공고의 경우 원래 organization을 사용하되, 없으면 전북테크노파크
+        parsed['organization'] = notice.get('organization') or detail.get('writer') or '(재)전북테크노파크'
         parsed['department'] = None  # Not available in JBTP
         parsed['contact'] = None  # Not available in JBTP
         parsed['views'] = detail.get('views', 0)
@@ -288,7 +330,7 @@ class JBTPExternalCrawler(BaseCrawler):
 
         try:
             # Rate limiting 적용
-            rate_limiter.wait()
+            await rate_limiter.wait()
 
             # HTTP 요청
             response = session.get(url, timeout=10)
@@ -345,6 +387,12 @@ class JBTPExternalCrawler(BaseCrawler):
             # 크롤링할 게시판 목록 (DB에서 로드)
             board_configs = self._load_jbtp_external_configs()
 
+            # 로그: 로드된 게시판 설정
+            await self.send_event(callback, "log", {
+                "source_id": self.source_id,
+                "message": f"로드된 게시판 설정: {len(board_configs)}개"
+            })
+
             # 초기값: 아직 공고 개수를 모르므로 0으로 시작
             self.status["total"] = 0
             self.status["progress"] = 0
@@ -368,7 +416,7 @@ class JBTPExternalCrawler(BaseCrawler):
                         return
 
                     # Rate limiting
-                    waited = rate_limiter.wait()
+                    waited = await rate_limiter.wait()
 
                     # 날짜 기준 계산
                     cutoff_date = datetime.now() - timedelta(days=date_range_days)
@@ -505,7 +553,7 @@ class JBTPExternalCrawler(BaseCrawler):
                                 break
 
                             # Rate limiting between pages
-                            rate_limiter.wait()
+                            await rate_limiter.wait()
                             await asyncio.sleep(0)  # WebSocket flush
 
                             # 페이지 증가
@@ -681,7 +729,7 @@ class JBTPExternalCrawler(BaseCrawler):
                                 })
 
                                 # 0.5초 대기 + WebSocket flush
-                                rate_limiter.wait()
+                                await rate_limiter.wait()
                                 await asyncio.sleep(0)
 
                             # 게시판 완료 요약

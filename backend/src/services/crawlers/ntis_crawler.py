@@ -12,6 +12,7 @@ from html import unescape
 from bs4 import BeautifulSoup
 
 from src.services.rate_limiter import RateLimiter
+from src.constants.sources import NoticeSource
 from .base_crawler import BaseCrawler, CrawlerStatus, CrawlerPhase
 from .repositories import ConfigRepository
 
@@ -25,7 +26,7 @@ class NTISCrawler(BaseCrawler):
     """
 
     def __init__(self):
-        super().__init__("ntis_rss")
+        super().__init__(NoticeSource.NTIS_RSS)
         # RSS 피드에서 최대한 많은 항목 가져오기 (기본 100 → 500)
         # prt 파라미터: 한 번에 가져올 항목 수
         self.rss_url = "http://www.ntis.go.kr/rndgate/unRndRss.xml?prt=500&bbs=true"

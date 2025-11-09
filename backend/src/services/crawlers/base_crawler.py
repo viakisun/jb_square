@@ -56,6 +56,7 @@ class BaseCrawler(ABC):
             "error_message": None
         }
         self.stop_flag = False
+        self._complete_event_sent = False
 
     def get_status(self) -> Dict:
         """현재 크롤러 상태 반환"""
@@ -79,6 +80,7 @@ class BaseCrawler(ABC):
             "error_message": None
         }
         self.stop_flag = False
+        self._complete_event_sent = False
 
     async def send_event(self, callback: Optional[Callable], event_type: str, data: Dict):
         """
@@ -91,6 +93,9 @@ class BaseCrawler(ABC):
             event_type: 이벤트 타입 ('start', 'progress', 'complete', 'error', 'log', 'phase_change')
             data: 이벤트 데이터
         """
+        # complete 이벤트가 전송되면 플래그 설정
+        if event_type == "complete":
+            self._complete_event_sent = True
         await EventService.send_event(callback, event_type, data)
 
     async def set_phase(self, callback: Optional[Callable], phase: CrawlerPhase, message: str):
@@ -175,13 +180,15 @@ class BaseCrawler(ABC):
 
             await self.execute(callback)
 
-            self.status["status"] = CrawlerStatus.COMPLETED
-            await self.send_event(callback, "complete", {
-                "source_id": self.source_id,
-                "message": f"{self.source_id} 크롤링이 완료되었습니다.",
-                "total_collected": self.status["success"],
-                "failed": self.status["failed"]
-            })
+            # execute()에서 이미 complete 이벤트를 보냈다면 중복 전송하지 않음
+            if not self._complete_event_sent:
+                self.status["status"] = CrawlerStatus.COMPLETED
+                await self.send_event(callback, "complete", {
+                    "source_id": self.source_id,
+                    "message": f"{self.source_id} 크롤링이 완료되었습니다.",
+                    "total_collected": self.status["success"],
+                    "failed": self.status["failed"]
+                })
 
         except Exception as e:
             self.status["status"] = CrawlerStatus.ERROR

@@ -7,6 +7,7 @@ import asyncio
 from typing import Callable, Optional
 
 from src.services.rate_limiter import RateLimiter
+from src.constants.sources import NoticeSource
 from .base_crawler import BaseCrawler, CrawlerStatus
 from .helpers.bizinfo_list_collector import BizinfoListCollector
 from .helpers.bizinfo_detail_processor import BizinfoDetailProcessor
@@ -21,7 +22,7 @@ class BizinfoCrawler(BaseCrawler):
     """
 
     def __init__(self):
-        super().__init__("bizinfo")
+        super().__init__(NoticeSource.BIZINFO_API)
 
     async def execute(self, callback: Optional[Callable] = None):
         """크롤링 실행"""

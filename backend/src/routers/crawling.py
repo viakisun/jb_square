@@ -49,6 +49,7 @@ async def websocket_crawling(websocket: WebSocket, source_id: str):
         # 크롤러 실행 함수 매핑
         crawler_functions = {
             "jbtp": crawler_manager.execute_jbtp,
+            "jbtp_external": crawler_manager.execute_jbtp_external,
             "ntis_rss": crawler_manager.execute_ntis_rss,
             "bizinfo": crawler_manager.execute_bizinfo,
             "bi_center": crawler_manager.execute_bi_center
