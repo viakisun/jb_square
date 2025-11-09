@@ -1,52 +1,43 @@
-import React, { useEffect, useState } from "react";
+/**
+ * 📅 행사일정 페이지
+ *
+ * 전북테크노파크 교육/행사 정보
+ * - 행사 목록 표시
+ * - 마감일, 주최, 등록일 정보
+ * - useNotices 훅을 통한 데이터 관리
+ *
+ * @author JB SQUARE 개발팀
+ * @version 1.0.0
+ */
+
+import React from "react";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import Breadcrumb from "../../components/Breadcrumb";
+import { useNotices } from "@/hooks/useNotices";
 
-interface Event {
-  id: number;
-  title: string;
-  deadline: string | null;
-  organization: string | null;
-  link: string | null;
-  created_at: string;
-}
-
-const EventsPage = () => {
-  const [events, setEvents] = useState<Event[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
+const EventsPage: React.FC = () => {
   const breadcrumbItems = [
     { label: "홈", href: "/" },
     { label: "뉴스/행사", href: "/news-events" },
     { label: "행사일정" },
   ];
 
-  useEffect(() => {
-    fetchEvents();
-  }, []);
-
-  const fetchEvents = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000'}/api/notices?source_id=source:jbtp:events&status=published&limit=50`
-      );
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch events');
-      }
-
-      const data = await response.json();
-      setEvents(data.items || []);
-    } catch (err) {
-      console.error('Error fetching events:', err);
-      setError('행사 정보를 불러오는데 실패했습니다.');
-    } finally {
-      setLoading(false);
-    }
-  };
+  /**
+   * useNotices 훅으로 JBTP 행사 데이터 관리
+   * - source_id로 행사 필터링
+   * - 로딩/에러 상태 자동 처리
+   * - 페이지네이션 지원
+   */
+  const {
+    notices: events,
+    loading,
+    error,
+  } = useNotices({
+    source_id: "source:jbtp:events",
+    status: "published",
+    limit: 50,
+  });
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return '-';
