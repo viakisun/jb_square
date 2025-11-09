@@ -32,8 +32,6 @@
 		company_name: string;
 		business_field: string;
 		product: string;
-		entry_date: string;
-		status: string;
 		created_at: string;
 		updated_at: string;
 	}
@@ -42,7 +40,6 @@
 		total_centers: number;
 		total_companies: number;
 		centers_by_region: Array<{ region: string; count: number }>;
-		companies_by_status: Array<{ status: string; count: number }>;
 	}
 
 	let allCenters = $state<BICenter[]>([]);
@@ -198,7 +195,7 @@
 							},
 							{
 								timestamp,
-								message: `총 ${data.total_centers}개 센터, ${data.total_companies}개 입주기업 수집 완료`,
+								message: `총 ${data.total_centers || 0}개 센터, ${data.total_companies || 0}개 입주기업 수집 완료`,
 								type: 'success'
 							}
 						];
@@ -439,8 +436,6 @@
 														<th>기업명</th>
 														<th>업종</th>
 														<th>제품</th>
-														<th>입주일</th>
-														<th>상태</th>
 													</tr>
 												</thead>
 												<tbody>
@@ -449,8 +444,6 @@
 															<td>{company.company_name}</td>
 															<td>{company.business_field || '-'}</td>
 															<td>{company.product || '-'}</td>
-															<td>{company.entry_date || '-'}</td>
-															<td><span class="status-badge">{company.status || '-'}</span></td>
 														</tr>
 													{/each}
 												</tbody>

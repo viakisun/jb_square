@@ -182,7 +182,6 @@
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
 					queue_ids: selectedIds,
-					category: 'government',
 					tags: []
 				})
 			});
@@ -302,15 +301,14 @@
 		</Panel>
 	{:else}
 		<Panel title="게시된 공고">
-			<PublishedNoticesList sourceId="jbtp_external" category="government" />
+			<PublishedNoticesList sourceId="source:jbtp:external" />
 		</Panel>
 	{/if}
 
 	<!-- Add Notice Modal -->
 	{#if showAddModal}
 		<AddNoticeModal
-			category="government"
-			sourceId="jbtp_external"
+			sourceId="source:jbtp:external"
 			onClose={() => (showAddModal = false)}
 			onSuccess={() => {
 				loadQueue();

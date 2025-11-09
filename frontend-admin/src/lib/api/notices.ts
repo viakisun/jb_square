@@ -10,7 +10,6 @@ import { API_BASE_URL } from '$lib/config/api';
  */
 export interface FetchNoticesParams {
 	source_id?: string;
-	category: string;
 	status: string;
 	limit: string;
 	offset: string;
@@ -25,7 +24,6 @@ export interface FetchNoticesParams {
  */
 export async function fetchNotices(params: FetchNoticesParams) {
 	const urlParams = new URLSearchParams({
-		category: params.category,
 		status: params.status,
 		limit: params.limit,
 		offset: params.offset
@@ -58,13 +56,11 @@ export async function fetchNotices(params: FetchNoticesParams) {
 /**
  * Publish queue items as notices
  * @param queueIds - Array of queue item IDs to publish
- * @param category - Notice category (e.g., 'business', 'government')
  * @param tags - Array of tag IDs to assign to the notices
  * @returns Promise with publish result (published count)
  */
 export async function publishNotices(
 	queueIds: number[],
-	category: string,
 	tags: number[]
 ): Promise<{ published: number }> {
 	const res = await fetch(`${API_BASE_URL}/notices/publish`, {
@@ -72,7 +68,6 @@ export async function publishNotices(
 		headers: { 'Content-Type': 'application/json' },
 		body: JSON.stringify({
 			queue_ids: queueIds,
-			category: category,
 			tags: tags
 		})
 	});

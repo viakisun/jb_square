@@ -19,7 +19,6 @@
 		link: string | null;
 		origin_type: string;
 		crawler_source_id: string;
-		category: string;
 		tags: string[];
 		organization: string | null;
 		published_at: string | null;

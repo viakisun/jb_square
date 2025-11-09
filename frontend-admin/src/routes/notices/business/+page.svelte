@@ -68,7 +68,7 @@
 
 		loading = true;
 		try {
-			const result = await publishNotices(selectedIds, 'business', []);
+			const result = await publishNotices(selectedIds, []);
 			toast.success(`${result.published}개 공고가 게시되었습니다`);
 			await loadQueue();
 			selectedIds = [];
@@ -187,15 +187,14 @@
 		</Panel>
 	{:else}
 		<Panel title="게시된 공고">
-			<PublishedNoticesList sourceId="bizinfo" category="business" />
+			<PublishedNoticesList sourceId="source:bizinfo:api" />
 		</Panel>
 	{/if}
 
 	<!-- Add Notice Modal -->
 	{#if showAddModal}
 		<AddNoticeModal
-			category="business"
-			sourceId="bizinfo"
+			sourceId="source:bizinfo:api"
 			onClose={() => (showAddModal = false)}
 			onSuccess={() => {
 				loadQueue();

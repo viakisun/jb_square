@@ -10,17 +10,23 @@
 	import { Pagination } from '$lib/components/ui/data';
 	import { Spinner } from '$lib/components/feedback';
 	import { toast } from '$lib/stores/toast';
-	import type { CategoryId, SourceId } from '$lib/constants/categories';
+	import { NoticeSource } from '$lib/constants/sources';
 	import { fetchNotices, bulkDeleteNotices } from '$lib/api/notices';
 	import { TAG_OPTIONS } from '$lib/constants/tags';
 	import { useSelection } from '$lib/composables/useSelection.svelte';
 
+	// Type-safe source ID type
+	type SourceId =
+		| 'source:ntis:rss'
+		| 'source:jbtp:local'
+		| 'source:jbtp:external'
+		| 'source:bizinfo:api';
+
 	interface Props {
-		sourceId: SourceId; // 'ntis' | 'jbtp' | 'bizinfo'
-		category: CategoryId; // DB 카테고리: 'government' | 'business' | 'rnd' | 'startup'
+		sourceId: SourceId; // NoticeSource enum values
 	}
 
-	let { sourceId, category }: Props = $props();
+	let { sourceId }: Props = $props();
 
 	type Notice = {
 		id: number;
@@ -29,7 +35,6 @@
 		link: string | null;
 		origin_type: string;
 		crawler_source_id: string;
-		category: string;
 		tags: string[];
 		organization: string | null;
 		published_at: string | null;
@@ -66,7 +71,7 @@
 		loading = true;
 		try {
 			const result = await fetchNotices({
-				category: category,
+				source_id: sourceId,
 				status: statusFilter,
 				limit: String(itemsPerPage),
 				offset: String((currentPage - 1) * itemsPerPage),

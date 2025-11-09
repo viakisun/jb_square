@@ -11,13 +11,12 @@
 	import { useFileUpload } from '$lib/composables/useFileUpload.svelte';
 
 	interface Props {
-		category: string;
 		sourceId: string;
 		onClose: () => void;
 		onSuccess: () => void;
 	}
 
-	let { category, sourceId, onClose, onSuccess }: Props = $props();
+	let { sourceId, onClose, onSuccess }: Props = $props();
 
 	let locationDisplay = $derived(getLocationDisplay(sourceId));
 
@@ -84,7 +83,6 @@
 					content: formData.content || null,
 					content_type: formData.content_type,
 					link: formData.link || null,
-					category,
 					tags: selectedTags,
 					organization: formData.organization || null,
 					department: formData.department || null,

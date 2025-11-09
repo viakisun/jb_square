@@ -183,7 +183,7 @@
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
 					queue_ids: selectedIds,
-					category: 'government'
+					tags: []
 				})
 			});
 			const data = await res.json();
@@ -304,7 +304,7 @@
 	{:else}
 		<Panel title="게시된 공고">
 			{#key publishedListKey}
-				<PublishedNoticesList sourceId="jbtp" category="government" />
+				<PublishedNoticesList sourceId="source:jbtp:local" />
 			{/key}
 		</Panel>
 	{/if}
@@ -312,8 +312,7 @@
 	<!-- Add Notice Modal -->
 	{#if showAddModal}
 		<AddNoticeModal
-			category="government"
-			sourceId="jbtp"
+			sourceId="source:jbtp:local"
 			onClose={() => (showAddModal = false)}
 			onSuccess={() => {
 				loadQueue();

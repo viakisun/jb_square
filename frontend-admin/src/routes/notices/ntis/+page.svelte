@@ -149,7 +149,6 @@
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
 					queue_ids: selectedIds,
-					category: 'government',
 					tags: []
 				})
 			});
@@ -253,15 +252,14 @@
 		</Panel>
 	{:else}
 		<Panel title="게시된 공고">
-			<PublishedNoticesList sourceId="ntis_rss" category="government" />
+			<PublishedNoticesList sourceId="source:ntis:rss" />
 		</Panel>
 	{/if}
 
 	<!-- Add Notice Modal -->
 	{#if showAddModal}
 		<AddNoticeModal
-			category="government"
-			sourceId="ntis_rss"
+			sourceId="source:ntis:rss"
 			onClose={() => (showAddModal = false)}
 			onSuccess={() => {
 				loadQueue();
