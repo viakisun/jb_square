@@ -8,7 +8,9 @@
     "build": "next build",
     "start": "next start -p 3100",
     "start:prod": "NODE_ENV=production next start -p 3100",
-    "lint": "next lint"
+    "lint": "next lint",
+    "type-check": "tsc --noEmit",
+    "check": "npm run type-check && npm run lint"
   },
   "dependencies": {
     "axios": "^1.13.2",

@@ -120,7 +120,6 @@ const EventsPage: React.FC = () => {
         <SearchBar
           value={searchQuery}
           onChange={handleSearchChange}
-          onClear={handleSearchReset}
           placeholder="행사명, 주최기관 등으로 검색하세요"
         />
       </div>
@@ -205,10 +204,8 @@ const EventsPage: React.FC = () => {
             <div className="mt-8">
               <Pagination
                 currentPage={pagination.page}
-                totalPages={pagination.total_pages}
+                totalPages={pagination.totalPages}
                 onPageChange={setPage}
-                hasNext={pagination.has_next}
-                hasPrev={pagination.has_prev}
               />
             </div>
           )}
