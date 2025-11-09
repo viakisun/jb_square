@@ -74,8 +74,6 @@ class BICompany(Base):
     company_name = Column(String(200), nullable=False)
     business_field = Column(String(200))
     product = Column(Text)
-    entry_date = Column(String(100))
-    status = Column(String(50))
 
     # Timestamps
     created_at = Column(DateTime, default=datetime.now)
@@ -92,8 +90,6 @@ class BICompany(Base):
             'company_name': self.company_name,
             'business_field': self.business_field,
             'product': self.product,
-            'entry_date': self.entry_date,
-            'status': self.status,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
         }

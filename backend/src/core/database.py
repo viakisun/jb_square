@@ -12,13 +12,12 @@ from sqlalchemy.orm import sessionmaker
 
 # .env 파일 로드 (로컬 개발 환경용)
 # Docker 환경에서는 환경 변수가 이미 설정되어 있음
-if not os.getenv('AWS_DB_HOST'):
-    env_path = Path(__file__).parent.parent.parent / '.env'
-    if env_path.exists():
-        load_dotenv(env_path)
-        print(f"Loading .env from: {env_path}")
-    else:
-        print("No .env file found, using environment variables")
+env_path = Path(__file__).parent.parent.parent / '.env'
+if env_path.exists():
+    load_dotenv(env_path, override=True)
+    print(f"Loading .env from: {env_path}")
+else:
+    print("No .env file found, using environment variables")
 
 # 데이터베이스 설정
 DB_HOST = os.getenv('AWS_DB_HOST')

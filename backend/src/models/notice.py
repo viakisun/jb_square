@@ -11,6 +11,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import TSVECTOR
 from src.core.database import Base
+from src.constants.sources import NoticeSource
 
 
 class Notice(Base):
@@ -33,15 +34,10 @@ class Notice(Base):
         nullable=False,
         # 'crawled' or 'manual'
     )
-    crawler_source_id = Column(String(50))  # 'jbtp', 'ntis_rss', 'bizinfo', 'manual'
+    crawler_source_id = Column(String(50))  # NoticeSource enum values: 'source:jbtp:local', 'source:jbtp:external', 'source:ntis:rss', 'source:bizinfo:api'
     source_board_name = Column(String(100))     # Original board name
 
     # Categorization
-    category = Column(
-        String(20),
-        nullable=False,
-        # 'government', 'business', 'rnd', 'startup'
-    )
     tags = Column(JSON, default=list)  # Additional tags
 
     # Status & Publishing
@@ -90,10 +86,6 @@ class Notice(Base):
             name='check_origin_type'
         ),
         CheckConstraint(
-            "category IN ('government', 'local_government', 'business', 'rnd', 'startup')",
-            name='check_category'
-        ),
-        CheckConstraint(
             "status IN ('pending', 'published', 'archived')",
             name='check_status'
         ),
@@ -109,7 +101,6 @@ class Notice(Base):
             'origin_type': self.origin_type,
             'crawler_source_id': self.crawler_source_id,
             'source_board_name': self.source_board_name,
-            'category': self.category,
             'tags': self.tags or [],
             'status': self.status,
             'published_at': self.published_at.isoformat() if self.published_at else None,
