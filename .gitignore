@@ -73,3 +73,6 @@ temp/
 # Test files
 backend/test_*.py
 **/test_*.py
+
+# TypeScript build cache
+*.tsbuildinfo

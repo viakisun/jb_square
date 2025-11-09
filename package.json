@@ -8,10 +8,10 @@
     "start:backend": "cd backend && source venv/bin/activate && uvicorn src.main:app --reload --port 8000",
     "start:frontend-main": "cd frontend-main && npm run dev",
     "start:frontend-admin": "cd frontend-admin && npm run dev",
-    "kill": "lsof -ti:8000,5173,5174 | xargs -r kill -9 || true",
+    "kill": "lsof -ti:8000,3000,5173 | xargs -r kill -9 || true",
     "kill:backend": "lsof -ti:8000 | xargs -r kill -9 || true",
-    "kill:frontend-main": "lsof -ti:5173 | xargs -r kill -9 || true",
-    "kill:frontend-admin": "lsof -ti:5174 | xargs -r kill -9 || true"
+    "kill:frontend-main": "lsof -ti:3000 | xargs -r kill -9 || true",
+    "kill:frontend-admin": "lsof -ti:5173 | xargs -r kill -9 || true"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"
