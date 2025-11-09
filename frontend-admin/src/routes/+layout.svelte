@@ -16,7 +16,8 @@
 		Clock,
 		Tag,
 		BarChart3,
-		Activity
+		Activity,
+		Calendar
 	} from 'lucide-svelte';
 
 	let { children } = $props();
@@ -36,6 +37,7 @@
 				{ path: '/notices/jbtp', label: '지자체 사업공고', icon: MapPin },
 				{ path: '/notices/external', label: '유관기관 공고', icon: Building },
 				{ path: '/notices/business', label: '기업 맞춤형 지원사업', icon: Briefcase },
+				{ path: '/notices/events', label: '교육/행사', icon: Calendar },
 				{ path: '/notices/rnd', label: '연구개발(R&D)', icon: FlaskConical },
 				{ path: '/notices/startup', label: '창업보육센터(BI)', icon: Rocket },
 				{ path: '/notices/latest', label: '최신공고 모아보기', icon: Clock }
