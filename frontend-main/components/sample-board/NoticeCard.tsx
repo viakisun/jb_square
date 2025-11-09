@@ -48,28 +48,40 @@ interface NoticeCardProps {
 }
 
 /**
- * 카테고리별 색상 맵핑
+ * Source ID로부터 표시 이름과 색상을 가져오는 함수
  *
- * 각 카테고리에 맞는 배경색과 텍스트 색상을 정의합니다.
+ * source_id는 'source:organization:type' 형식입니다.
+ * 예: 'source:ntis:rss', 'source:bizinfo:api', 'source:jbtp:local', 'source:jbtp:external'
  */
-const CATEGORY_COLORS: Record<Notice['category'], { bg: string; text: string }> = {
-  government: { bg: 'bg-blue-100', text: 'text-blue-800' },
-  local_government: { bg: 'bg-teal-100', text: 'text-teal-800' },
-  business: { bg: 'bg-green-100', text: 'text-green-800' },
-  rnd: { bg: 'bg-purple-100', text: 'text-purple-800' },
-  startup: { bg: 'bg-orange-100', text: 'text-orange-800' }
-};
+function getSourceDisplay(sourceId: string | undefined): { name: string; bg: string; text: string } {
+  if (!sourceId) {
+    return { name: '미분류', bg: 'bg-gray-100', text: 'text-gray-800' };
+  }
 
-/**
- * 카테고리별 한글 이름
- */
-const CATEGORY_NAMES: Record<Notice['category'], string> = {
-  government: '정부사업',
-  local_government: '지자체사업',
-  business: '민간사업',
-  rnd: 'R&D',
-  startup: '스타트업'
-};
+  // source_id 파싱
+  const parts = sourceId.split(':');
+  if (parts.length < 3) {
+    return { name: '미분류', bg: 'bg-gray-100', text: 'text-gray-800' };
+  }
+
+  const organization = parts[1]; // ntis, bizinfo, jbtp
+  const type = parts[2]; // rss, api, local, external
+
+  // 조직과 타입에 따라 표시 정보 반환
+  if (organization === 'ntis') {
+    return { name: '정부공고', bg: 'bg-blue-100', text: 'text-blue-800' };
+  } else if (organization === 'bizinfo') {
+    return { name: '기업지원', bg: 'bg-green-100', text: 'text-green-800' };
+  } else if (organization === 'jbtp') {
+    if (type === 'local') {
+      return { name: '지자체공고', bg: 'bg-teal-100', text: 'text-teal-800' };
+    } else if (type === 'external') {
+      return { name: '유관기관', bg: 'bg-purple-100', text: 'text-purple-800' };
+    }
+  }
+
+  return { name: '기타', bg: 'bg-gray-100', text: 'text-gray-800' };
+}
 
 /**
  * 공고 카드 컴포넌트
@@ -113,9 +125,9 @@ export const NoticeCard: React.FC<NoticeCardProps> = ({
   const isExpired = daysLeft !== null && daysLeft < 0;
 
   /**
-   * 카테고리 색상
+   * 출처 표시 정보 (이름, 배경색, 텍스트색)
    */
-  const categoryColor = CATEGORY_COLORS[notice.category];
+  const sourceDisplay = getSourceDisplay(notice.crawler_source_id);
 
   /**
    * 컴팩트 변형 렌더링
@@ -176,15 +188,15 @@ export const NoticeCard: React.FC<NoticeCardProps> = ({
             ${isExpired ? 'bg-gray-50 opacity-70' : 'bg-white'}
           `}
         >
-          {/* 헤더: 카테고리와 마감일 */}
+          {/* 헤더: 출처와 마감일 */}
           <div className="flex items-center justify-between mb-3">
             <span
               className={`
                 px-3 py-1 rounded-full text-xs font-semibold
-                ${categoryColor.bg} ${categoryColor.text}
+                ${sourceDisplay.bg} ${sourceDisplay.text}
               `}
             >
-              {CATEGORY_NAMES[notice.category]}
+              {sourceDisplay.name}
             </span>
 
             {notice.deadline && (
@@ -258,15 +270,15 @@ export const NoticeCard: React.FC<NoticeCardProps> = ({
           ${isExpired ? 'bg-gray-50 opacity-70' : 'bg-white'}
         `}
       >
-        {/* 헤더: 카테고리와 마감일 */}
+        {/* 헤더: 출처와 마감일 */}
         <div className="flex items-center justify-between mb-2">
           <span
             className={`
               px-2 py-1 rounded-full text-xs font-semibold
-              ${categoryColor.bg} ${categoryColor.text}
+              ${sourceDisplay.bg} ${sourceDisplay.text}
             `}
           >
-            {CATEGORY_NAMES[notice.category]}
+            {sourceDisplay.name}
           </span>
 
           {notice.deadline && (

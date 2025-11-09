@@ -1,8 +1,10 @@
 /**
  * 🎯 필터바 컴포넌트
  *
- * 공고 목록을 카테고리, 상태, 정렬 기준으로 필터링하는 컴포넌트입니다.
+ * 공고 목록을 상태, 정렬 기준으로 필터링하는 컴포넌트입니다.
  * useNotices 훅의 setFilters와 함께 사용합니다.
+ *
+ * Note: Category filtering removed - use source_id based filtering at page level instead.
  *
  * 사용 예시:
  * ```typescript
@@ -51,20 +53,7 @@ interface FilterBarProps {
   className?: string;
 }
 
-/**
- * 카테고리 옵션 정의
- */
-const CATEGORY_OPTIONS: Array<{
-  value: NoticeFilterParams['category'];
-  label: string;
-  color: string;
-}> = [
-  { value: undefined, label: '전체', color: 'bg-gray-100 text-gray-700' },
-  { value: 'government', label: '정부사업', color: 'bg-blue-100 text-blue-700' },
-  { value: 'business', label: '민간사업', color: 'bg-green-100 text-green-700' },
-  { value: 'rnd', label: 'R&D', color: 'bg-purple-100 text-purple-700' },
-  { value: 'startup', label: '스타트업', color: 'bg-orange-100 text-orange-700' }
-];
+// TODO: Category filtering removed - source_id based filtering should be done at page level, not in FilterBar
 
 /**
  * 상태 옵션 정의
@@ -117,13 +106,6 @@ export const FilterBar: React.FC<FilterBarProps> = ({
   className = ''
 }) => {
   /**
-   * 카테고리 변경 핸들러
-   */
-  const handleCategoryChange = (category: NoticeFilterParams['category']) => {
-    onFilterChange({ category, page: 1 }); // 필터 변경 시 1페이지로 리셋
-  };
-
-  /**
    * 상태 변경 핸들러
    */
   const handleStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -151,7 +133,6 @@ export const FilterBar: React.FC<FilterBarProps> = ({
    */
   const handleReset = () => {
     onFilterChange({
-      category: undefined,
       status: undefined,
       sort_by: 'published_at',
       sort_order: 'desc',
@@ -163,7 +144,6 @@ export const FilterBar: React.FC<FilterBarProps> = ({
    * 활성화된 필터 개수 계산
    */
   const activeFilterCount = [
-    filters.category,
     filters.status,
     filters.sort_by !== 'published_at',
     filters.sort_order !== 'desc'
@@ -198,32 +178,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
         </div>
 
         {/* 필터 컨트롤 */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* 카테고리 필터 */}
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-2">
-              카테고리
-            </label>
-            <div className="flex flex-wrap gap-2">
-              {CATEGORY_OPTIONS.map(option => (
-                <button
-                  key={option.label}
-                  onClick={() => handleCategoryChange(option.value)}
-                  className={`
-                    px-3 py-1.5 rounded-full text-xs font-medium transition-all
-                    ${
-                      filters.category === option.value
-                        ? option.color + ' ring-2 ring-offset-1 ring-blue-500'
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                    }
-                  `}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {/* 상태 필터 */}
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-2">
@@ -318,31 +273,6 @@ export const FilterBar: React.FC<FilterBarProps> = ({
 
       {/* 필터 컨트롤 (세로 정렬) */}
       <div className="space-y-4">
-        {/* 카테고리 필터 */}
-        <div>
-          <label className="block text-xs font-medium text-gray-600 mb-2">
-            카테고리
-          </label>
-          <div className="space-y-2">
-            {CATEGORY_OPTIONS.map(option => (
-              <button
-                key={option.label}
-                onClick={() => handleCategoryChange(option.value)}
-                className={`
-                  w-full px-3 py-2 rounded-lg text-sm font-medium transition-all text-left
-                  ${
-                    filters.category === option.value
-                      ? option.color + ' ring-2 ring-offset-1 ring-blue-500'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }
-                `}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
         {/* 상태 필터 */}
         <div>
           <label className="block text-xs font-medium text-gray-600 mb-2">

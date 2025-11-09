@@ -2,7 +2,7 @@
  * 📋 정부 공고 전체 목록 페이지
  *
  * 정부 부처에서 발표하는 각종 지원 사업 및 공고를 전체 목록으로 보여주는 페이지입니다.
- * category='government' 필터가 자동으로 적용됩니다.
+ * source_id='source:ntis:rss' 필터가 자동으로 적용됩니다.
  *
  * 초보자를 위한 설명:
  * - useNotices 훅을 사용하여 정부 공고만 필터링하여 가져옵니다
@@ -36,7 +36,7 @@ export default function GovernmentNoticesPage() {
 
   /**
    * useNotices 훅 - 정부 공고만 필터링
-   * category: 'government'를 기본값으로 설정
+   * source_id: 'source:ntis:rss'를 기본값으로 설정
    */
   const {
     notices,
@@ -46,7 +46,7 @@ export default function GovernmentNoticesPage() {
     setPage,
     fetchNotices
   } = useNotices({
-    category: 'government',  // 정부 공고만 필터링
+    source_id: 'source:ntis:rss',  // 정부 공고만 필터링
     limit: 20,
     sort_order: 'desc'
   });
@@ -64,7 +64,7 @@ export default function GovernmentNoticesPage() {
     hasSearched
   } = useNoticeSearch({
     additionalFilters: {
-      category: 'government'  // 정부 공고 내에서만 검색
+      source_id: 'source:ntis:rss'  // 정부 공고 내에서만 검색
     },
     debounceDelay: 500,
     minLength: 2

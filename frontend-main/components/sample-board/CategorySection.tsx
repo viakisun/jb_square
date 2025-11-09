@@ -1,23 +1,23 @@
 /**
  * 📂 공고 카테고리 섹션 컴포넌트
  *
- * 특정 카테고리의 공고를 표시하는 섹션입니다.
- * 메인 페이지에서 각 카테고리별로 3개의 공고를 미리보기 형태로 보여주고,
- * "더보기" 버튼을 통해 해당 카테고리의 전체 목록 페이지로 이동할 수 있습니다.
+ * 특정 출처(source)의 공고를 표시하는 섹션입니다.
+ * 메인 페이지에서 각 출처별로 3개의 공고를 미리보기 형태로 보여주고,
+ * "더보기" 버튼을 통해 해당 출처의 전체 목록 페이지로 이동할 수 있습니다.
  *
  * 사용 예시:
  * ```typescript
  * <CategorySection
  *   title="정부 공고"
  *   description="정부 부처에서 발표하는 각종 지원 사업 공고"
- *   category="government"
+ *   sourceId="source:ntis:rss"
  *   viewAllLink="/sample-board/government"
  * />
  * ```
  *
  * 초보자를 위한 설명:
- * - 이 컴포넌트는 공고를 카테고리별로 그룹화하여 보여줍니다
- * - API를 통해 자동으로 데이터를 불러오므로, 사용하는 곳에서는 카테고리 정보만 전달하면 됩니다
+ * - 이 컴포넌트는 공고를 출처별로 그룹화하여 보여줍니다
+ * - API를 통해 자동으로 데이터를 불러오므로, 사용하는 곳에서는 출처 정보만 전달하면 됩니다
  * - 로딩 상태와 에러 상태를 자동으로 처리합니다
  *
  * @author JB SQUARE 개발팀
@@ -40,8 +40,8 @@ interface CategorySectionProps {
   /** 섹션 설명 (예: "정부 부처에서 발표하는 각종 지원 사업 공고") */
   description?: string;
 
-  /** 공고 카테고리 (데이터베이스 category 값) */
-  category: 'government' | 'local_government' | 'business' | 'rnd' | 'startup';
+  /** 공고 출처 ID (source:organization:type 형식). 제공하지 않으면 전체 공고 표시 */
+  sourceId?: string;
 
   /** "더보기" 버튼 클릭 시 이동할 링크 */
   viewAllLink: string;
@@ -54,21 +54,21 @@ interface CategorySectionProps {
 }
 
 /**
- * 공고 카테고리 섹션 컴포넌트
+ * 공고 출처별 섹션 컴포넌트
  *
  * 작동 방식:
  * 1. 컴포넌트가 마운트되면 useEffect를 통해 API 호출
- * 2. category 파라미터를 사용하여 해당 카테고리의 공고만 필터링
+ * 2. sourceId 파라미터를 사용하여 해당 출처의 공고만 필터링
  * 3. limit 개수만큼의 공고를 가져와서 NoticeCard로 표시
  * 4. "더보기" 버튼을 통해 전체 목록으로 이동 가능
  *
  * @param props - CategorySectionProps
- * @returns 카테고리 섹션 JSX
+ * @returns 출처별 섹션 JSX
  */
 export const CategorySection: React.FC<CategorySectionProps> = ({
   title,
   description,
-  category,
+  sourceId,
   viewAllLink,
   limit = 3,
   className = ''
@@ -110,7 +110,7 @@ export const CategorySection: React.FC<CategorySectionProps> = ({
    *
    * 실행 순서:
    * 1. 로딩 상태를 true로 설정
-   * 2. API 호출 (category, status, limit 파라미터 전달)
+   * 2. API 호출 (source_id, status, limit 파라미터 전달)
    * 3. 성공 시: notices와 totalCount 업데이트
    * 4. 실패 시: error 메시지 설정
    * 5. 최종: 로딩 상태를 false로 설정
@@ -123,12 +123,18 @@ export const CategorySection: React.FC<CategorySectionProps> = ({
 
       // Step 2: API 호출
       // api.notices.getList()는 backend의 /api/notices 엔드포인트를 호출합니다
-      const response = await api.notices.getList({
-        category,           // 특정 카테고리만 필터링
-        status: 'published', // 게시된 공고만 가져오기
-        limit,              // 표시할 개수
-        page: 1             // 첫 페이지부터
-      });
+      const params: any = {
+        status: 'published',  // 게시된 공고만 가져오기
+        limit,                // 표시할 개수
+        page: 1               // 첫 페이지부터
+      };
+
+      // sourceId가 있으면 특정 출처만 필터링
+      if (sourceId) {
+        params.source_id = sourceId;
+      }
+
+      const response = await api.notices.getList(params);
 
       // Step 3: 데이터 업데이트
       setNotices(response.items);
@@ -136,7 +142,7 @@ export const CategorySection: React.FC<CategorySectionProps> = ({
 
     } catch (err) {
       // Step 4: 에러 처리
-      console.error(`Failed to fetch notices for category ${category}:`, err);
+      console.error(`Failed to fetch notices for source ${sourceId}:`, err);
       setError('공고를 불러오는데 실패했습니다.');
     } finally {
       // Step 5: 로딩 종료
@@ -147,13 +153,13 @@ export const CategorySection: React.FC<CategorySectionProps> = ({
   /**
    * useEffect: 컴포넌트 마운트 시 데이터 로딩
    *
-   * 의존성 배열: [category, limit]
-   * - category나 limit이 변경되면 다시 데이터를 불러옵니다
-   * - 예: 사용자가 다른 카테고리 섹션을 보게 되었을 때
+   * 의존성 배열: [sourceId, limit]
+   * - sourceId나 limit이 변경되면 다시 데이터를 불러옵니다
+   * - 예: 사용자가 다른 출처 섹션을 보게 되었을 때
    */
   useEffect(() => {
     fetchNotices();
-  }, [category, limit]);
+  }, [sourceId, limit]);
 
   // ==================== 렌더링 로직 ====================
 

@@ -2,7 +2,7 @@
  * 📋 유관 기관 공고 전체 목록 페이지
  *
  * R&D 유관 기관의 연구개발 지원 공고를 전체 목록으로 보여주는 페이지입니다.
- * category='rnd' 필터가 자동으로 적용됩니다.
+ * source_id='source:jbtp:external' 필터가 자동으로 적용됩니다.
  *
  * @author JB SQUARE 개발팀
  * @version 1.0.0
@@ -28,7 +28,7 @@ export default function InstitutionNoticesPage() {
     setPage,
     fetchNotices
   } = useNotices({
-    category: 'rnd',  // 유관 기관 (R&D) 공고만 필터링
+    source_id: 'source:jbtp:external',  // 유관 기관 (R&D) 공고만 필터링
     limit: 20,
     sort_order: 'desc'
   });
@@ -43,7 +43,7 @@ export default function InstitutionNoticesPage() {
     hasSearched
   } = useNoticeSearch({
     additionalFilters: {
-      category: 'rnd'  // 유관 기관 공고 내에서만 검색
+      source_id: 'source:jbtp:external'  // 유관 기관 공고 내에서만 검색
     },
     debounceDelay: 500,
     minLength: 2

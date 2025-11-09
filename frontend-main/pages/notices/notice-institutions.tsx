@@ -32,7 +32,7 @@ import React, { useState } from 'react';
 import Head from 'next/head';
 import { useNotices } from '@/hooks/useNotices';
 import { useNoticeSearch } from '@/hooks/useNoticeSearch';
-import { NoticeCard } from '@/components/sample-board/NoticeCard';
+import { NoticeCard } from '@/components/notices/NoticeCard';
 import { SearchBar } from '@/components/sample-board/SearchBar';
 import { Pagination } from '@/components/sample-board/Pagination';
 import { NoticePageLayout } from '@/components/layout/NoticePageLayout';
@@ -51,10 +51,7 @@ export default function InstitutionsNoticePage() {
   /**
    * useNotices 훅 - 유관기관공고 데이터 가져오기
    *
-   * 유관기관공고는 별도 category가 없을 수 있으므로
-   * 일단 전체 공고를 가져온 후 검색으로 필터링하거나,
-   * 백엔드에서 지원하는 필터를 사용합니다.
-   *
+   * source_id: 'source:jbtp:external' - 유관기관 공고만 필터링
    * limit: 20 - 한 페이지에 20개씩 표시
    * sort_order: 'desc' - 최신순 정렬
    */
@@ -66,8 +63,7 @@ export default function InstitutionsNoticePage() {
     setPage,              // 페이지 변경 함수
     fetchNotices          // 데이터 새로고침 함수
   } = useNotices({
-    // 유관기관 필터링: 백엔드 API가 지원하는 경우 category 또는 tags 사용
-    // 현재는 검색으로 필터링
+    source_id: 'source:jbtp:external',
     limit: 20,
     sort_order: 'desc'
   });
@@ -106,26 +102,11 @@ export default function InstitutionsNoticePage() {
    * 현재 표시할 데이터 결정
    *
    * 검색 모드: 검색 결과 표시
-   * 일반 모드: 전체 공고 목록 표시
+   * 일반 모드: 전체 공고 목록 표시 (이미 jbtp_external로 필터링됨)
    */
   const displayNotices = isSearchMode ? searchResults : notices;
   const displayLoading = isSearchMode ? searchLoading : listLoading;
   const displayError = isSearchMode ? searchError : listError;
-
-  /**
-   * 유관기관 공고 필터링 (클라이언트 사이드)
-   *
-   * NTIS, K-STARTUP 등 유관기관 소스의 공고만 필터링
-   * 백엔드에서 필터링을 지원하지 않는 경우 사용
-   */
-  const filteredNotices = displayNotices.filter(notice => {
-    // crawler_source_id 또는 organization으로 유관기관 판별
-    const institutionSources = ['ntis', 'k-startup', 'ntis_rss'];
-    const institutionOrgs = ['NTIS', 'K-STARTUP', '창업진흥원', '기술보증기금', '신용보증기금'];
-
-    return institutionSources.includes(notice.crawler_source_id) ||
-           (notice.organization && institutionOrgs.some(org => notice.organization?.includes(org)));
-  });
 
   return (
     <>
@@ -139,14 +120,6 @@ export default function InstitutionsNoticePage() {
       <NoticePageLayout
         pageTitle="유관기관공고"
         pageSubtitle="NTIS, K-STARTUP, 창업진흥원 등 바이오 산업 관련 유관기관의 지원 사업 및 공고"
-        infoTitle="유관기관공고란?"
-        infoDescription={
-          <>
-            유관기관공고는 NTIS(국가과학기술지식정보서비스), K-STARTUP(창업넷), 창업진흥원, 기술보증기금, 신용보증기금 등 바이오 산업 관련 유관기관에서 발표하는 지원 사업 공고입니다.
-            <br /><br />
-            R&D 과제, 창업 지원, 보증 지원, 투자 유치 등 다양한 형태의 지원 사업 정보를 한눈에 확인할 수 있습니다.
-          </>
-        }
         breadcrumbCurrent="유관기관공고"
       >
         {/* 검색바 */}
@@ -203,7 +176,7 @@ export default function InstitutionsNoticePage() {
         {!displayLoading && !displayError && (
           <>
             {/* 공고가 없을 때 */}
-            {filteredNotices.length === 0 && (
+            {displayNotices.length === 0 && (
               <div className="py-20 text-center">
                 <div className="inline-block p-6 bg-gray-50 rounded-full mb-4">
                   <svg className="w-16 h-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -220,7 +193,7 @@ export default function InstitutionsNoticePage() {
             )}
 
             {/* 공고 카드 목록 - 단일 컬럼 (1단) */}
-            {filteredNotices.length > 0 && (
+            {displayNotices.length > 0 && (
               <>
                 {/*
                   IMPORTANT: 데스크톱에서도 1단 레이아웃 사용
@@ -228,11 +201,10 @@ export default function InstitutionsNoticePage() {
                   - gap-6: 카드 간 간격 24px
                 */}
                 <div className="grid grid-cols-1 gap-6 mb-8">
-                  {filteredNotices.map(notice => (
+                  {displayNotices.map(notice => (
                     <NoticeCard
                       key={notice.id}
                       notice={notice}
-                      variant="detailed"  // 상세 변형 사용 (더 많은 정보 표시)
                     />
                   ))}
                 </div>

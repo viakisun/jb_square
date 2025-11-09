@@ -66,8 +66,33 @@ export class NoticesAPI {
    * ```
    */
   async getList(params?: NoticeFilterParams): Promise<PaginatedResponse<Notice>> {
+    // 프론트엔드 파라미터를 백엔드 파라미터로 변환
+    const backendParams: any = {};
+
+    if (params) {
+      // source_id 그대로 전달
+      if (params.source_id) backendParams.source_id = params.source_id;
+
+      // status 그대로 전달
+      if (params.status) backendParams.status = params.status;
+
+      // search 그대로 전달
+      if (params.search) backendParams.search = params.search;
+
+      // tags -> tag로 변환
+      if (params.tags) backendParams.tag = params.tags;
+
+      // limit 그대로 전달
+      if (params.limit) backendParams.limit = params.limit;
+
+      // page를 offset으로 변환 (page는 1부터 시작, offset은 0부터 시작)
+      const page = params.page || 1;
+      const limit = params.limit || 20;
+      backendParams.offset = (page - 1) * limit;
+    }
+
     const response = await this.client.get<PaginatedResponse<Notice>>('/api/notices', {
-      params
+      params: backendParams
     });
     return response.data;
   }
@@ -144,28 +169,28 @@ export class NoticesAPI {
   }
 
   /**
-   * 카테고리별 공고 조회
+   * 출처별 공고 조회
    *
-   * 특정 카테고리의 공고만 필터링하여 조회합니다.
+   * 특정 출처의 공고만 필터링하여 조회합니다.
    *
-   * @param category - 공고 카테고리
+   * @param sourceId - 공고 출처 ID (source:organization:type 형식)
    * @param additionalParams - 추가 필터 파라미터
-   * @returns 카테고리 공고 목록
+   * @returns 출처별 공고 목록
    *
    * @example
    * ```typescript
-   * // 정부 공고 전체
-   * const govNotices = await noticesAPI.getByCategory('government');
+   * // NTIS 정부 공고 전체
+   * const govNotices = await noticesAPI.getBySourceId('source:ntis:rss');
    *
-   * // R&D 공고 2페이지
-   * const rndNotices = await noticesAPI.getByCategory('rnd', { page: 2 });
+   * // 기업마당 공고 2페이지
+   * const bizNotices = await noticesAPI.getBySourceId('source:bizinfo:api', { page: 2 });
    * ```
    */
-  async getByCategory(
-    category: 'government' | 'local_government' | 'business' | 'rnd' | 'startup',
-    additionalParams?: Omit<NoticeFilterParams, 'category'>
+  async getBySourceId(
+    sourceId: string,
+    additionalParams?: Omit<NoticeFilterParams, 'source_id'>
   ): Promise<PaginatedResponse<Notice>> {
-    return this.getList({ ...additionalParams, category });
+    return this.getList({ ...additionalParams, source_id: sourceId });
   }
 
   /**

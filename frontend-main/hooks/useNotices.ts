@@ -86,11 +86,11 @@ interface UseNoticesReturn {
  * const { notices, loading } = useNotices();
  *
  * // 초기 필터 적용
- * const { notices } = useNotices({ category: 'government', limit: 10 });
+ * const { notices } = useNotices({ crawler_source_id: 'source:ntis:rss', limit: 10 });
  *
  * // 필터 변경
  * const { setFilters } = useNotices();
- * setFilters({ category: 'business', search: '바이오' });
+ * setFilters({ crawler_source_id: 'source:bizinfo:api', search: '바이오' });
  * ```
  */
 export function useNotices(
@@ -259,13 +259,13 @@ export function useNotice(id: number | null) {
  * 홈페이지 메인 화면이나 사이드바에 표시할 최신 공고를 가져옵니다.
  *
  * @param limit - 조회할 공고 수 (기본값: 5)
- * @param category - 카테고리 필터 (선택적)
+ * @param sourceId - 출처 필터 (선택적, source:organization:type 형식)
  * @returns 최신 공고 목록 및 로딩/에러 상태
  *
  * @example
  * ```typescript
  * function LatestNotices() {
- *   const { notices, loading } = useLatestNotices(5, 'government');
+ *   const { notices, loading } = useLatestNotices(5, 'source:ntis:rss');
  *
  *   return (
  *     <div>
@@ -276,7 +276,7 @@ export function useNotice(id: number | null) {
  * }
  * ```
  */
-export function useLatestNotices(limit: number = 5, category?: string) {
+export function useLatestNotices(limit: number = 5, sourceId?: string) {
   const [notices, setNotices] = useState<Notice[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -286,7 +286,7 @@ export function useLatestNotices(limit: number = 5, category?: string) {
     setError(null);
 
     try {
-      const data = await api.notices.getLatest({ limit, category });
+      const data = await api.notices.getLatest({ limit, source_id: sourceId });
       setNotices(data);
     } catch (err) {
       const errorMessage = getErrorMessage(err, '최신 공고를 불러오는 중 오류가 발생했습니다.');
@@ -296,7 +296,7 @@ export function useLatestNotices(limit: number = 5, category?: string) {
     } finally {
       setLoading(false);
     }
-  }, [limit, category]);
+  }, [limit, sourceId]);
 
   useEffect(() => {
     fetchLatestNotices();

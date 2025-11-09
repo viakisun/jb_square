@@ -4,7 +4,7 @@
  * 예비창업부터 중견기업까지 다양한 성장 단계의 기업을 위한 지원 사업 및 공고를 보여주는 페이지입니다.
  *
  * **주요 기능:**
- * - 기업마당공고(category='business') 필터링
+ * - 기업마당공고(source_id='source:bizinfo:api') 필터링
  * - 검색 기능 (제목, 내용, 기관명)
  * - 단일 컬럼 레이아웃 (데스크톱에서도 1단)
  * - 페이지네이션
@@ -35,7 +35,7 @@ import React, { useState } from 'react';
 import Head from 'next/head';
 import { useNotices } from '@/hooks/useNotices';
 import { useNoticeSearch } from '@/hooks/useNoticeSearch';
-import { NoticeCard } from '@/components/sample-board/NoticeCard';
+import { NoticeCard } from '@/components/notices/NoticeCard';
 import { SearchBar } from '@/components/sample-board/SearchBar';
 import { Pagination } from '@/components/sample-board/Pagination';
 import { NoticePageLayout } from '@/components/layout/NoticePageLayout';
@@ -54,7 +54,7 @@ export default function BusinessNoticePage() {
   /**
    * useNotices 훅 - 기업마당공고 데이터 가져오기
    *
-   * category: 'business' - 기업 대상 공고만 필터링
+   * source_id: 'source:bizinfo:api' - 기업마당 공고만 필터링
    * limit: 20 - 한 페이지에 20개씩 표시
    * sort_order: 'desc' - 최신순 정렬
    */
@@ -66,7 +66,7 @@ export default function BusinessNoticePage() {
     setPage,              // 페이지 변경 함수
     fetchNotices          // 데이터 새로고침 함수
   } = useNotices({
-    category: 'business',
+    source_id: 'source:bizinfo:api',
     limit: 20,
     sort_order: 'desc'
   });
@@ -74,7 +74,7 @@ export default function BusinessNoticePage() {
   /**
    * useNoticeSearch 훅 - 검색 기능
    *
-   * additionalFilters: category를 'business'로 고정하여
+   * additionalFilters: source_id를 'source:bizinfo:api'로 고정하여
    * 기업마당공고 내에서만 검색하도록 제한
    */
   const {
@@ -87,7 +87,7 @@ export default function BusinessNoticePage() {
     hasSearched           // 검색을 실행했는지 여부
   } = useNoticeSearch({
     additionalFilters: {
-      category: 'business'
+      source_id: 'source:bizinfo:api'
     },
     debounceDelay: 500,   // 검색어 입력 후 500ms 대기
     minLength: 2          // 최소 2글자 이상 입력해야 검색
@@ -126,14 +126,6 @@ export default function BusinessNoticePage() {
       <NoticePageLayout
         pageTitle="기업마당공고"
         pageSubtitle="예비창업부터 중견기업까지 다양한 성장 단계의 기업을 위한 지원 사업 및 공고"
-        infoTitle="기업마당공고란?"
-        infoDescription={
-          <>
-            기업마당공고는 예비창업자, 초기창업 기업, 벤처/스타트업, 중소기업, 중견기업 등 다양한 성장 단계의 기업을 대상으로 하는 지원 사업 공고입니다.
-            <br /><br />
-            창업 자금 지원, 사업화 지원, 판로 개척, 해외 진출, 인력 지원 등 기업의 성장 단계별로 필요한 맞춤형 지원 사업 정보를 확인할 수 있습니다.
-          </>
-        }
         breadcrumbCurrent="기업마당공고"
       >
         {/* 검색바 */}
@@ -219,7 +211,6 @@ export default function BusinessNoticePage() {
                     <NoticeCard
                       key={notice.id}
                       notice={notice}
-                      variant="detailed"  // 상세 변형 사용 (더 많은 정보 표시)
                     />
                   ))}
                 </div>

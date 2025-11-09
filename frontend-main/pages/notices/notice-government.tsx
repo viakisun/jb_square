@@ -4,7 +4,7 @@
  * 정부 부처에서 발표하는 바이오 산업 관련 각종 지원 사업 및 공고를 보여주는 페이지입니다.
  *
  * **주요 기능:**
- * - 정부공고(category='government') 필터링
+ * - 정부공고(source_id='source:ntis:rss') 필터링
  * - 검색 기능 (제목, 내용, 기관명)
  * - 단일 컬럼 레이아웃 (데스크톱에서도 1단)
  * - 페이지네이션
@@ -28,7 +28,7 @@ import React, { useState } from 'react';
 import Head from 'next/head';
 import { useNotices } from '@/hooks/useNotices';
 import { useNoticeSearch } from '@/hooks/useNoticeSearch';
-import { NoticeCard } from '@/components/sample-board/NoticeCard';
+import { NoticeCard } from '@/components/notices/NoticeCard';
 import { SearchBar } from '@/components/sample-board/SearchBar';
 import { Pagination } from '@/components/sample-board/Pagination';
 import { NoticePageLayout } from '@/components/layout/NoticePageLayout';
@@ -47,7 +47,7 @@ export default function GovernmentNoticePage() {
   /**
    * useNotices 훅 - 정부공고 데이터 가져오기
    *
-   * category: 'government' - 정부 부처 공고만 필터링
+   * source_id: 'source:ntis:rss' - NTIS 정부 공고만 필터링
    * limit: 20 - 한 페이지에 20개씩 표시
    * sort_order: 'desc' - 최신순 정렬
    */
@@ -59,7 +59,7 @@ export default function GovernmentNoticePage() {
     setPage,              // 페이지 변경 함수
     fetchNotices          // 데이터 새로고침 함수
   } = useNotices({
-    category: 'government',
+    source_id: 'source:ntis:rss',
     limit: 20,
     sort_order: 'desc'
   });
@@ -67,7 +67,7 @@ export default function GovernmentNoticePage() {
   /**
    * useNoticeSearch 훅 - 검색 기능
    *
-   * additionalFilters: category를 'government'로 고정하여
+   * additionalFilters: source_id를 'source:ntis:rss'로 고정하여
    * 정부공고 내에서만 검색하도록 제한
    */
   const {
@@ -80,7 +80,7 @@ export default function GovernmentNoticePage() {
     hasSearched           // 검색을 실행했는지 여부
   } = useNoticeSearch({
     additionalFilters: {
-      category: 'government'
+      source_id: 'source:ntis:rss'
     },
     debounceDelay: 500,   // 검색어 입력 후 500ms 대기
     minLength: 2          // 최소 2글자 이상 입력해야 검색
@@ -119,14 +119,6 @@ export default function GovernmentNoticePage() {
       <NoticePageLayout
         pageTitle="정부공고"
         pageSubtitle="중앙 정부 각 부처에서 발표하는 바이오 산업 관련 지원 사업 및 공고"
-        infoTitle="정부공고란?"
-        infoDescription={
-          <>
-            정부공고는 과학기술정보통신부, 산업통상자원부, 보건복지부, 농림축산식품부, 중소벤처기업부 등 중앙 정부 각 부처에서 발표하는 바이오 산업 관련 지원 사업 공고입니다.
-            <br /><br />
-            연구개발(R&D) 지원, 창업 지원, 시설 구축 지원, 인력 양성 지원 등 다양한 형태의 지원 사업 정보를 확인할 수 있습니다.
-          </>
-        }
         breadcrumbCurrent="정부공고"
       >
         {/* 검색바 */}
@@ -212,7 +204,6 @@ export default function GovernmentNoticePage() {
                     <NoticeCard
                       key={notice.id}
                       notice={notice}
-                      variant="detailed"  // 상세 변형 사용 (더 많은 정보 표시)
                     />
                   ))}
                 </div>

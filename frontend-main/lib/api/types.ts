@@ -38,11 +38,8 @@ export interface Notice {
   /** 공고 출처 구분 ('crawled': 크롤링, 'manual': 수동 등록) */
   origin_type: 'crawled' | 'manual';
 
-  /** 크롤러 소스 ID ('jbtp', 'ntis_rss', 'bizinfo', 'manual' 등) */
+  /** 크롤러 소스 ID (NoticeSource enum 값) */
   crawler_source_id: string;
-
-  /** 공고 카테고리 ('government': 정부, 'local_government': 지자체, 'business': 민간, 'rnd': R&D, 'startup': 창업) */
-  category: 'government' | 'local_government' | 'business' | 'rnd' | 'startup';
 
   /** 공고 태그 목록 (예: ['바이오', '제조업', '신규']) */
   tags: string[];
@@ -58,6 +55,9 @@ export interface Notice {
 
   /** 신청 종료일 (ISO 8601 형식) */
   application_end: string | null;
+
+  /** 공고일 (YYYY-MM-DD 형식) */
+  announcement_date: string | null;
 
   /** 주관 기관명 (예: '전북테크노파크') */
   organization: string | null;
@@ -101,8 +101,8 @@ export interface Notice {
  * GET /api/notices 엔드포인트에 전달되는 쿼리 파라미터입니다.
  */
 export interface NoticeFilterParams {
-  /** 카테고리 필터 */
-  category?: 'government' | 'local_government' | 'business' | 'rnd' | 'startup';
+  /** 크롤러 소스 ID 필터 (NoticeSource enum 값) */
+  source_id?: string;
 
   /** 상태 필터 */
   status?: 'pending' | 'published' | 'archived';
@@ -263,8 +263,8 @@ export interface LatestNoticesParams {
   /** 조회할 항목 수 (기본값: 10) */
   limit?: number;
 
-  /** 카테고리 필터 */
-  category?: string;
+  /** 출처 필터 (source:organization:type 형식) */
+  source_id?: string;
 }
 
 /**
@@ -344,12 +344,6 @@ export interface BICompany {
 
   /** 제품/서비스 설명 */
   product: string | null;
-
-  /** 입주 시작일 (예: '2023-03-01') */
-  entry_date: string | null;
-
-  /** 입주 상태 (예: '입주중', '졸업', '퇴거') */
-  status: string | null;
 
   /** 생성 일시 (ISO 8601 형식) */
   created_at: string;

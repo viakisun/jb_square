@@ -16,6 +16,7 @@ from src.core.database import get_db
 from src.core.s3_client import s3_client
 from src.models.notice import Notice, CrawlQueue
 from src.services.crawler_manager import crawler_manager
+from src.constants.sources import NoticeSource
 
 
 router = APIRouter(prefix="/api/notices", tags=["notices"])
@@ -37,7 +38,6 @@ class NoticeCreate(BaseModel):
     content: Optional[str] = None
     content_type: Optional[str] = 'text'  # 'text', 'html'
     link: Optional[str] = None
-    category: str  # 'government', 'business', 'rnd', 'startup'
     tags: List[str] = []
     organization: Optional[str] = None
     department: Optional[str] = None
@@ -54,7 +54,6 @@ class NoticeUpdate(BaseModel):
     title: Optional[str] = None
     content: Optional[str] = None
     link: Optional[str] = None
-    category: Optional[str] = None
     tags: Optional[List[str]] = None
     status: Optional[str] = None
     organization: Optional[str] = None
@@ -70,7 +69,6 @@ class NoticeUpdate(BaseModel):
 class PublishRequest(BaseModel):
     """Schema for publishing notices from crawl queue"""
     queue_ids: List[int]
-    category: str  # 'government', 'business', 'rnd', 'startup'
     tags: List[str] = []
 
 
@@ -85,30 +83,36 @@ class BulkDeleteRequest(BaseModel):
 
 @router.get("")
 async def get_notices(
-    category: Optional[str] = Query(None, description="Filter by category"),
     status: Optional[str] = Query("published", description="Filter by status"),
     source_id: Optional[str] = Query(None, description="Filter by source"),
     tag: Optional[str] = Query(None, description="Filter by tag"),
     search: Optional[str] = Query(None, description="Search in title/content"),
     limit: int = Query(50, le=100),
     offset: int = Query(0),
+    category: Optional[str] = Query(None, description="[DEPRECATED] Use source_id instead"),
     db: Session = Depends(get_db)
 ):
     """
     Get list of notices with filtering options
 
-    - **category**: 'government', 'business', 'rnd', 'startup'
     - **status**: 'pending', 'published', 'archived'
-    - **source_id**: 'jbtp', 'ntis_rss', 'bizinfo', 'manual'
+    - **source_id**: NoticeSource enum values
     - **tag**: Filter notices containing this tag
     - **search**: Full-text search in title and content
+    - **category**: [DEPRECATED] This parameter is ignored. Use source_id instead.
     """
+    # DEPRECATED: category parameter handling for backward compatibility
+    if category is not None:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning(
+            f"DEPRECATED: 'category' parameter is deprecated and will be removed. "
+            f"Use 'source_id' instead. Received: category={category}"
+        )
+
     query = db.query(Notice)
 
     # Apply filters
-    if category:
-        query = query.filter(Notice.category == category)
-
     if status:
         query = query.filter(Notice.status == status)
 
@@ -195,7 +199,6 @@ async def create_manual_notice(
         link=data.link,
         origin_type='manual',
         crawler_source_id='manual',
-        category=data.category,
         tags=data.tags,
         status='published',
         published_at=datetime.now(),
@@ -263,8 +266,6 @@ async def update_notice(
         notice.content = data.content
     if data.link is not None:
         notice.link = data.link
-    if data.category is not None:
-        notice.category = data.category
     if data.tags is not None:
         notice.tags = data.tags
     if data.status is not None:
@@ -434,12 +435,27 @@ async def bulk_delete_notices(
 # 6. WebSocket /api/notices/crawl/{source_id} - Real-time crawling
 # ============================================
 
+# Dispatcher pattern: Enum-driven crawler executor mapping
+CRAWLER_EXECUTORS = {
+    NoticeSource.JBTP_LOCAL: lambda: crawler_manager.execute_jbtp,
+    NoticeSource.JBTP_EXTERNAL: lambda: crawler_manager.execute_jbtp_external,
+    NoticeSource.NTIS_RSS: lambda: crawler_manager.execute_ntis_rss,
+    NoticeSource.BIZINFO_API: lambda: crawler_manager.execute_bizinfo,
+}
+
 @router.websocket("/crawl/{source_id}")
 async def crawl_source(websocket: WebSocket, source_id: str):
     """
     WebSocket endpoint for real-time crawling with progress updates
 
-    - **source_id**: 'jbtp', 'jbtp_external', 'ntis_rss', 'bizinfo'
+    Args:
+        source_id: NoticeSource enum value (e.g., 'source:jbtp:local', 'source:ntis:rss')
+
+    Supported sources:
+        - source:jbtp:local - 지자체 공고
+        - source:jbtp:external - 유관기관 공고
+        - source:ntis:rss - 정부공고
+        - source:bizinfo:api - 기업마당 정보
     """
     print(f"[WebSocket] Connection attempt for source: {source_id}")
     await websocket.accept()
@@ -452,28 +468,40 @@ async def crawl_source(websocket: WebSocket, source_id: str):
             await websocket.send_text(message)
             print(f"[WebSocket send_update] Message sent successfully")
 
-        # Execute crawler based on source_id
-        if source_id == "jbtp":
-            await crawler_manager.execute_jbtp(callback=send_update)
-        elif source_id == "jbtp_external":
-            await crawler_manager.execute_jbtp_external(callback=send_update)
-        elif source_id == "ntis_rss":
-            await crawler_manager.execute_ntis_rss(callback=send_update)
-        elif source_id == "bizinfo":
-            await crawler_manager.execute_bizinfo(callback=send_update)
-        else:
-            await websocket.send_text(f'{{"type": "error", "message": "Unknown source: {source_id}"}}')
+        # Validate source_id is a valid NoticeSource enum value
+        if source_id not in [s.value for s in NoticeSource]:
+            error_msg = f"Invalid source_id: {source_id}. Valid sources: {[s.value for s in NoticeSource]}"
+            print(f"[WebSocket] {error_msg}")
+            await websocket.send_text(f'{{"type": "error", "message": "{error_msg}"}}')
             await websocket.close()
             return
+
+        # Get executor from dispatcher
+        executor_factory = CRAWLER_EXECUTORS.get(source_id)
+        if not executor_factory:
+            error_msg = f"No executor found for source: {source_id}"
+            print(f"[WebSocket] {error_msg}")
+            await websocket.send_text(f'{{"type": "error", "message": "{error_msg}"}}')
+            await websocket.close()
+            return
+
+        # Execute crawler using dispatcher
+        executor = executor_factory()
+        await executor(callback=send_update)
 
         # Close connection after completion
         await websocket.close()
 
     except WebSocketDisconnect:
-        print(f"WebSocket disconnected for {source_id}")
+        print(f"[WebSocket] Disconnected for {source_id}")
     except Exception as e:
-        await websocket.send_text(f'{{"type": "error", "message": "{str(e)}"}}')
-        await websocket.close()
+        error_msg = f"Crawler execution failed: {str(e)}"
+        print(f"[WebSocket] Error: {error_msg}")
+        try:
+            await websocket.send_text(f'{{"type": "error", "message": "{error_msg}"}}')
+            await websocket.close()
+        except:
+            pass  # WebSocket might already be closed
 
 
 # ============================================
@@ -557,7 +585,6 @@ async def publish_from_queue(
     Publish selected items from crawl queue to notices
 
     - **queue_ids**: List of crawl_queue IDs to publish
-    - **category**: Target category ('government', 'business', 'rnd', 'startup')
     - **tags**: Additional tags to apply
     """
 
@@ -625,7 +652,6 @@ async def publish_from_queue(
             origin_type='crawled',
             crawler_source_id=queue_item.crawler_source_id,
             source_board_name=queue_item.source_board_name,
-            category=data.category,
             tags=data.tags,
             status='published',
             published_at=datetime.now(),

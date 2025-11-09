@@ -2,7 +2,7 @@
  * 📋 지자체 사업 공고 전체 목록 페이지
  *
  * 지방자치단체에서 발표하는 지역 맞춤형 지원 사업 공고를 전체 목록으로 보여주는 페이지입니다.
- * category='local_government' 필터가 자동으로 적용됩니다.
+ * source_id='source:jbtp:local' 필터가 자동으로 적용됩니다.
  *
  * @author JB SQUARE 개발팀
  * @version 1.0.0
@@ -28,7 +28,7 @@ export default function LocalGovernmentNoticesPage() {
     setPage,
     fetchNotices
   } = useNotices({
-    category: 'local_government',  // 지자체 공고만 필터링
+    source_id: 'source:jbtp:local',  // 지자체 공고만 필터링
     limit: 20,
     sort_order: 'desc'
   });
@@ -43,7 +43,7 @@ export default function LocalGovernmentNoticesPage() {
     hasSearched
   } = useNoticeSearch({
     additionalFilters: {
-      category: 'local_government'  // 지자체 공고 내에서만 검색
+      source_id: 'source:jbtp:local'  // 지자체 공고 내에서만 검색
     },
     debounceDelay: 500,
     minLength: 2

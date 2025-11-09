@@ -43,11 +43,11 @@ const AllAnnouncementsPage: React.FC = () => {
       {/* 메인 콘텐츠 */}
       <main className="py-16">
         <div className="max-w-7xl mx-auto px-4">
-          {/* CategorySection 컴포넌트 재사용 */}
+          {/* CategorySection 컴포넌트 재사용 - sourceId 없이 전체 공고 표시 */}
           <CategorySection
             title="전체 지원사업 공고"
-            category="government"
             viewAllLink="/announcements/all"
+            limit={20}
           />
 
           {/* 안내 메시지 */}

@@ -104,7 +104,7 @@ interface UseNoticeSearchReturn {
  * const { searchQuery, setSearchQuery } = useNoticeSearch({
  *   debounceDelay: 1000,  // 1초 디바운스
  *   minLength: 2,         // 최소 2글자
- *   additionalFilters: { category: 'government' }  // 정부 공고만
+ *   additionalFilters: { crawler_source_id: 'source:ntis:rss' }  // 정부 공고만
  * });
  *
  * // 자동 검색 비활성화 + 수동 검색
