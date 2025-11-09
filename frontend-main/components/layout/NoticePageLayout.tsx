@@ -49,6 +49,15 @@ interface NoticePageLayoutProps {
   /** Breadcrumb의 현재 페이지 이름 */
   breadcrumbCurrent: string;
 
+  /** Category Label (예: "JB 지원사업 공고", "뉴스/행사") - 기본값: "JB 지원사업 공고" */
+  categoryLabel?: string;
+
+  /** Breadcrumb 부모 카테고리 이름 - 기본값: "JB 지원사업 공고" */
+  breadcrumbParent?: string;
+
+  /** Breadcrumb 부모 카테고리 링크 - 기본값: "#" */
+  breadcrumbParentHref?: string;
+
   /** SEO를 위한 페이지 타이틀 (선택적, 없으면 pageTitle 사용) */
   metaTitle?: string;
 
@@ -66,6 +75,9 @@ export const NoticePageLayout: React.FC<NoticePageLayoutProps> = ({
   pageTitle,
   pageSubtitle,
   breadcrumbCurrent,
+  categoryLabel = 'JB 지원사업 공고',
+  breadcrumbParent = 'JB 지원사업 공고',
+  breadcrumbParentHref = '#',
   metaTitle,
   metaDescription,
   children,
@@ -73,11 +85,12 @@ export const NoticePageLayout: React.FC<NoticePageLayoutProps> = ({
   /**
    * Breadcrumb 아이템 데이터
    *
-   * 항상 "홈 > JB 지원사업 공고 > [현재 페이지]" 형태를 유지합니다.
+   * "홈 > [부모 카테고리] > [현재 페이지]" 형태
+   * 부모 카테고리는 props로 커스터마이징 가능 (기본값: "JB 지원사업 공고")
    */
   const breadcrumbItems = [
     { label: '홈', href: '/' },
-    { label: 'JB 지원사업 공고', href: '#' },
+    { label: breadcrumbParent, href: breadcrumbParentHref },
     { label: breadcrumbCurrent, href: '#', active: true }
   ];
 
@@ -120,7 +133,7 @@ export const NoticePageLayout: React.FC<NoticePageLayoutProps> = ({
           {/* Category Label - 청록색(cyan) 강조 */}
           <div className="mb-4">
             <span className="text-[#00B8CC] font-semibold text-base tracking-tight">
-              JB 지원사업 공고
+              {categoryLabel}
             </span>
           </div>
 

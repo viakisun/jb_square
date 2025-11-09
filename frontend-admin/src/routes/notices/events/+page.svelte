@@ -48,7 +48,7 @@
 	async function loadQueue() {
 		loading = true;
 		try {
-			const res = await fetch(`${API_BASE_URL}/notices/crawl-queue/list?source_id=jbtp_events`);
+			const res = await fetch(`${API_BASE_URL}/notices/crawl-queue/list?source_id=source:jbtp:events`);
 			const data = await res.json();
 			// Remove duplicates by ID
 			const uniqueItems = Array.from(
@@ -72,7 +72,7 @@
 		errorMessage = '';
 
 		try {
-			const ws = new WebSocket(`${WS_BASE_URL}/api/notices/crawl/jbtp_events`);
+			const ws = new WebSocket(`${WS_BASE_URL}/api/notices/crawl/source:jbtp:events`);
 
 			ws.onmessage = (event) => {
 				const data = JSON.parse(event.data);

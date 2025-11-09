@@ -262,7 +262,7 @@ class JBTPEventsCrawler(BaseCrawler):
 
                             for row in rows:
                                 cols = row.find_all('td')
-                                if len(cols) >= 7:  # 최소 7개 컬럼 필요 (0-6)
+                                if len(cols) >= 8:  # 최소 8개 컬럼 필요 (0-7: notice, type, title, deadline, dday, attachment, author, date)
                                     # 번호 컬럼 확인 (컬럼 0)
                                     num_col = cols[0].get_text(strip=True)
 
@@ -294,11 +294,11 @@ class JBTPEventsCrawler(BaseCrawler):
                                                 else:
                                                     link = 'https://www.jbtp.or.kr/' + link
 
-                                            # 마감일 추출 (컬럼 2)
-                                            deadline = cols[2].get_text(strip=True) if len(cols) > 2 else ''
+                                            # 마감일 추출 (컬럼 3 - class="t_date")
+                                            deadline = cols[3].get_text(strip=True) if len(cols) > 3 else ''
 
-                                            # 작성일 추출 (컬럼 6)
-                                            posted_date = cols[6].get_text(strip=True) if len(cols) > 6 else ''
+                                            # 작성일 추출 (컬럼 7 - 등록일)
+                                            posted_date = cols[7].get_text(strip=True) if len(cols) > 7 else ''
 
                                             # 날짜 필터링: 게시일 A일 이내 OR 마감일 미래
                                             print(f"[DEBUG] Before parse_date - posted_date: {posted_date}, deadline: {deadline}")

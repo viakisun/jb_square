@@ -108,9 +108,12 @@ const EventsPage: React.FC = () => {
 
   return (
     <NoticePageLayout
+      pageTitle="바이오행사"
+      pageSubtitle="전북 바이오 산업 관련 행사 및 교육 프로그램 안내"
+      breadcrumbCurrent="바이오행사"
       categoryLabel="뉴스/행사"
-      title="행사일정"
-      subtitle="전북테크노파크 교육 및 행사 정보"
+      breadcrumbParent="뉴스/행사"
+      breadcrumbParentHref="/news-events"
     >
       {/* 검색 바 */}
       <div className="mb-6">
