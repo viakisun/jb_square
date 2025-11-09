@@ -24,48 +24,23 @@ import { SkeletonCard } from '@/components/common/SkeletonCard';
 import { useNotices } from '@/hooks/useNotices';
 import { Notice } from '@/lib/api/types';
 
-/**
- * 카테고리 탭 정의
- */
-const CATEGORY_TABS = [
-  { key: 'all', label: '전체', value: undefined },
-  { key: 'government', label: '정부', value: 'government' as Notice['category'] },
-  { key: 'business', label: '민간', value: 'business' as Notice['category'] },
-  { key: 'startup', label: '창업', value: 'startup' as Notice['category'] },
-  { key: 'rnd', label: 'R&D', value: 'rnd' as Notice['category'] },
-] as const;
-
+// TODO: Category-based filtering removed. Consider implementing source-based filtering if needed.
 export const AnnouncementSection: React.FC = () => {
-  /**
-   * 현재 선택된 카테고리 탭
-   */
-  const [activeTab, setActiveTab] = useState<typeof CATEGORY_TABS[number]['key']>('all');
-
-  /**
-   * 선택된 탭에 해당하는 카테고리 값
-   */
-  const activeCategory = CATEGORY_TABS.find(tab => tab.key === activeTab)?.value;
-
   /**
    * 공고 데이터 조회
    * - 최신 공고 8개
    * - 상태: published (게시됨)
    * - 정렬: 게시일 기준 내림차순
+   *
+   * Note: Tab filtering temporarily disabled after category field removal
    */
   const { notices, loading, error } = useNotices({
-    category: activeCategory,
     status: 'published',
     limit: 8,
     sort_by: 'published_at',
     sort_order: 'desc',
   });
 
-  /**
-   * 탭 클릭 핸들러
-   */
-  const handleTabClick = (tabKey: typeof CATEGORY_TABS[number]['key']) => {
-    setActiveTab(tabKey);
-  };
 
   return (
     <section className="py-16 bg-gray-50">
@@ -103,25 +78,7 @@ export const AnnouncementSection: React.FC = () => {
           </Link>
         </div>
 
-        {/* 카테고리 탭 */}
-        <div className="flex gap-2 mb-8 overflow-x-auto pb-2">
-          {CATEGORY_TABS.map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => handleTabClick(tab.key)}
-              className={`
-                px-6 py-2.5 rounded-full font-medium whitespace-nowrap transition-all
-                ${
-                  activeTab === tab.key
-                    ? 'bg-primary-blue text-white shadow-md'
-                    : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
-                }
-              `}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
+        {/* TODO: Category tabs removed - implement source-based filtering if needed */}
 
         {/* 공고 목록 */}
         {loading ? (

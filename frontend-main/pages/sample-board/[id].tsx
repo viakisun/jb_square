@@ -134,28 +134,37 @@ export default function NoticeDetailPage() {
   }
 
   /**
-   * 카테고리 색상 맵핑
+   * Source ID로부터 표시 이름과 색상을 가져오는 함수
    */
-  const categoryColors: Record<Notice['category'], { bg: string; text: string }> = {
-    government: { bg: 'bg-blue-100', text: 'text-blue-800' },
-    local_government: { bg: 'bg-teal-100', text: 'text-teal-800' },
-    business: { bg: 'bg-green-100', text: 'text-green-800' },
-    rnd: { bg: 'bg-purple-100', text: 'text-purple-800' },
-    startup: { bg: 'bg-orange-100', text: 'text-orange-800' }
-  };
+  function getSourceDisplay(sourceId: string | undefined): { name: string; bg: string; text: string } {
+    if (!sourceId) {
+      return { name: '미분류', bg: 'bg-gray-100', text: 'text-gray-800' };
+    }
 
-  /**
-   * 카테고리 한글 이름
-   */
-  const categoryNames: Record<Notice['category'], string> = {
-    government: '정부사업',
-    local_government: '지자체사업',
-    business: '민간사업',
-    rnd: 'R&D',
-    startup: '스타트업'
-  };
+    const parts = sourceId.split(':');
+    if (parts.length < 3) {
+      return { name: '미분류', bg: 'bg-gray-100', text: 'text-gray-800' };
+    }
 
-  const categoryColor = categoryColors[notice.category];
+    const organization = parts[1];
+    const type = parts[2];
+
+    if (organization === 'ntis') {
+      return { name: '정부공고', bg: 'bg-blue-100', text: 'text-blue-800' };
+    } else if (organization === 'bizinfo') {
+      return { name: '기업지원', bg: 'bg-green-100', text: 'text-green-800' };
+    } else if (organization === 'jbtp') {
+      if (type === 'local') {
+        return { name: '지자체공고', bg: 'bg-teal-100', text: 'text-teal-800' };
+      } else if (type === 'external') {
+        return { name: '유관기관', bg: 'bg-purple-100', text: 'text-purple-800' };
+      }
+    }
+
+    return { name: '기타', bg: 'bg-gray-100', text: 'text-gray-800' };
+  }
+
+  const sourceDisplay = getSourceDisplay(notice.crawler_source_id);
   const daysLeft = getDaysUntilDeadline(notice.deadline);
   const deadlineStatus = getDeadlineStatus(notice.deadline);
   const isUrgent = daysLeft !== null && daysLeft >= 0 && daysLeft <= 7;
@@ -201,12 +210,12 @@ export default function NoticeDetailPage() {
           <div className="bg-white rounded-lg shadow-md overflow-hidden">
             {/* 헤더 섹션 */}
             <div className="p-6 border-b">
-              {/* 카테고리와 마감일 */}
+              {/* 출처와 마감일 */}
               <div className="flex items-center justify-between mb-4">
                 <span
-                  className={`px-4 py-2 rounded-full text-sm font-semibold ${categoryColor.bg} ${categoryColor.text}`}
+                  className={`px-4 py-2 rounded-full text-sm font-semibold ${sourceDisplay.bg} ${sourceDisplay.text}`}
                 >
-                  {categoryNames[notice.category]}
+                  {sourceDisplay.name}
                 </span>
 
                 {notice.deadline && (

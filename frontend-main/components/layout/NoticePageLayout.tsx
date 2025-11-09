@@ -46,12 +46,6 @@ interface NoticePageLayoutProps {
   /** 페이지 서브타이틀 (설명) */
   pageSubtitle: string;
 
-  /** Info Box 제목 (예: "정부공고란?") */
-  infoTitle: string;
-
-  /** Info Box 설명 (1-2문단 정도의 설명) */
-  infoDescription: string | React.ReactNode;
-
   /** Breadcrumb의 현재 페이지 이름 */
   breadcrumbCurrent: string;
 
@@ -71,8 +65,6 @@ interface NoticePageLayoutProps {
 export const NoticePageLayout: React.FC<NoticePageLayoutProps> = ({
   pageTitle,
   pageSubtitle,
-  infoTitle,
-  infoDescription,
   breadcrumbCurrent,
   metaTitle,
   metaDescription,
@@ -144,64 +136,7 @@ export const NoticePageLayout: React.FC<NoticePageLayoutProps> = ({
         </section>
 
         {/* ============================================
-            2. INFO BOX - "~란?" 설명 박스
-            ============================================ */}
-        <section className="mb-20">
-          {/* Info Box - cluster.tsx의 "바이오클러스터란?" 디자인과 동일 */}
-          <div className="bg-[#F4F6FB] rounded-2xl p-8 md:px-16 md:py-8 flex flex-col md:flex-row items-start gap-8">
-
-            {/* Icon - 왼쪽 아이콘 (공통 디자인) */}
-            <div className="flex-shrink-0">
-              <div className="w-[100px] h-[100px] bg-white rounded-full flex items-center justify-center shadow-sm">
-                {/* 공고 아이콘 - 문서/공지 형태 */}
-                <svg
-                  className="w-12 h-12 text-[#00B8CC]"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                  strokeWidth={2}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                  />
-                </svg>
-              </div>
-            </div>
-
-            {/* Text Content - 오른쪽 설명 텍스트 */}
-            <div className="flex-1">
-              {/* Info Title */}
-              <h2
-                className="text-[32px] font-bold leading-[44.8px] text-[#121418] mb-4"
-                style={{ letterSpacing: '-0.32px' }}
-              >
-                {infoTitle}
-              </h2>
-
-              {/* Info Description - 문자열 또는 React 노드 모두 지원 */}
-              {typeof infoDescription === 'string' ? (
-                <p
-                  className="text-lg leading-[27px] text-[#24272D]"
-                  style={{ letterSpacing: '-0.18px' }}
-                >
-                  {infoDescription}
-                </p>
-              ) : (
-                <div
-                  className="text-lg leading-[27px] text-[#24272D]"
-                  style={{ letterSpacing: '-0.18px' }}
-                >
-                  {infoDescription}
-                </div>
-              )}
-            </div>
-          </div>
-        </section>
-
-        {/* ============================================
-            3. CHILDREN - 공고 목록 및 페이지네이션
+            2. CHILDREN - 공고 목록 및 페이지네이션
             ============================================ */}
         <section>
           {children}

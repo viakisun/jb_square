@@ -99,53 +99,53 @@ export default function SampleBoardMainPage() {
 
           {/* ========== 1. 정부 공고 섹션 ========== */}
           {/*
-            category='government': 정부 부처에서 발표하는 공고
+            sourceId='source:ntis:rss': 정부 부처에서 발표하는 공고
             정부 지원 사업, 보조금, 연구개발 과제 등
           */}
           <CategorySection
             title="정부 공고"
             description="정부 부처에서 발표하는 각종 지원 사업 및 공고"
-            category="government"
+            sourceId="source:ntis:rss"
             viewAllLink="/sample-board/government"
             limit={3}
           />
 
           {/* ========== 2. 지자체 사업 공고 섹션 ========== */}
           {/*
-            category='local_government': 지방자치단체의 공고
+            sourceId='source:jbtp:local': 지방자치단체의 공고
             지역 맞춤형 지원 사업, 지역 특화 산업 육성 등
           */}
           <CategorySection
             title="지자체 사업 공고"
             description="지방자치단체의 지역 맞춤형 지원 사업"
-            category="local_government"
+            sourceId="source:jbtp:local"
             viewAllLink="/sample-board/local"
             limit={3}
           />
 
           {/* ========== 3. 유관 기관 공고 섹션 ========== */}
           {/*
-            category='rnd': 연구개발 관련 기관의 공고
-            NTIS, BIZINFO 등 R&D 지원 공고
+            sourceId='source:jbtp:external': 연구개발 관련 기관의 공고
+            JBTP 유관기관 R&D 지원 공고
             연구과제, 기술개발, 산학협력 등
           */}
           <CategorySection
             title="유관 기관 공고"
             description="R&D 유관 기관의 연구개발 지원 공고"
-            category="rnd"
+            sourceId="source:jbtp:external"
             viewAllLink="/sample-board/institutions"
             limit={3}
           />
 
           {/* ========== 4. 기업 맞춤형 지원 사업 섹션 ========== */}
           {/*
-            category='business': 기업을 위한 맞춤형 지원 사업
+            sourceId='source:bizinfo:api': 기업을 위한 맞춤형 지원 사업
             스타트업 지원, 중소기업 지원, 벤처 육성 등
           */}
           <CategorySection
             title="기업 맞춤형 지원 사업"
             description="스타트업 및 중소기업을 위한 맞춤형 지원"
-            category="business"
+            sourceId="source:bizinfo:api"
             viewAllLink="/sample-board/business"
             limit={3}
           />

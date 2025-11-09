@@ -288,36 +288,6 @@ export default function IncubatorDetailPage() {
                       </div>
                     </div>
                   )}
-
-                  {/* 입주일 */}
-                  {company.entry_date && (
-                    <div className="mb-3">
-                      <div className="flex items-center gap-2">
-                        <svg className="w-4 h-4 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
-                        <div>
-                          <span className="text-xs text-gray-500">입주일: </span>
-                          <span className="text-sm text-gray-700 font-medium">{company.entry_date}</span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* 상태 배지 */}
-                  {company.status && (
-                    <div className="mt-4 pt-4 border-t border-gray-100">
-                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
-                        company.status === '입주중' || company.status === '운영중'
-                          ? 'bg-green-100 text-green-700'
-                          : company.status === '졸업'
-                          ? 'bg-blue-100 text-blue-700'
-                          : 'bg-gray-100 text-gray-700'
-                      }`}>
-                        {company.status}
-                      </span>
-                    </div>
-                  )}
                 </div>
               ))}
             </div>
