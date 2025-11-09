@@ -1,7 +1,7 @@
 <script lang="ts">
 	/**
-	 * 교육/행사 페이지 (JBTP Events)
-	 * JBTP 교육/행사 크롤링 + 게시된 공고 관리
+	 * 바이오행사 페이지 (JBTP Events)
+	 * JBTP 바이오행사 크롤링 + 게시된 공고 관리
 	 */
 	import { onMount } from 'svelte';
 	import { Panel } from '$lib/components/layout';
@@ -101,7 +101,7 @@
 							...crawlLogs,
 							{
 								timestamp,
-								message: `✓ ${data.total_collected}개 행사 수집 완료. 상세 정보 수집 시작...`,
+								message: `✓ ${data.total_collected}개 바이오행사 수집 완료. 상세 정보 수집 시작...`,
 								type: 'success'
 							}
 						];
@@ -131,7 +131,7 @@
 						crawlLogs = [
 							...crawlLogs,
 							{ timestamp, message: data.message || '크롤링 완료', type: 'success' },
-							{ timestamp, message: `📋 크롤링 대기열 탭에서 ${crawlProgress.success}개의 행사를 확인하세요`, type: 'info' }
+							{ timestamp, message: `📋 크롤링 대기열 탭에서 ${crawlProgress.success}개의 바이오행사를 확인하세요`, type: 'info' }
 						];
 						loading = false;
 						activeTab = 'queue';
@@ -187,7 +187,7 @@
 				})
 			});
 			const data = await res.json();
-			toast.success(`${data.published}개 행사가 게시되었습니다`);
+			toast.success(`${data.published}개 바이오행사가 게시되었습니다`);
 			await loadQueue();
 			selectedIds = [];
 			activeTab = 'published'; // Switch to published tab
@@ -202,14 +202,14 @@
 </script>
 
 <svelte:head>
-	<title>교육/행사 - JB SQUARE</title>
+	<title>바이오행사 - JB SQUARE</title>
 </svelte:head>
 
 <div class="page">
 	<div class="page-header">
 		<div>
-			<h1 class="page-title">교육/행사</h1>
-			<p class="page-subtitle">JBTP 교육 및 행사 정보 크롤링 및 관리</p>
+			<h1 class="page-title">바이오행사</h1>
+			<p class="page-subtitle">JBTP 바이오행사 정보 크롤링 및 관리</p>
 		</div>
 		<div class="header-actions">
 			<Button variant="outline" onclick={() => (showAddModal = true)}>
@@ -219,13 +219,13 @@
 	</div>
 
 	<!-- Crawler Config Panel -->
-	<Panel title="JBTP 교육/행사 크롤러">
+	<Panel title="JBTP 바이오행사 크롤러">
 		<div class="crawler-card-content">
 			<p class="crawler-description">
-				전북테크노파크의 교육 및 행사 정보를 수집합니다.
+				전북테크노파크의 바이오행사 정보를 수집합니다.
 			</p>
 			<Button variant="primary" onclick={crawlJBTPEvents} disabled={loading}>
-				{loading ? '크롤링 중...' : '교육/행사 크롤링 시작'}
+				{loading ? '크롤링 중...' : '바이오행사 크롤링 시작'}
 			</Button>
 		</div>
 	</Panel>
@@ -254,7 +254,7 @@
 
 			<CrawlingStatus
 				sourceId="jbtp_events"
-				sourceName="JBTP 교육/행사"
+				sourceName="JBTP 바이오행사"
 				status={crawlStatus === 'collecting' || crawlStatus === 'processing' ? 'running' : crawlStatus}
 				progress={crawlProgress.progress}
 				total={crawlProgress.total}
@@ -280,7 +280,7 @@
 			class:active={activeTab === 'published'}
 			onclick={() => (activeTab = 'published')}
 		>
-			게시된 행사
+			게시된 바이오행사
 		</button>
 	</div>
 
@@ -302,7 +302,7 @@
 			{/if}
 		</Panel>
 	{:else}
-		<Panel title="게시된 행사">
+		<Panel title="게시된 바이오행사">
 			{#key publishedListKey}
 				<PublishedNoticesList sourceId="source:jbtp:events" />
 			{/key}

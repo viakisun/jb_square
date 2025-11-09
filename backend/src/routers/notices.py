@@ -439,6 +439,7 @@ async def bulk_delete_notices(
 CRAWLER_EXECUTORS = {
     NoticeSource.JBTP_LOCAL: lambda: crawler_manager.execute_jbtp,
     NoticeSource.JBTP_EXTERNAL: lambda: crawler_manager.execute_jbtp_external,
+    NoticeSource.JBTP_EVENTS: lambda: crawler_manager.execute_jbtp_events,
     NoticeSource.NTIS_RSS: lambda: crawler_manager.execute_ntis_rss,
     NoticeSource.BIZINFO_API: lambda: crawler_manager.execute_bizinfo,
 }

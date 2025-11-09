@@ -635,6 +635,15 @@ class CrawlerManager:
         """
         return await self.crawlers[NoticeSource.JBTP_EXTERNAL].run(callback)
 
+    async def execute_jbtp_events(self, callback: Optional[Callable] = None):
+        """
+        JBTP 바이오행사 크롤러를 실행합니다.
+
+        Args:
+            callback: 실시간 업데이트를 전송할 콜백 함수 (WebSocket send)
+        """
+        return await self.crawlers[NoticeSource.JBTP_EVENTS].run(callback)
+
     async def execute_ntis_rss(self, callback: Optional[Callable] = None):
         """
         NTIS RSS 피드를 통해 R&D 공고를 수집합니다.
