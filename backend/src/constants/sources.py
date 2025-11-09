@@ -15,6 +15,7 @@ class NoticeSource(str, Enum):
     NTIS_RSS = "source:ntis:rss"           # 정부공고 - NTIS
     JBTP_LOCAL = "source:jbtp:local"       # 지자체 공고 - (재)전북테크노파크
     JBTP_EXTERNAL = "source:jbtp:external" # 유관기관 공고 - (재)전북테크노파크
+    JBTP_EVENTS = "source:jbtp:events"     # 교육/행사 - (재)전북테크노파크
     BIZINFO_API = "source:bizinfo:api"     # 기업마당 정보 - 기업마당
 
 
@@ -40,6 +41,13 @@ SOURCE_INFO: Dict[str, Dict[str, Any]] = {
         "organization_full": "재단법인 전북테크노파크",
         "type": "Crawling",
         "description": "유관기관 지원 사업 공고"
+    },
+    NoticeSource.JBTP_EVENTS: {
+        "display_name": "JBTP 행사",
+        "organization": "(재)전북테크노파크",
+        "organization_full": "재단법인 전북테크노파크",
+        "type": "Crawling",
+        "description": "전북테크노파크 교육/행사 정보"
     },
     NoticeSource.BIZINFO_API: {
         "display_name": "기업마당 정보",
