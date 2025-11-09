@@ -19,7 +19,7 @@ from src.services.rate_limiter import RateLimiter
 from src.core.database import SessionLocal, CrawlerConfig, CrawlResult
 from src.models.notice import CrawlQueue
 from src.models.crawler_config import JBTPConfig, BinetConfig
-from src.services.crawlers import BICenterCrawler, BizinfoCrawler, JBTPCrawler, JBTPExternalCrawler, NTISCrawler
+from src.services.crawlers import BICenterCrawler, BizinfoCrawler, JBTPCrawler, JBTPExternalCrawler, JBTPEventsCrawler, NTISCrawler
 from src.constants.sources import NoticeSource
 
 
@@ -49,6 +49,15 @@ class CrawlerManager:
                 "error_message": None
             },
             NoticeSource.JBTP_EXTERNAL: {
+                "status": CrawlerStatus.IDLE,
+                "progress": 0,
+                "total": 0,
+                "success": 0,
+                "failed": 0,
+                "last_run": None,
+                "error_message": None
+            },
+            NoticeSource.JBTP_EVENTS: {
                 "status": CrawlerStatus.IDLE,
                 "progress": 0,
                 "total": 0,
@@ -89,6 +98,7 @@ class CrawlerManager:
         self.stop_flags: Dict[str, bool] = {
             NoticeSource.JBTP_LOCAL: False,
             NoticeSource.JBTP_EXTERNAL: False,
+            NoticeSource.JBTP_EVENTS: False,
             NoticeSource.NTIS_RSS: False,
             NoticeSource.BIZINFO_API: False,
             "bi_center": False
@@ -100,6 +110,7 @@ class CrawlerManager:
             NoticeSource.BIZINFO_API: BizinfoCrawler(),
             NoticeSource.JBTP_LOCAL: JBTPCrawler(),
             NoticeSource.JBTP_EXTERNAL: JBTPExternalCrawler(),
+            NoticeSource.JBTP_EVENTS: JBTPEventsCrawler(),
             NoticeSource.NTIS_RSS: NTISCrawler(),
         }
 
