@@ -24,6 +24,29 @@ const Header: React.FC = () => {
   const [mobileSubMenuOpen, setMobileSubMenuOpen] = useState<{
     [key: number]: boolean;
   }>({});
+  const [isHomePage, setIsHomePage] = useState(true); // 기본값을 true로 설정 (깜빡임 방지)
+  const [mounted, setMounted] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  /**
+   * 컴포넌트 마운트 시 클라이언트 사이드에서만 실행
+   */
+  useEffect(() => {
+    setMounted(true);
+    setIsHomePage(router.pathname === '/');
+  }, [router.pathname]);
+
+  /**
+   * 스크롤 감지 - 홈페이지에서만 배경색 변경
+   */
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 10);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   /**
    * 화면 크기 변경 시 모바일 메뉴 닫기
@@ -40,71 +63,42 @@ const Header: React.FC = () => {
   }, []);
 
   /**
-   * 메뉴 구조
+   * 메뉴 구조 - 5개 메뉴로 재구성
+   *
+   * 1. JB BIO 클러스터 - 단일 링크 (서브메뉴 없음)
+   * 2. JB 지원사업 공고 - 일반 서브메뉴 (4개 항목)
+   * 3. JB 창업보육센터 - 단일 링크 (서브메뉴 없음)
+   * 4. 뉴스/행사 - 2개 서브메뉴 (최신뉴스/바이오행사)
+   * 5. JB 기업정보 - 단일 링크 (서브메뉴 없음)
    */
   const menuItems = [
     {
-      title: 'JB BIO클러스터',
+      title: 'JB BIO 클러스터',
+      href: '/bio-cluster/cluster',
+    },
+    {
+      title: 'JB 지원사업 공고',
       subItems: [
-        { name: '바이오 클러스터', href: '/bio-cluster/cluster' },
-        { name: '지역 바이오밸리', href: '/bio-cluster/valley' },
-        { name: 'CEO포럼', href: '/bio-cluster/community/ceo-forum' },
-        { name: '전북경제포럼', href: '/bio-cluster/community/economic-forum' },
-        { name: '혁신신약살롱', href: '/bio-cluster/community/pharma-salon' },
-        { name: '전북과학기술포럼', href: '/bio-cluster/community/tech-forum' },
+        { name: '정부공고', href: '/notices/notice-government' },
+        { name: '지자체공고', href: '/notices/notice-local' },
+        { name: '유관기관공고', href: '/notices/notice-institutions' },
+        { name: '기업마당공고', href: '/notices/notice-business' },
       ],
     },
     {
-      title: '바이오지원',
-      subItems: [
-        { name: '외국인투자제도', href: '/policy/investment/foreign' },
-        { name: '투자 절차', href: '/policy/investment/process' },
-        { name: 'JBFEZ', href: '/policy/investment/jbfez' },
-        { name: '세제감면', href: '/policy/incentives/tax' },
-        { name: '경영활동지원', href: '/policy/incentives/business-support' },
-        { name: '투자상품', href: '/policy/products' },
-      ],
+      title: 'JB 창업보육센터',
+      href: '/incubator/centers',
     },
     {
-      title: '배송지원',
-      subItems: [
-        { name: '정부/지자체', href: '/announcements/government' },
-        { name: '기업 맞춤형 지원', href: '/announcements/customized' },
-        { name: 'R&D', href: '/announcements/rd' },
-        { name: '창업 및 기술이전', href: '/announcements/startup' },
-        { name: '최신공고 모아보기', href: '/announcements/all' },
-      ],
-    },
-    {
-      title: '기타 지원',
-      subItems: [
-        { name: '유관기관', href: '/organizations/related' },
-        { name: '대학', href: '/organizations/academic' },
-        { name: '연구소', href: '/organizations/research' },
-      ],
-    },
-    {
-      title: '바이오센터',
-      subItems: [
-        { name: '지역별 입주기업', href: '/incubator/regional' },
-        { name: '공실현황', href: '/incubator/vacancy' },
-        { name: '입주 절차', href: '/incubator/application/process' },
-        { name: '입주 신청', href: '/incubator/application/apply' },
-      ],
-    },
-    {
-      title: '뉴스센터',
+      title: '뉴스/행사',
       subItems: [
         { name: '최신뉴스', href: '/news-events/news' },
         { name: '바이오행사', href: '/news-events/events' },
       ],
     },
     {
-      title: '기타 정보',
-      subItems: [
-        { name: '지역 기업 정보', href: '/companies/directory' },
-        { name: '인터뷰 및 기획 기사', href: '/companies/interviews' },
-      ],
+      title: 'JB 기업정보',
+      href: '/companies/directory',
     },
   ];
 
@@ -119,16 +113,26 @@ const Header: React.FC = () => {
   };
 
   return (
-    <header className="bg-gray-800 text-white sticky top-0 z-50 shadow-md">
+    <header className={`sticky top-0 z-50 transition-all duration-300 ${
+      isHomePage && !isScrolled
+        ? 'bg-transparent'
+        : 'bg-white/95 backdrop-blur-md shadow-md border-b border-gray-100'
+    }`}>
       <div className="max-w-7xl mx-auto">
-        <div className="flex justify-between items-center px-4 lg:px-6 h-16">
+        <div className="flex justify-between items-center px-4 lg:px-6 h-20">
           {/* 로고 */}
           <Link href="/" className="flex items-center space-x-3 hover:opacity-80 transition-opacity">
-            {/* 로고 이미지 */}
+            {/* 로고 아이콘 */}
             <img
               src="/images/JB2_logo.png"
               alt="JB SQUARE"
-              className="h-10 w-auto"
+              className="h-12 w-auto"
+            />
+            {/* 텍스트 로고 */}
+            <img
+              src={isHomePage && !isScrolled ? "/images/JB2_textlogo_white.png" : "/images/JB2_textlogo.png"}
+              alt="JB SQUARE"
+              className="h-6 w-auto"
             />
           </Link>
 
@@ -138,21 +142,54 @@ const Header: React.FC = () => {
               <div
                 key={index}
                 className="relative"
-                onMouseEnter={() => setActiveDropdown(index)}
+                onMouseEnter={() => {
+                  if (menu.subItems) {
+                    setActiveDropdown(index);
+                  }
+                }}
                 onMouseLeave={() => setActiveDropdown(null)}
               >
-                <button className="px-3 py-2 text-sm font-medium text-gray-200 hover:text-white hover:bg-gray-700 rounded transition-colors">
-                  {menu.title}
-                </button>
+                {/* 서브메뉴가 있으면 버튼, 없으면 링크 */}
+                {menu.subItems ? (
+                  <button
+                    className={`px-6 py-6 text-lg font-medium relative transition-all duration-200 ${
+                      isHomePage && !isScrolled ? 'text-white' : 'text-[#121418]'
+                    } ${
+                      activeDropdown === index ? 'after:absolute after:bottom-0 after:left-0 after:right-0 after:h-1 after:bg-[#00268F]' : 'hover:after:absolute hover:after:bottom-0 hover:after:left-0 hover:after:right-0 hover:after:h-1 hover:after:bg-[#00B8CC]'
+                    }`}
+                    style={{ letterSpacing: '-0.18px' }}
+                  >
+                    {menu.title}
+                  </button>
+                ) : (
+                  <Link
+                    href={menu.href!}
+                    className={`px-6 py-6 text-lg font-medium relative transition-all duration-200 block ${
+                      isHomePage && !isScrolled ? 'text-white' : 'text-[#121418]'
+                    } ${
+                      router.pathname === menu.href
+                        ? 'after:absolute after:bottom-0 after:left-0 after:right-0 after:h-1 after:bg-[#00268F]'
+                        : 'hover:after:absolute hover:after:bottom-0 hover:after:left-0 hover:after:right-0 hover:after:h-1 hover:after:bg-[#00B8CC]'
+                    }`}
+                    style={{ letterSpacing: '-0.18px' }}
+                  >
+                    {menu.title}
+                  </Link>
+                )}
 
-                {/* 드롭다운 메뉴 */}
-                {activeDropdown === index && (
-                  <div className="absolute top-full left-0 mt-1 w-56 bg-white rounded-md shadow-lg py-1 z-50">
+                {/* 일반 드롭다운 메뉴 (서브메뉴가 있는 경우) */}
+                {menu.subItems && activeDropdown === index && (
+                  <div className="absolute top-full left-0 mt-0 min-w-[240px] bg-white shadow-xl py-4 z-50">
                     {menu.subItems.map((subItem, subIndex) => (
                       <Link
                         key={subIndex}
                         href={subItem.href}
-                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                        className={`block px-6 py-3 text-base transition-all duration-200 ${
+                          router.pathname === subItem.href
+                            ? 'bg-[#00268F] text-white font-semibold'
+                            : 'text-[#121418] hover:bg-[#F5F7FA]'
+                        }`}
+                        style={{ letterSpacing: '-0.16px' }}
                       >
                         {subItem.name}
                       </Link>
@@ -164,10 +201,14 @@ const Header: React.FC = () => {
           </nav>
 
           {/* 우측 액션 */}
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-2">
             {/* 검색 아이콘 */}
             <button
-              className="hidden md:flex items-center justify-center w-10 h-10 hover:bg-gray-700 rounded-full transition-colors"
+              className={`hidden md:flex items-center justify-center w-10 h-10 rounded-lg transition-all duration-200 ${
+                isHomePage && !isScrolled
+                  ? 'text-white hover:bg-white/10'
+                  : 'text-[#121418] hover:bg-[#EBEFF5]'
+              }`}
               aria-label="검색"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -177,7 +218,11 @@ const Header: React.FC = () => {
 
             {/* 사용자 아이콘 */}
             <button
-              className="hidden md:flex items-center justify-center w-10 h-10 hover:bg-gray-700 rounded-full transition-colors"
+              className={`hidden md:flex items-center justify-center w-10 h-10 rounded-lg transition-all duration-200 ${
+                isHomePage && !isScrolled
+                  ? 'text-white hover:bg-white/10'
+                  : 'text-[#121418] hover:bg-[#EBEFF5]'
+              }`}
               aria-label="로그인"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -186,7 +231,11 @@ const Header: React.FC = () => {
             </button>
 
             {/* 언어 선택 */}
-            <button className="hidden md:flex items-center space-x-1 px-3 py-2 text-sm hover:bg-gray-700 rounded transition-colors">
+            <button className={`hidden md:flex items-center space-x-1 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
+              isHomePage && !isScrolled
+                ? 'text-white hover:bg-white/10'
+                : 'text-[#121418] hover:bg-[#EBEFF5]'
+            }`}>
               <span>KR</span>
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -196,7 +245,11 @@ const Header: React.FC = () => {
             {/* 햄버거 메뉴 (모바일) */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="lg:hidden flex items-center justify-center w-10 h-10 hover:bg-gray-700 rounded transition-colors"
+              className={`lg:hidden flex items-center justify-center w-10 h-10 rounded-lg transition-all duration-200 ${
+                isHomePage && !isScrolled
+                  ? 'text-white hover:bg-white/10'
+                  : 'text-[#121418] hover:bg-[#EBEFF5]'
+              }`}
               aria-label="메뉴"
             >
               {mobileMenuOpen ? (
@@ -214,51 +267,76 @@ const Header: React.FC = () => {
 
         {/* 모바일 메뉴 */}
         {mobileMenuOpen && (
-          <div className="lg:hidden border-t border-gray-700 bg-gray-800">
+          <div className="lg:hidden border-t border-gray-100 bg-white">
             <nav className="px-4 py-4 space-y-1">
               {menuItems.map((menu, index) => (
-                <div key={index} className="border-b border-gray-700 last:border-b-0">
-                  <button
-                    onClick={() => toggleMobileSubMenu(index)}
-                    className="w-full flex justify-between items-center py-3 text-left text-white hover:bg-gray-700 px-3 rounded"
-                  >
-                    <span className="font-medium">{menu.title}</span>
-                    <svg
-                      className={`w-4 h-4 transform transition-transform ${mobileSubMenuOpen[index] ? 'rotate-180' : ''}`}
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </button>
-
-                  {mobileSubMenuOpen[index] && (
-                    <div className="pl-6 pb-2 space-y-1">
-                      {menu.subItems.map((subItem, subIndex) => (
-                        <Link
-                          key={subIndex}
-                          href={subItem.href}
-                          className="block py-2 px-3 text-sm text-gray-300 hover:text-white hover:bg-gray-700 rounded"
-                          onClick={() => setMobileMenuOpen(false)}
+                <div key={index} className="border-b border-gray-100 last:border-b-0">
+                  {/* 서브메뉴가 있으면 expandable button, 없으면 Link */}
+                  {menu.subItems ? (
+                    <>
+                      <button
+                        onClick={() => toggleMobileSubMenu(index)}
+                        className="w-full flex justify-between items-center py-3 text-left text-[#121418] hover:bg-[#EBEFF5] px-3 rounded-lg transition-all duration-200"
+                      >
+                        <span className="font-medium text-lg" style={{ letterSpacing: '-0.18px' }}>
+                          {menu.title}
+                        </span>
+                        <svg
+                          className={`w-4 h-4 transform transition-transform ${mobileSubMenuOpen[index] ? 'rotate-180' : ''}`}
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
                         >
-                          {subItem.name}
-                        </Link>
-                      ))}
-                    </div>
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </button>
+
+                      {mobileSubMenuOpen[index] && (
+                        <div className="pl-6 pb-2 space-y-1">
+                          {menu.subItems.map((subItem, subIndex) => (
+                            <Link
+                              key={subIndex}
+                              href={subItem.href}
+                              className={`block py-2 px-3 text-base rounded-lg transition-all duration-200 ${
+                                router.pathname === subItem.href
+                                  ? 'bg-[#00268F] text-white font-semibold'
+                                  : 'text-[#121418] hover:bg-[#EBEFF5]'
+                              }`}
+                              style={{ letterSpacing: '-0.16px' }}
+                              onClick={() => setMobileMenuOpen(false)}
+                            >
+                              {subItem.name}
+                            </Link>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <Link
+                      href={menu.href!}
+                      className={`block py-3 px-3 font-medium text-lg rounded-lg transition-all duration-200 ${
+                        router.pathname === menu.href
+                          ? 'bg-[#00268F] text-white font-semibold'
+                          : 'text-[#121418] hover:bg-[#EBEFF5]'
+                      }`}
+                      style={{ letterSpacing: '-0.18px' }}
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      {menu.title}
+                    </Link>
                   )}
                 </div>
               ))}
 
               {/* 모바일 액션 */}
-              <div className="pt-4 mt-4 border-t border-gray-700 space-y-2">
-                <button className="w-full flex items-center space-x-2 py-2 px-3 text-gray-300 hover:text-white hover:bg-gray-700 rounded">
+              <div className="pt-4 mt-4 border-t border-gray-100 space-y-2">
+                <button className="w-full flex items-center space-x-2 py-2 px-3 text-[#121418] hover:bg-[#EBEFF5] rounded-lg transition-all duration-200">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                   </svg>
                   <span>검색</span>
                 </button>
-                <button className="w-full flex items-center space-x-2 py-2 px-3 text-gray-300 hover:text-white hover:bg-gray-700 rounded">
+                <button className="w-full flex items-center space-x-2 py-2 px-3 text-[#121418] hover:bg-[#EBEFF5] rounded-lg transition-all duration-200">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                   </svg>

@@ -36,12 +36,12 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onSearch }) => {
   };
 
   return (
-    <section className="relative h-[600px] flex items-center overflow-hidden">
+    <section className="relative h-[600px] flex items-center overflow-hidden -mt-20">
       {/* 배경 이미지 */}
       <div className="absolute inset-0 z-0">
-        {/* 배경 이미지 (fallback: 그라데이션) */}
+        {/* 배경 이미지 */}
         <div
-          className="absolute inset-0 bg-gradient-to-br from-primary-blue via-gray-700 to-gray-900"
+          className="absolute inset-0 bg-gray-900"
           style={{
             backgroundImage: 'url(/images/hero-background.png)',
             backgroundSize: 'cover',
@@ -49,23 +49,17 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onSearch }) => {
             backgroundRepeat: 'no-repeat',
           }}
         />
-
-        {/* 어두운 오버레이 (텍스트 가독성 확보) */}
-        <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/40 to-transparent" />
-
-        {/* 하단 그라데이션 오버레이 */}
-        <div className="absolute inset-0 bg-hero-gradient opacity-50" />
       </div>
 
       {/* 컨텐츠 */}
-      <div className="relative z-10 w-full">
+      <div className="relative z-10 w-full pt-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-3xl">
             {/* 메인 타이틀 */}
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white leading-tight mb-4">
+            <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-white leading-tight mb-4">
               전북 바이오 기술 산업의
               <br />
-              Knowledge Hub, <span className="text-primary-cyan">JB SQUARE</span>
+              Knowledge Hub, <span className="text-[#00B8CC]">JB</span> SQUARE
             </h1>
 
             {/* 서브 타이틀 */}
@@ -82,6 +76,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onSearch }) => {
                 showSearchButton={true}
                 onSearch={handleSearch}
                 size="large"
+                theme="dark"
               />
             </div>
           </div>

@@ -65,6 +65,9 @@ interface SearchBarProps {
 
   /** 자동 포커스 여부 (기본값: false) */
   autoFocus?: boolean;
+
+  /** 테마 (기본값: 'light') */
+  theme?: 'light' | 'dark';
 }
 
 /**
@@ -83,7 +86,8 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   showClearButton = true,
   size = 'medium',
   className = '',
-  autoFocus = false
+  autoFocus = false,
+  theme = 'light'
 }) => {
   /**
    * 입력 필드 변경 핸들러
@@ -245,14 +249,22 @@ export const SearchBar: React.FC<SearchBarProps> = ({
 
       {/* 검색 가이드 텍스트 */}
       {!loading && !value && (
-        <p className="mt-2 text-xs text-gray-500">
+        <p className={`mt-2 text-xs ${
+          theme === 'dark'
+            ? 'text-white/90 drop-shadow-lg'
+            : 'text-gray-500'
+        }`}>
           💡 공고 제목, 내용, 기관명으로 검색할 수 있습니다
         </p>
       )}
 
       {/* 검색 중 안내 텍스트 */}
       {loading && (
-        <p className="mt-2 text-xs text-blue-600">
+        <p className={`mt-2 text-xs ${
+          theme === 'dark'
+            ? 'text-white/90 drop-shadow-lg'
+            : 'text-blue-600'
+        }`}>
           🔍 검색 중입니다...
         </p>
       )}
