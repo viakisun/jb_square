@@ -1,0 +1,683 @@
+[
+  {
+    "name": "Menu",
+    "type": "FRAME",
+    "parent": "",
+    "layout": {
+      "mode": "HORIZONTAL",
+      "paddingLeft": null,
+      "paddingRight": null,
+      "paddingTop": null,
+      "paddingBottom": null,
+      "itemSpacing": 16.0
+    },
+    "dimensions": {
+      "width": 802.0,
+      "height": 51.0
+    }
+  },
+  {
+    "name": "1Depth",
+    "type": "FRAME",
+    "parent": "Menu",
+    "layout": {
+      "mode": "HORIZONTAL",
+      "paddingLeft": 16.0,
+      "paddingRight": 16.0,
+      "paddingTop": 12.0,
+      "paddingBottom": 12.0,
+      "itemSpacing": 10.0
+    },
+    "dimensions": {
+      "width": 127.0,
+      "height": 51.0
+    }
+  },
+  {
+    "name": "BIO 클러스터",
+    "type": "TEXT",
+    "parent": "1Depth",
+    "typography": {
+      "fontFamily": "Pretendard",
+      "fontWeight": 500,
+      "fontSize": 18.0,
+      "letterSpacing": -0.18,
+      "lineHeight": 27.0
+    },
+    "fill_color": "rgba(18, 20, 24, 1.0)",
+    "dimensions": {
+      "width": 95.0,
+      "height": 27.0
+    }
+  },
+  {
+    "name": "1Depth",
+    "type": "FRAME",
+    "parent": "Menu",
+    "layout": {
+      "mode": "HORIZONTAL",
+      "paddingLeft": 16.0,
+      "paddingRight": 16.0,
+      "paddingTop": 12.0,
+      "paddingBottom": 12.0,
+      "itemSpacing": 10.0
+    },
+    "dimensions": {
+      "width": 125.0,
+      "height": 51.0
+    }
+  },
+  {
+    "name": "지원사업공고",
+    "type": "TEXT",
+    "parent": "1Depth",
+    "typography": {
+      "fontFamily": "Pretendard",
+      "fontWeight": 500,
+      "fontSize": 18.0,
+      "letterSpacing": -0.18,
+      "lineHeight": 27.0
+    },
+    "fill_color": "rgba(18, 20, 24, 1.0)",
+    "dimensions": {
+      "width": 93.0,
+      "height": 27.0
+    }
+  },
+  {
+    "name": "1Depth",
+    "type": "FRAME",
+    "parent": "Menu",
+    "layout": {
+      "mode": "HORIZONTAL",
+      "paddingLeft": 16.0,
+      "paddingRight": 16.0,
+      "paddingTop": 12.0,
+      "paddingBottom": 12.0,
+      "itemSpacing": 10.0
+    },
+    "dimensions": {
+      "width": 125.0,
+      "height": 51.0
+    }
+  },
+  {
+    "name": "창업보육센터",
+    "type": "TEXT",
+    "parent": "1Depth",
+    "typography": {
+      "fontFamily": "Pretendard",
+      "fontWeight": 500,
+      "fontSize": 18.0,
+      "letterSpacing": -0.18,
+      "lineHeight": 27.0
+    },
+    "fill_color": "rgba(18, 20, 24, 1.0)",
+    "dimensions": {
+      "width": 93.0,
+      "height": 27.0
+    }
+  },
+  {
+    "name": "1Depth",
+    "type": "FRAME",
+    "parent": "Menu",
+    "layout": {
+      "mode": "HORIZONTAL",
+      "paddingLeft": 16.0,
+      "paddingRight": 16.0,
+      "paddingTop": 12.0,
+      "paddingBottom": 12.0,
+      "itemSpacing": 10.0
+    },
+    "dimensions": {
+      "width": 151.0,
+      "height": 51.0
+    }
+  },
+  {
+    "name": "바이오 뉴스/행사",
+    "type": "TEXT",
+    "parent": "1Depth",
+    "typography": {
+      "fontFamily": "Pretendard",
+      "fontWeight": 500,
+      "fontSize": 18.0,
+      "letterSpacing": -0.18,
+      "lineHeight": 27.0
+    },
+    "fill_color": "rgba(18, 20, 24, 1.0)",
+    "dimensions": {
+      "width": 119.0,
+      "height": 27.0
+    }
+  },
+  {
+    "name": "1Depth",
+    "type": "FRAME",
+    "parent": "Menu",
+    "layout": {
+      "mode": "HORIZONTAL",
+      "paddingLeft": 16.0,
+      "paddingRight": 16.0,
+      "paddingTop": 12.0,
+      "paddingBottom": 12.0,
+      "itemSpacing": 10.0
+    },
+    "dimensions": {
+      "width": 94.0,
+      "height": 51.0
+    }
+  },
+  {
+    "name": "기업정보",
+    "type": "TEXT",
+    "parent": "1Depth",
+    "typography": {
+      "fontFamily": "Pretendard",
+      "fontWeight": 500,
+      "fontSize": 18.0,
+      "letterSpacing": -0.18,
+      "lineHeight": 27.0
+    },
+    "fill_color": "rgba(18, 20, 24, 1.0)",
+    "dimensions": {
+      "width": 62.0,
+      "height": 27.0
+    }
+  },
+  {
+    "name": "1Depth",
+    "type": "FRAME",
+    "parent": "Menu",
+    "layout": {
+      "mode": "HORIZONTAL",
+      "paddingLeft": 16.0,
+      "paddingRight": 16.0,
+      "paddingTop": 12.0,
+      "paddingBottom": 12.0,
+      "itemSpacing": 10.0
+    },
+    "dimensions": {
+      "width": 100.0,
+      "height": 51.0
+    }
+  },
+  {
+    "name": "기술/특허",
+    "type": "TEXT",
+    "parent": "1Depth",
+    "typography": {
+      "fontFamily": "Pretendard",
+      "fontWeight": 500,
+      "fontSize": 18.0,
+      "letterSpacing": -0.18,
+      "lineHeight": 27.0
+    },
+    "fill_color": "rgba(18, 20, 24, 1.0)",
+    "dimensions": {
+      "width": 68.0,
+      "height": 27.0
+    }
+  },
+  {
+    "name": "Total Menu",
+    "type": "FRAME",
+    "parent": "",
+    "fill_color": "rgba(0, 38, 143, 1.0)",
+    "background_color": "rgba(0, 38, 143, 1.0)",
+    "layout": {
+      "mode": "VERTICAL",
+      "paddingLeft": 8.0,
+      "paddingRight": 8.0,
+      "paddingTop": 8.0,
+      "paddingBottom": 8.0,
+      "itemSpacing": 10.0
+    },
+    "cornerRadius": 500.0,
+    "dimensions": {
+      "width": 48.0,
+      "height": 48.0
+    }
+  },
+  {
+    "name": "menu-03",
+    "type": "FRAME",
+    "parent": "Total Menu",
+    "fill_color": "rgba(255, 255, 255, 1.0)",
+    "background_color": "rgba(255, 255, 255, 1.0)",
+    "dimensions": {
+      "width": 24.0,
+      "height": 24.0
+    }
+  },
+  {
+    "name": "Icon",
+    "type": "VECTOR",
+    "parent": "menu-03",
+    "dimensions": {
+      "width": 15.999999046325684,
+      "height": 12.0
+    }
+  },
+  {
+    "name": "menu-03",
+    "type": "FRAME",
+    "parent": "",
+    "fill_color": "rgba(255, 255, 255, 1.0)",
+    "background_color": "rgba(255, 255, 255, 1.0)",
+    "dimensions": {
+      "width": 24.0,
+      "height": 24.0
+    }
+  },
+  {
+    "name": "Icon",
+    "type": "VECTOR",
+    "parent": "menu-03",
+    "dimensions": {
+      "width": 15.999999046325684,
+      "height": 12.0
+    }
+  },
+  {
+    "name": "Menu",
+    "type": "FRAME",
+    "parent": "",
+    "layout": {
+      "mode": "HORIZONTAL",
+      "paddingLeft": null,
+      "paddingRight": null,
+      "paddingTop": null,
+      "paddingBottom": null,
+      "itemSpacing": 40.0
+    },
+    "dimensions": {
+      "width": 1162.0,
+      "height": 27.0
+    }
+  },
+  {
+    "name": "BIO 클러스터",
+    "type": "TEXT",
+    "parent": "Menu",
+    "typography": {
+      "fontFamily": "Pretendard",
+      "fontWeight": 500,
+      "fontSize": 18.0,
+      "letterSpacing": -0.72,
+      "lineHeight": 27.0
+    },
+    "fill_color": "rgba(235, 239, 245, 1.0)",
+    "dimensions": {
+      "width": 91.0,
+      "height": 27.0
+    }
+  },
+  {
+    "name": "지원사업공고",
+    "type": "TEXT",
+    "parent": "Menu",
+    "typography": {
+      "fontFamily": "Pretendard",
+      "fontWeight": 500,
+      "fontSize": 18.0,
+      "letterSpacing": -0.72,
+      "lineHeight": 27.0
+    },
+    "fill_color": "rgba(235, 239, 245, 1.0)",
+    "dimensions": {
+      "width": 90.0,
+      "height": 27.0
+    }
+  },
+  {
+    "name": "창업보육센터",
+    "type": "TEXT",
+    "parent": "Menu",
+    "typography": {
+      "fontFamily": "Pretendard",
+      "fontWeight": 500,
+      "fontSize": 18.0,
+      "letterSpacing": -0.72,
+      "lineHeight": 27.0
+    },
+    "fill_color": "rgba(235, 239, 245, 1.0)",
+    "dimensions": {
+      "width": 90.0,
+      "height": 27.0
+    }
+  },
+  {
+    "name": "바이오 뉴스/행사",
+    "type": "TEXT",
+    "parent": "Menu",
+    "typography": {
+      "fontFamily": "Pretendard",
+      "fontWeight": 500,
+      "fontSize": 18.0,
+      "letterSpacing": -0.72,
+      "lineHeight": 27.0
+    },
+    "fill_color": "rgba(235, 239, 245, 1.0)",
+    "dimensions": {
+      "width": 114.0,
+      "height": 27.0
+    }
+  },
+  {
+    "name": "기업정보",
+    "type": "TEXT",
+    "parent": "Menu",
+    "typography": {
+      "fontFamily": "Pretendard",
+      "fontWeight": 500,
+      "fontSize": 18.0,
+      "letterSpacing": -0.72,
+      "lineHeight": 27.0
+    },
+    "fill_color": "rgba(235, 239, 245, 1.0)",
+    "dimensions": {
+      "width": 61.0,
+      "height": 27.0
+    }
+  },
+  {
+    "name": "기술/특허",
+    "type": "TEXT",
+    "parent": "Menu",
+    "typography": {
+      "fontFamily": "Pretendard",
+      "fontWeight": 500,
+      "fontSize": 18.0,
+      "letterSpacing": -0.72,
+      "lineHeight": 27.0
+    },
+    "fill_color": "rgba(235, 239, 245, 1.0)",
+    "dimensions": {
+      "width": 66.0,
+      "height": 27.0
+    }
+  },
+  {
+    "name": "Menu",
+    "type": "FRAME",
+    "parent": "",
+    "layout": {
+      "mode": "HORIZONTAL",
+      "paddingLeft": null,
+      "paddingRight": null,
+      "paddingTop": null,
+      "paddingBottom": null,
+      "itemSpacing": 16.0
+    },
+    "dimensions": {
+      "width": 802.0,
+      "height": 51.0
+    }
+  },
+  {
+    "name": "1Depth",
+    "type": "FRAME",
+    "parent": "Menu",
+    "layout": {
+      "mode": "HORIZONTAL",
+      "paddingLeft": 16.0,
+      "paddingRight": 16.0,
+      "paddingTop": 12.0,
+      "paddingBottom": 12.0,
+      "itemSpacing": 10.0
+    },
+    "dimensions": {
+      "width": 127.0,
+      "height": 51.0
+    }
+  },
+  {
+    "name": "BIO 클러스터",
+    "type": "TEXT",
+    "parent": "1Depth",
+    "typography": {
+      "fontFamily": "Pretendard",
+      "fontWeight": 500,
+      "fontSize": 18.0,
+      "letterSpacing": -0.18,
+      "lineHeight": 27.0
+    },
+    "fill_color": "rgba(18, 20, 24, 1.0)",
+    "dimensions": {
+      "width": 95.0,
+      "height": 27.0
+    }
+  },
+  {
+    "name": "1Depth",
+    "type": "FRAME",
+    "parent": "Menu",
+    "layout": {
+      "mode": "HORIZONTAL",
+      "paddingLeft": 16.0,
+      "paddingRight": 16.0,
+      "paddingTop": 12.0,
+      "paddingBottom": 12.0,
+      "itemSpacing": 10.0
+    },
+    "dimensions": {
+      "width": 125.0,
+      "height": 51.0
+    }
+  },
+  {
+    "name": "지원사업공고",
+    "type": "TEXT",
+    "parent": "1Depth",
+    "typography": {
+      "fontFamily": "Pretendard",
+      "fontWeight": 500,
+      "fontSize": 18.0,
+      "letterSpacing": -0.18,
+      "lineHeight": 27.0
+    },
+    "fill_color": "rgba(18, 20, 24, 1.0)",
+    "dimensions": {
+      "width": 93.0,
+      "height": 27.0
+    }
+  },
+  {
+    "name": "1Depth",
+    "type": "FRAME",
+    "parent": "Menu",
+    "layout": {
+      "mode": "HORIZONTAL",
+      "paddingLeft": 16.0,
+      "paddingRight": 16.0,
+      "paddingTop": 12.0,
+      "paddingBottom": 12.0,
+      "itemSpacing": 10.0
+    },
+    "dimensions": {
+      "width": 125.0,
+      "height": 51.0
+    }
+  },
+  {
+    "name": "창업보육센터",
+    "type": "TEXT",
+    "parent": "1Depth",
+    "typography": {
+      "fontFamily": "Pretendard",
+      "fontWeight": 500,
+      "fontSize": 18.0,
+      "letterSpacing": -0.18,
+      "lineHeight": 27.0
+    },
+    "fill_color": "rgba(18, 20, 24, 1.0)",
+    "dimensions": {
+      "width": 93.0,
+      "height": 27.0
+    }
+  },
+  {
+    "name": "1Depth",
+    "type": "FRAME",
+    "parent": "Menu",
+    "layout": {
+      "mode": "HORIZONTAL",
+      "paddingLeft": 16.0,
+      "paddingRight": 16.0,
+      "paddingTop": 12.0,
+      "paddingBottom": 12.0,
+      "itemSpacing": 10.0
+    },
+    "dimensions": {
+      "width": 151.0,
+      "height": 51.0
+    }
+  },
+  {
+    "name": "바이오 뉴스/행사",
+    "type": "TEXT",
+    "parent": "1Depth",
+    "typography": {
+      "fontFamily": "Pretendard",
+      "fontWeight": 500,
+      "fontSize": 18.0,
+      "letterSpacing": -0.18,
+      "lineHeight": 27.0
+    },
+    "fill_color": "rgba(18, 20, 24, 1.0)",
+    "dimensions": {
+      "width": 119.0,
+      "height": 27.0
+    }
+  },
+  {
+    "name": "1Depth",
+    "type": "FRAME",
+    "parent": "Menu",
+    "layout": {
+      "mode": "HORIZONTAL",
+      "paddingLeft": 16.0,
+      "paddingRight": 16.0,
+      "paddingTop": 12.0,
+      "paddingBottom": 12.0,
+      "itemSpacing": 10.0
+    },
+    "dimensions": {
+      "width": 94.0,
+      "height": 51.0
+    }
+  },
+  {
+    "name": "기업정보",
+    "type": "TEXT",
+    "parent": "1Depth",
+    "typography": {
+      "fontFamily": "Pretendard",
+      "fontWeight": 500,
+      "fontSize": 18.0,
+      "letterSpacing": -0.18,
+      "lineHeight": 27.0
+    },
+    "fill_color": "rgba(18, 20, 24, 1.0)",
+    "dimensions": {
+      "width": 62.0,
+      "height": 27.0
+    }
+  },
+  {
+    "name": "1Depth",
+    "type": "FRAME",
+    "parent": "Menu",
+    "layout": {
+      "mode": "HORIZONTAL",
+      "paddingLeft": 16.0,
+      "paddingRight": 16.0,
+      "paddingTop": 12.0,
+      "paddingBottom": 12.0,
+      "itemSpacing": 10.0
+    },
+    "dimensions": {
+      "width": 100.0,
+      "height": 51.0
+    }
+  },
+  {
+    "name": "기술/특허",
+    "type": "TEXT",
+    "parent": "1Depth",
+    "typography": {
+      "fontFamily": "Pretendard",
+      "fontWeight": 500,
+      "fontSize": 18.0,
+      "letterSpacing": -0.18,
+      "lineHeight": 27.0
+    },
+    "fill_color": "rgba(18, 20, 24, 1.0)",
+    "dimensions": {
+      "width": 68.0,
+      "height": 27.0
+    }
+  },
+  {
+    "name": "Total Menu",
+    "type": "FRAME",
+    "parent": "",
+    "fill_color": "rgba(0, 38, 143, 1.0)",
+    "background_color": "rgba(0, 38, 143, 1.0)",
+    "layout": {
+      "mode": "VERTICAL",
+      "paddingLeft": 8.0,
+      "paddingRight": 8.0,
+      "paddingTop": 8.0,
+      "paddingBottom": 8.0,
+      "itemSpacing": 10.0
+    },
+    "cornerRadius": 500.0,
+    "dimensions": {
+      "width": 36.0,
+      "height": 36.0
+    }
+  },
+  {
+    "name": "menu-03",
+    "type": "FRAME",
+    "parent": "Total Menu",
+    "fill_color": "rgba(255, 255, 255, 1.0)",
+    "background_color": "rgba(255, 255, 255, 1.0)",
+    "dimensions": {
+      "width": 20.0,
+      "height": 20.0
+    }
+  },
+  {
+    "name": "Icon",
+    "type": "VECTOR",
+    "parent": "menu-03",
+    "dimensions": {
+      "width": 13.333332061767578,
+      "height": 10.0
+    }
+  },
+  {
+    "name": "menu-03",
+    "type": "FRAME",
+    "parent": "",
+    "fill_color": "rgba(255, 255, 255, 1.0)",
+    "background_color": "rgba(255, 255, 255, 1.0)",
+    "dimensions": {
+      "width": 20.0,
+      "height": 20.0
+    }
+  },
+  {
+    "name": "Icon",
+    "type": "VECTOR",
+    "parent": "menu-03",
+    "dimensions": {
+      "width": 13.333332061767578,
+      "height": 10.0
+    }
+  }
+]
