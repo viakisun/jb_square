@@ -23,6 +23,7 @@ import { NoticeCard } from '@/components/sample-board/NoticeCard';
 import { SkeletonCard } from '@/components/common/SkeletonCard';
 import { useNotices } from '@/hooks/useNotices';
 import { Notice } from '@/lib/api/types';
+import DebugErrorMessage from '@/components/ui/DebugErrorMessage';
 
 // TODO: Category-based filtering removed. Consider implementing source-based filtering if needed.
 export const AnnouncementSection: React.FC = () => {
@@ -34,7 +35,7 @@ export const AnnouncementSection: React.FC = () => {
    *
    * Note: Tab filtering temporarily disabled after category field removal
    */
-  const { notices, loading, error } = useNotices({
+  const { notices, loading, error, errorDetails, fetchNotices } = useNotices({
     status: 'published',
     limit: 8,
     sort_by: 'published_at',
@@ -88,31 +89,13 @@ export const AnnouncementSection: React.FC = () => {
               <SkeletonCard key={index} variant="default" />
             ))}
           </div>
-        ) : error ? (
-          // 에러 메시지
-          <div className="text-center py-16">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-red-100 rounded-full mb-4">
-              <svg
-                className="w-8 h-8 text-red-600"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-            </div>
-            <p className="text-gray-600 mb-4">{error}</p>
-            <button
-              onClick={() => window.location.reload()}
-              className="px-6 py-2 bg-primary-blue text-white rounded-lg hover:bg-primary-cyan transition-colors"
-            >
-              다시 시도
-            </button>
+        ) : error && errorDetails ? (
+          // 에러 메시지 (상세 정보 포함)
+          <div className="py-8">
+            <DebugErrorMessage
+              error={errorDetails}
+              onRetry={() => fetchNotices()}
+            />
           </div>
         ) : notices.length === 0 ? (
           // 공고 없음

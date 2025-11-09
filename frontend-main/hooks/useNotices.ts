@@ -37,6 +37,7 @@ import { useState, useEffect, useCallback } from 'react';
 import api from '@/lib/api/client';
 import { Notice, NoticeFilterParams, PaginatedResponse } from '@/lib/api/types';
 import { getErrorMessage, logError } from '@/lib/utils/errors';
+import { ErrorDetails } from '@/components/ui/DebugErrorMessage';
 
 /**
  * 훅 반환 타입 정의
@@ -50,6 +51,9 @@ interface UseNoticesReturn {
 
   /** 에러 메시지 (에러 발생 시) */
   error: string | null;
+
+  /** 상세 에러 정보 (디버깅용) */
+  errorDetails: ErrorDetails | null;
 
   /** 페이지네이션 정보 */
   pagination: {
@@ -100,6 +104,7 @@ export function useNotices(
   const [notices, setNotices] = useState<Notice[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorDetails, setErrorDetails] = useState<ErrorDetails | null>(null);
   const [pagination, setPagination] = useState<UseNoticesReturn['pagination']>(null);
 
   // 필터 상태 (기본값 설정)
@@ -119,6 +124,7 @@ export function useNotices(
   const fetchNotices = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setErrorDetails(null);
 
     try {
       const response: PaginatedResponse<Notice> = await api.notices.getList(filters);
@@ -137,6 +143,19 @@ export function useNotices(
       // 에러 처리
       const errorMessage = getErrorMessage(err, '공고를 불러오는 중 오류가 발생했습니다.');
       setError(errorMessage);
+
+      // 상세 에러 정보 수집
+      const details: ErrorDetails = {
+        message: errorMessage,
+        statusCode: (err as any)?.statusCode,
+        detail: (err as any)?.detail,
+        url: `${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000'}/api/notices`,
+        params: filters,
+        timestamp: new Date().toISOString(),
+        raw: err
+      };
+      setErrorDetails(details);
+
       logError(err, '공고 목록 조회 실패');
 
       // 에러 발생 시 빈 배열 설정
@@ -185,6 +204,7 @@ export function useNotices(
     notices,
     loading,
     error,
+    errorDetails,
     pagination,
     fetchNotices,
     setFilters,
