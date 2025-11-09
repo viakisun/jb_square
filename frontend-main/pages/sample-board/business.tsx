@@ -42,7 +42,9 @@ export default function BusinessSupportNoticesPage() {
     totalResults,
     hasSearched
   } = useNoticeSearch({
-    category: 'business',  // 기업 맞춤형 공고 내에서만 검색
+    additionalFilters: {
+      category: 'business'  // 기업 맞춤형 공고 내에서만 검색
+    },
     debounceDelay: 500,
     minLength: 2
   });

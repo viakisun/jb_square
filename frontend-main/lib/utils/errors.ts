@@ -287,7 +287,7 @@ export async function retryOnError<T>(
       lastError = error;
 
       // 인증 에러나 클라이언트 에러는 재시도하지 않음
-      if (isAuthError(error) || (error?.statusCode >= 400 && error?.statusCode < 500)) {
+      if (isAuthError(error) || ((error as any)?.statusCode >= 400 && (error as any)?.statusCode < 500)) {
         throw error;
       }
 

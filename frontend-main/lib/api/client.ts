@@ -31,6 +31,8 @@
 
 import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig, AxiosResponse } from 'axios';
 import { createNoticesAPI, NoticesAPI } from './endpoints/notices';
+import { createOrganizationsAPI, OrganizationsAPI } from './endpoints/organizations';
+import { createBICentersAPI, BICentersAPI } from './endpoints/bi-centers';
 import { APIError } from './types';
 
 /**
@@ -219,6 +221,12 @@ interface APIClient {
   /** 공고 관련 API */
   notices: NoticesAPI;
 
+  /** 기업정보 관련 API */
+  organizations: OrganizationsAPI;
+
+  /** 창업보육센터 관련 API */
+  biCenters: BICentersAPI;
+
   /** Axios 인스턴스 (고급 사용자용) */
   client: AxiosInstance;
 }
@@ -235,12 +243,20 @@ interface APIClient {
  * // 공고 API 사용
  * const notices = await api.notices.getList();
  *
+ * // 기업정보 API 사용
+ * const companies = await api.organizations.getList();
+ *
+ * // 창업보육센터 API 사용
+ * const centers = await api.biCenters.getList();
+ *
  * // 직접 axios 인스턴스 사용 (고급)
  * const response = await api.client.get('/custom-endpoint');
  * ```
  */
 const api: APIClient = {
   notices: createNoticesAPI(axiosInstance),
+  organizations: createOrganizationsAPI(axiosInstance),
+  biCenters: createBICentersAPI(axiosInstance),
   client: axiosInstance
 };
 

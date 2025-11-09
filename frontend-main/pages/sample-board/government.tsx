@@ -63,7 +63,9 @@ export default function GovernmentNoticesPage() {
     totalResults,
     hasSearched
   } = useNoticeSearch({
-    category: 'government',  // 정부 공고 내에서만 검색
+    additionalFilters: {
+      category: 'government'  // 정부 공고 내에서만 검색
+    },
     debounceDelay: 500,
     minLength: 2
   });

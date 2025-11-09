@@ -127,7 +127,7 @@ export const CategorySection: React.FC<CategorySectionProps> = ({
         category,           // 특정 카테고리만 필터링
         status: 'published', // 게시된 공고만 가져오기
         limit,              // 표시할 개수
-        skip: 0             // 첫 페이지부터 (offset 대신 skip 사용)
+        page: 1             // 첫 페이지부터
       });
 
       // Step 3: 데이터 업데이트

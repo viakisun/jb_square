@@ -42,7 +42,9 @@ export default function LocalGovernmentNoticesPage() {
     totalResults,
     hasSearched
   } = useNoticeSearch({
-    category: 'local_government',  // 지자체 공고 내에서만 검색
+    additionalFilters: {
+      category: 'local_government'  // 지자체 공고 내에서만 검색
+    },
     debounceDelay: 500,
     minLength: 2
   });

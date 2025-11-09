@@ -111,10 +111,10 @@ export class NoticesAPI {
    * ```
    */
   async getLatest(params?: LatestNoticesParams): Promise<Notice[]> {
-    const response = await this.client.get<Notice[]>('/api/notices/latest/list', {
+    const response = await this.client.get<{ items: Notice[]; total: number }>('/api/notices/latest/list', {
       params
     });
-    return response.data;
+    return response.data.items;
   }
 
   /**

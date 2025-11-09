@@ -42,7 +42,9 @@ export default function InstitutionNoticesPage() {
     totalResults,
     hasSearched
   } = useNoticeSearch({
-    category: 'rnd',  // 유관 기관 공고 내에서만 검색
+    additionalFilters: {
+      category: 'rnd'  // 유관 기관 공고 내에서만 검색
+    },
     debounceDelay: 500,
     minLength: 2
   });
