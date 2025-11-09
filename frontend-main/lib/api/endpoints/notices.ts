@@ -91,7 +91,7 @@ export class NoticesAPI {
       backendParams.offset = (page - 1) * limit;
     }
 
-    const response = await this.client.get<PaginatedResponse<Notice>>('/api/notices', {
+    const response = await this.client.get<PaginatedResponse<Notice>>('/notices', {
       params: backendParams
     });
     return response.data;
@@ -113,7 +113,7 @@ export class NoticesAPI {
    * ```
    */
   async getById(id: number): Promise<Notice> {
-    const response = await this.client.get<Notice>(`/api/notices/${id}`);
+    const response = await this.client.get<Notice>(`/notices/${id}`);
     return response.data;
   }
 
@@ -136,7 +136,7 @@ export class NoticesAPI {
    * ```
    */
   async getLatest(params?: LatestNoticesParams): Promise<Notice[]> {
-    const response = await this.client.get<{ items: Notice[]; total: number }>('/api/notices/latest/list', {
+    const response = await this.client.get<{ items: Notice[]; total: number }>('/notices/latest/list', {
       params
     });
     return response.data.items;

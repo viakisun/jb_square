@@ -145,11 +145,12 @@ export function useNotices(
       setError(errorMessage);
 
       // 상세 에러 정보 수집
+      const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
       const details: ErrorDetails = {
         message: errorMessage,
         statusCode: (err as any)?.statusCode,
         detail: (err as any)?.detail,
-        url: `${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000'}/api/notices`,
+        url: `${baseUrl}/notices`,
         params: filters,
         timestamp: new Date().toISOString(),
         raw: err
