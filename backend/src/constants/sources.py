@@ -17,6 +17,8 @@ class NoticeSource(str, Enum):
     JBTP_EXTERNAL = "source:jbtp:external" # 유관기관 공고 - (재)전북테크노파크
     JBTP_EVENTS = "source:jbtp:events"     # 교육/행사 - (재)전북테크노파크
     BIZINFO_API = "source:bizinfo:api"     # 기업마당 정보 - 기업마당
+    NEWS_MFDS = "source:news:mfds"         # 뉴스 - 식품의약품안전처
+    NEWS_MOHW = "source:news:mohw"         # 뉴스 - 보건복지부
 
 
 # Source 메타데이터
@@ -55,6 +57,20 @@ SOURCE_INFO: Dict[str, Dict[str, Any]] = {
         "organization_full": "중소기업 종합정보시스템",
         "type": "API",
         "description": "중소기업 지원 사업 정보"
+    },
+    NoticeSource.NEWS_MFDS: {
+        "display_name": "식약처 뉴스",
+        "organization": "식품의약품안전처",
+        "organization_full": "식품의약품안전처",
+        "type": "RSS",
+        "description": "의약품 승인, 안전 규제, 식품 위생 관련 공지사항"
+    },
+    NoticeSource.NEWS_MOHW: {
+        "display_name": "복지부 뉴스",
+        "organization": "보건복지부",
+        "organization_full": "보건복지부",
+        "type": "RSS",
+        "description": "보건의료 정책, R&D 지원, 바이오 산업 보도자료"
     }
 }
 

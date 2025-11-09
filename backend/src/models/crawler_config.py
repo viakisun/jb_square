@@ -112,3 +112,31 @@ class BizinfoConfig(Base):
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
         }
+
+
+class RSSConfig(Base):
+    """RSS 뉴스 크롤링 설정"""
+    __tablename__ = 'rss_config'
+
+    id = Column(Integer, primary_key=True)
+    source_id = Column(String(50), nullable=False, unique=True)  # 'source:news:mfds', 'source:news:mohw'
+    name = Column(String(200), nullable=False)                   # "식약처 뉴스", "복지부 보도자료"
+    feed_url = Column(Text, nullable=False)                      # RSS 피드 URL
+    keywords = Column(JSONB, default=[])                         # 필터링 키워드 (선택사항)
+    date_range_days = Column(Integer, default=30)                # 검색 기간 (일)
+    enabled = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.now)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'source_id': self.source_id,
+            'name': self.name,
+            'feed_url': self.feed_url,
+            'keywords': self.keywords or [],
+            'date_range_days': self.date_range_days or 30,
+            'enabled': self.enabled,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+        }

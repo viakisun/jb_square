@@ -10,6 +10,8 @@ import asyncio
 
 from src.services.crawler_manager import crawler_manager
 from src.core.database import get_db, CrawlerConfig, CrawlResult
+from src.models.crawler_config import RSSConfig
+from src.services.crawlers.rss_news_crawler import RSSNewsCrawler
 
 router = APIRouter()
 
@@ -318,3 +320,62 @@ async def get_crawl_report(source_id: str, db: Session = Depends(get_db)):
         "latest_crawl": latest_crawl.isoformat() if latest_crawl else None,
         "recent_results": [r.to_dict() for r in results[:20]]  # 최근 20개
     }
+
+
+@router.websocket("/ws/rss/{source_id}")
+async def websocket_rss_crawling(websocket: WebSocket, source_id: str):
+    """
+    RSS 뉴스 크롤링 WebSocket 엔드포인트
+
+    Args:
+        source_id: RSS 소스 ID ('source:news:mfds' 또는 'source:news:mohw')
+    """
+    await manager.connect(websocket)
+
+    try:
+        # DB 세션 생성
+        db = next(get_db())
+
+        # RSS 설정 조회
+        config = db.query(RSSConfig).filter(RSSConfig.source_id == source_id).first()
+
+        if not config:
+            await websocket.send_text(f'{{"type": "error", "message": "RSS config not found: {source_id}"}}')
+            return
+
+        if not config.enabled:
+            await websocket.send_text(f'{{"type": "error", "message": "RSS config is disabled: {source_id}"}}')
+            return
+
+        # Callback 함수 정의 (WebSocket으로 메시지 전송)
+        async def callback(message: str):
+            await manager.send_message(message, websocket)
+
+        # RSS 크롤러 생성 및 실행
+        crawler = RSSNewsCrawler(
+            source_id=config.source_id,
+            feed_url=config.feed_url,
+            config={
+                'keywords': config.keywords or [],
+                'date_range_days': config.date_range_days or 30
+            }
+        )
+
+        # 크롤링 실행
+        await crawler.execute(callback, db)
+
+        # Keep connection alive for final messages
+        await asyncio.sleep(1)
+
+    except WebSocketDisconnect:
+        manager.disconnect(websocket)
+        print(f"WebSocket disconnected for RSS {source_id}")
+
+    except Exception as e:
+        print(f"WebSocket error for RSS {source_id}: {str(e)}")
+        await websocket.send_text(f'{{"type": "error", "message": "{str(e)}"}}')
+
+    finally:
+        manager.disconnect(websocket)
+        if 'db' in locals():
+            db.close()
