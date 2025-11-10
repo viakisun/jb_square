@@ -28,18 +28,18 @@ class GovernmentNTISAdapter(BaseAdapter):
     def __init__(self):
         super().__init__(NoticeSource.NTIS_RSS)
 
-        # Load config from unified crawler_config table
-        config = ConfigRepository.get_config_by_source_id(self.source_id)
+        # Load config using unified get_config() method
+        config = ConfigRepository.get_config(self.source_id)
 
-        if config and config.url:
+        if config and config['url']:
             # Use URL from database
-            self.rss_url = config.url
+            self.rss_url = config['url']
         else:
             # Fallback to hardcoded URL (for backwards compatibility)
             self.rss_url = "http://www.ntis.go.kr/rndgate/unRndRss.xml?prt=500&bbs=true"
 
         # Get date range from config (default 30 days)
-        self.days_filter = ConfigRepository.get_date_range_days(self.source_id)
+        self.days_filter = config['date_range_days'] if config else 30
 
     def _clean_description(self, html_text: str) -> str:
         """HTML 태그 제거 및 텍스트 정리"""

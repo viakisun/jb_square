@@ -4,6 +4,7 @@ Sources Package
 """
 
 from ._base import BaseAdapter, CrawlerStatus, CrawlerPhase
+from .jbtp_base import JBTPBaseAdapter
 from .jbtp_local import JBTPLocalAdapter
 from .jbtp_external import JBTPExternalAdapter
 from .jbtp_events import JBTPEventsAdapter
@@ -17,6 +18,7 @@ __all__ = [
     "BaseAdapter",
     "CrawlerStatus",
     "CrawlerPhase",
+    "JBTPBaseAdapter",
     "JBTPLocalAdapter",
     "JBTPExternalAdapter",
     "JBTPEventsAdapter",

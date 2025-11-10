@@ -27,8 +27,9 @@ class GovernmentBizinfoAdapter(BaseAdapter):
     async def execute(self, callback: Optional[Callable] = None):
         """크롤링 실행"""
         try:
-            # DB에서 date_range_days 로드
-            date_range_days = ConfigRepository.get_date_range_days(self.source_id)
+            # DB에서 config 로드
+            config = ConfigRepository.get_config(self.source_id)
+            date_range_days = config['date_range_days'] if config else 30
 
             await self.send_event(callback, "log", {
                 "source_id": self.source_id,

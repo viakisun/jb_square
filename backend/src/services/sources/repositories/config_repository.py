@@ -22,9 +22,45 @@ class ConfigRepository:
     # ========================================================================
 
     @staticmethod
+    def get_config(source_id: str) -> Optional[Dict[str, Any]]:
+        """
+        통합된 config 조회 메서드 - 모든 Adapter가 사용
+
+        Args:
+            source_id: 소스 식별자 (예: 'source:jbtp:local', 'source:news:mfds')
+
+        Returns:
+            {
+                'url': str,
+                'keywords': List[str],
+                'date_range_days': int,
+                'config_data': dict
+            }
+            또는 None (설정이 없거나 비활성화된 경우)
+        """
+        session = SessionLocal()
+        try:
+            config = session.query(CrawlerConfig).filter(
+                CrawlerConfig.source_id == source_id,
+                CrawlerConfig.enabled == True
+            ).first()
+
+            if not config:
+                return None
+
+            return {
+                'url': config.url,
+                'keywords': config.keywords or [],
+                'date_range_days': config.date_range_days or 30,
+                'config_data': config.config_data or {}
+            }
+        finally:
+            session.close()
+
+    @staticmethod
     def get_config_by_source_id(source_id: str) -> Optional[CrawlerConfig]:
         """
-        source_id로 설정 로드
+        source_id로 설정 로드 (CrawlerConfig 객체 반환)
 
         Args:
             source_id: 소스 식별자 (예: 'source:jbtp:local', 'source:news:mfds')
