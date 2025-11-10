@@ -7,6 +7,7 @@ from typing import List, Optional, Tuple
 
 from src.core.database import SessionLocal
 from src.models.crawler_config import JBTPConfig, BinetConfig, NTISConfig, BizinfoConfig
+from src.constants.sources import NoticeSource
 
 
 class ConfigRepository:
@@ -115,10 +116,10 @@ class ConfigRepository:
         Returns:
             키워드 리스트
         """
-        if source_id == 'ntis_rss':
+        if source_id == NoticeSource.NTIS_RSS:
             config = ConfigRepository.load_ntis_config()
             return config.search_keywords if config else []
-        elif source_id == 'bizinfo':
+        elif source_id == NoticeSource.BIZINFO_API:
             config = ConfigRepository.load_bizinfo_config()
             return config.search_keywords if config else []
         else:
@@ -135,10 +136,10 @@ class ConfigRepository:
         Returns:
             검색 기간 (일 단위), 기본값 30일
         """
-        if source_id == 'ntis_rss':
+        if source_id == NoticeSource.NTIS_RSS:
             config = ConfigRepository.load_ntis_config()
             return config.date_range_days if config and config.date_range_days else 30
-        elif source_id == 'bizinfo':
+        elif source_id == NoticeSource.BIZINFO_API:
             config = ConfigRepository.load_bizinfo_config()
             return config.date_range_days if config and config.date_range_days else 30
         else:

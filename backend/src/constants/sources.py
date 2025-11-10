@@ -11,6 +11,10 @@ class NoticeSource(str, Enum):
     공고 출처 Enum
 
     명명 규칙: source:organization:type
+
+    Note: bi_center는 이 enum에 포함되지 않습니다.
+    bi_center는 공고가 아닌 창업보육센터 디렉토리 정보를 수집하며,
+    BICenter/BICompany 모델을 사용하고 별도의 API 엔드포인트(/api/bi-centers)를 가집니다.
     """
     NTIS_RSS = "source:ntis:rss"           # 정부공고 - NTIS
     JBTP_LOCAL = "source:jbtp:local"       # 지자체 공고 - (재)전북테크노파크

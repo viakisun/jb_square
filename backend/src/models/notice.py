@@ -133,7 +133,7 @@ class CrawlQueue(Base):
     id = Column(Integer, primary_key=True)
 
     # Source Information
-    crawler_source_id = Column(String(50), nullable=False)  # 'jbtp', 'ntis_rss', 'bizinfo'
+    crawler_source_id = Column(String(50), nullable=False)  # 'source:jbtp:local', 'source:ntis:rss', 'source:bizinfo:api'
     source_board_name = Column(String(100))                     # Board name
 
     # Crawled Data

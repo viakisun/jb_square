@@ -41,7 +41,7 @@ class BaseCrawler(ABC):
     def __init__(self, source_id: str):
         """
         Args:
-            source_id: 크롤러 식별자 (예: 'jbtp', 'ntis_rss', 'bizinfo')
+            source_id: 크롤러 식별자 (예: 'source:jbtp:local', 'source:ntis:rss', 'source:bizinfo:api')
         """
         self.source_id = source_id
         self.status: Dict = {
