@@ -336,17 +336,19 @@ class GovernmentMFDSAdapter(BaseAdapter):
             response.raise_for_status()
             response.encoding = response.apparent_encoding
 
-            soup = BeautifulSoup(response.text, 'lxml')
+            soup = BeautifulSoup(response.text, 'html.parser')
 
             content_html = ''
             attachments = []
             images = []
 
             # 본문 추출 (식약처 게시판 구조)
-            content_area = soup.find('div', class_='cont_view') or \
+            # 2025년 구조: article 태그도 지원
+            content_area = soup.find('article', class_='board_view') or \
+                          soup.find('div', class_='board_view') or \
+                          soup.find('div', class_='cont_view') or \
                           soup.find('div', id='content') or \
-                          soup.find('div', class_='view_cont') or \
-                          soup.find('div', class_='board_view')
+                          soup.find('div', class_='view_cont')
 
             if content_area:
                 content_html = str(content_area)
@@ -362,21 +364,52 @@ class GovernmentMFDSAdapter(BaseAdapter):
                         })
 
             # 첨부파일 추출
-            file_table = soup.find('table', class_='fileList') or \
-                        soup.find('div', class_='file_area') or \
-                        soup.find('div', class_='attach')
+            # 2025년 구조: "첨부파일" 텍스트를 포함한 영역 찾기
+            file_text = soup.find(string=lambda x: x and '첨부' in x)
+            if file_text:
+                # 첨부파일 텍스트의 부모 요소에서 다운로드 링크 찾기
+                attach_parent = file_text.find_parent('div') or file_text.find_parent('table')
+                if attach_parent:
+                    for link in attach_parent.find_all('a', href=True):
+                        href = link.get('href', '')
+                        link_text = link.get_text(strip=True)
 
-            if file_table:
-                for link in file_table.find_all('a'):
-                    href = link.get('href', '')
-                    if href and ('download' in href.lower() or 'file' in href.lower()):
-                        file_url = urljoin(url, href)
-                        filename = link.get_text(strip=True) or href.split('/')[-1]
+                        # 다운로드 링크만 추출
+                        if 'download' in href.lower() or 'file' in href.lower() or link_text == '다운로드':
+                            file_url = urljoin(url, href)
 
-                        attachments.append({
-                            'filename': filename,
-                            'url': file_url
-                        })
+                            # 파일명 추출
+                            li_parent = link.find_parent('li')
+                            if li_parent:
+                                full_text = li_parent.get_text()
+                                filename_match = re.search(r'\[([^\]]+\.(?:hwpx?|pdf|docx?|xlsx?|zip))\]', full_text, re.IGNORECASE)
+                                if not filename_match:
+                                    filename_match = re.search(r'([^\n]+\.(?:hwpx?|pdf|docx?|xlsx?|zip))', full_text, re.IGNORECASE)
+                                filename = filename_match.group(1).strip() if filename_match else link_text or href.split('/')[-1]
+                            else:
+                                filename = link_text or href.split('/')[-1]
+
+                            attachments.append({
+                                'filename': filename,
+                                'url': file_url
+                            })
+            else:
+                # Fallback: 기존 방식
+                file_table = soup.find('table', class_='fileList') or \
+                            soup.find('div', class_='file_area') or \
+                            soup.find('div', class_='attach')
+
+                if file_table:
+                    for link in file_table.find_all('a'):
+                        href = link.get('href', '')
+                        if href and ('download' in href.lower() or 'file' in href.lower()):
+                            file_url = urljoin(url, href)
+                            filename = link.get_text(strip=True) or href.split('/')[-1]
+
+                            attachments.append({
+                                'filename': filename,
+                                'url': file_url
+                            })
 
             return {
                 'content_html': content_html,

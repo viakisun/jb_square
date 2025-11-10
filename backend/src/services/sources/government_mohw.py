@@ -337,7 +337,7 @@ class GovernmentMOHWAdapter(BaseAdapter):
             response.raise_for_status()
             response.encoding = response.apparent_encoding
 
-            soup = BeautifulSoup(response.text, 'lxml')
+            soup = BeautifulSoup(response.text, 'html.parser')
 
             content_html = ''
             attachments = []
@@ -345,12 +345,14 @@ class GovernmentMOHWAdapter(BaseAdapter):
 
             # 본문 추출 (보건복지부 게시판 구조)
             # 보건복지부는 class="viewArea" 또는 class="contents" 사용 (게시판 유형에 따라 다름)
-            content_area = soup.find('div', class_='viewArea') or \
+            # 2025년 구조: article.board_view 사용
+            content_area = soup.find('article', class_='board_view') or \
+                          soup.find('div', class_='board_view') or \
+                          soup.find('div', class_='viewArea') or \
                           soup.find('div', class_='contents') or \
                           soup.find('div', class_='view_con') or \
                           soup.find('div', id='viewCon') or \
-                          soup.find('div', class_='view-content') or \
-                          soup.find('div', class_='board_view')
+                          soup.find('div', class_='view-content')
 
             if content_area:
                 content_html = str(content_area)
@@ -366,34 +368,64 @@ class GovernmentMOHWAdapter(BaseAdapter):
                         })
 
             # 첨부파일 추출
-            # 보건복지부는 class="file" 사용 (2025년 구조)
-            attach_area = soup.find('div', class_='file') or \
-                         soup.find('div', class_='attach') or \
-                         soup.find('div', class_='file_list') or \
-                         soup.find('ul', class_='attach_list')
+            # 2025년 구조: "첨부파일" 텍스트를 포함한 영역 찾기
+            file_text = soup.find(string=lambda x: x and '첨부파일' in x)
+            if file_text:
+                # 첨부파일 텍스트의 부모 요소에서 다운로드 링크 찾기
+                attach_parent = file_text.find_parent('div')
+                if attach_parent:
+                    for link in attach_parent.find_all('a', href=True):
+                        href = link.get('href', '')
+                        link_text = link.get_text(strip=True)
 
-            if attach_area:
-                for link in attach_area.find_all('a'):
-                    href = link.get('href', '')
-                    # "다운로드" 링크만 추출 (미리보기 제외)
-                    if href and 'download' in href.lower():
-                        file_url = urljoin(url, href)
+                        # "다운로드" 링크만 추출 (boardDownload.es 패턴)
+                        if 'boardDownload' in href or (link_text == '다운로드' and 'download' in href.lower()):
+                            file_url = urljoin(url, href)
 
-                        # 파일명 추출: 링크 텍스트가 아닌 li 텍스트에서 추출
-                        li_parent = link.find_parent('li')
-                        if li_parent:
-                            # li 전체 텍스트에서 파일명 찾기
-                            full_text = li_parent.get_text()
-                            # hwpx, pdf 등 확장자 앞까지를 파일명으로
-                            filename_match = re.search(r'([^\n]+\.(?:hwpx?|pdf|docx?|xlsx?))', full_text)
-                            filename = filename_match.group(1).strip() if filename_match else href.split('/')[-1]
-                        else:
-                            filename = href.split('/')[-1]
+                            # 파일명 추출: 링크의 부모 li에서 전체 텍스트 가져오기
+                            li_parent = link.find_parent('li')
+                            if li_parent:
+                                # li 텍스트에서 파일명 추출 (다운로드/미리보기 버튼 제외)
+                                full_text = li_parent.get_text()
+                                # 확장자를 포함한 파일명 찾기
+                                filename_match = re.search(r'\[([^\]]+\.(?:hwpx?|pdf|docx?|xlsx?|zip))\]', full_text, re.IGNORECASE)
+                                if not filename_match:
+                                    # 대괄호 없는 경우
+                                    filename_match = re.search(r'([^\n]+\.(?:hwpx?|pdf|docx?|xlsx?|zip))', full_text, re.IGNORECASE)
+                                filename = filename_match.group(1).strip() if filename_match else f"첨부파일_{len(attachments)+1}"
+                            else:
+                                # li가 없으면 href에서 seq 번호로 이름 생성
+                                seq_match = re.search(r'seq=(\d+)', href)
+                                filename = f"첨부파일_{seq_match.group(1)}" if seq_match else f"첨부파일_{len(attachments)+1}"
 
-                        attachments.append({
-                            'filename': filename,
-                            'url': file_url
-                        })
+                            attachments.append({
+                                'filename': filename,
+                                'url': file_url
+                            })
+            else:
+                # Fallback: 기존 방식
+                attach_area = soup.find('div', class_='file') or \
+                             soup.find('div', class_='attach') or \
+                             soup.find('div', class_='file_list') or \
+                             soup.find('ul', class_='attach_list')
+
+                if attach_area:
+                    for link in attach_area.find_all('a'):
+                        href = link.get('href', '')
+                        if href and 'download' in href.lower():
+                            file_url = urljoin(url, href)
+                            li_parent = link.find_parent('li')
+                            if li_parent:
+                                full_text = li_parent.get_text()
+                                filename_match = re.search(r'([^\n]+\.(?:hwpx?|pdf|docx?|xlsx?))', full_text)
+                                filename = filename_match.group(1).strip() if filename_match else href.split('/')[-1]
+                            else:
+                                filename = href.split('/')[-1]
+
+                            attachments.append({
+                                'filename': filename,
+                                'url': file_url
+                            })
 
             return {
                 'content_html': content_html,
