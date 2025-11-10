@@ -216,8 +216,6 @@ async def serve_pdf(pdf_key: str = Query(..., description="S3 key of the PDF fil
     Returns:
         StreamingResponse with PDF content
     """
-    import os
-    import boto3
     from fastapi.responses import StreamingResponse
     from urllib.parse import unquote
 
@@ -225,17 +223,9 @@ async def serve_pdf(pdf_key: str = Query(..., description="S3 key of the PDF fil
         # URL decode the pdf_key in case it's encoded
         decoded_key = unquote(pdf_key)
 
-        # Initialize boto3 S3 client
-        s3_client = boto3.client(
-            's3',
-            region_name=os.getenv('AWS_S3_REGION', 'ap-northeast-2'),
-            aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
-            aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY')
-        )
-
         # Download PDF from S3
-        response = s3_client.get_object(
-            Bucket=os.getenv('AWS_S3_BUCKET_NAME', 'jb2_bucket'),
+        response = s3_client.s3_client.get_object(
+            Bucket=s3_client.bucket_name,
             Key=decoded_key
         )
         pdf_content = response['Body'].read()
@@ -344,48 +334,26 @@ async def convert_hwp_to_pdf(
 
         # Check if PDF already exists in S3
         try:
-            import boto3
-            s3_boto_client = boto3.client(
-                's3',
-                region_name=os.getenv('AWS_S3_REGION', 'ap-northeast-2'),
-                aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
-                aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY')
+            s3_client.s3_client.head_object(
+                Bucket=s3_client.bucket_name,
+                Key=pdf_s3_key
             )
-
-            # Try to check if file exists
-            try:
-                s3_boto_client.head_object(
-                    Bucket=os.getenv('AWS_S3_BUCKET_NAME', 'jb2_bucket'),
-                    Key=pdf_s3_key
-                )
-                # PDF already exists, return cached version
-                return {
-                    "success": True,
-                    "pdf_url": pdf_proxy_url,
-                    "cached": True,
-                    "original_hwp_url": hwp_url
-                }
-            except:
-                # PDF doesn't exist, proceed with conversion
-                pass
+            # PDF already exists, return cached version
+            return {
+                "success": True,
+                "pdf_url": pdf_proxy_url,
+                "cached": True,
+                "original_hwp_url": hwp_url
+            }
         except:
-            # boto3 client initialization failed, proceed with conversion
+            # PDF doesn't exist, proceed with conversion
             pass
 
-        # Download HWP file from S3 using boto3 (to handle special characters in filename)
+        # Download HWP file from S3
         s3_key = s3_path  # notices/{notice_id}/{filename}
         try:
-            import boto3
-            s3_boto_client = boto3.client(
-                's3',
-                region_name=os.getenv('AWS_S3_REGION', 'ap-northeast-2'),
-                aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
-                aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY')
-            )
-
-            # Download file from S3
-            response = s3_boto_client.get_object(
-                Bucket=os.getenv('AWS_S3_BUCKET_NAME', 'jb2_bucket'),
+            response = s3_client.s3_client.get_object(
+                Bucket=s3_client.bucket_name,
                 Key=s3_key
             )
             hwp_content = response['Body'].read()
