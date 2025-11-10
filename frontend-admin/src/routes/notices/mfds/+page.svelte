@@ -1,11 +1,12 @@
 <script lang="ts">
 	/**
-	 * RSS 뉴스 페이지
-	 * RSS 뉴스 크롤링 (MFDS + MOHW) + 게시된 뉴스 관리
+	 * 식약처 RSS 뉴스 페이지
+	 * 식품의약품안전처 RSS 뉴스 크롤링 + 게시된 뉴스 관리
 	 */
+	import { onMount } from 'svelte';
 	import { Panel } from '$lib/components/layout';
 	import { Button } from '$lib/components/ui/buttons';
-	import { CrawlingStatus, RSSConfigInline } from '$lib/components/crawling';
+	import { CrawlingStatus, CrawlerConfigInline } from '$lib/components/crawling';
 	import {
 		CrawlQueueTable,
 		PublishedNoticesList,
@@ -20,17 +21,10 @@
 		type?: 'info' | 'success' | 'error' | 'warning';
 	}
 
-	// RSS 소스 목록
-	const RSS_SOURCES = [
-		{ source_id: 'source:news:mfds', name: '식약처', fullName: '식품의약품안전처' },
-		{ source_id: 'source:news:mohw', name: '복지부', fullName: '보건복지부' }
-	];
+	const SOURCE_ID = 'source:news:mfds';
 
 	// Tab state
 	let activeTab = $state<'queue' | 'published'>('queue');
-
-	// Source selection
-	let selectedSourceId = $state<string>(RSS_SOURCES[0].source_id);
 
 	// Queue state
 	let queueItems = $state<any[]>([]);
@@ -47,19 +41,14 @@
 	let showAddModal = $state(false);
 	let publishedListKey = $state(0);
 
-	// Derived
-	let selectedSource = $derived(RSS_SOURCES.find(s => s.source_id === selectedSourceId));
-
-	// Reactive effect: reload queue when source changes or on mount
-	$effect(() => {
-		selectedSourceId;  // Track dependency
+	onMount(() => {
 		loadQueue();
 	});
 
 	async function loadQueue() {
 		loading = true;
 		try {
-			const res = await fetch(`${API_BASE_URL}/notices/crawl-queue/list?source_id=${selectedSourceId}`);
+			const res = await fetch(`${API_BASE_URL}/notices/crawl-queue/list?source_id=${SOURCE_ID}`);
 			const data = await res.json();
 			const uniqueItems = Array.from(
 				new Map(data.items.map((item: any) => [item.id, item])).values()
@@ -81,7 +70,7 @@
 		errorMessage = '';
 
 		try {
-			const ws = new WebSocket(`${WS_BASE_URL}/api/crawling/ws/rss/${selectedSourceId}`);
+			const ws = new WebSocket(`${WS_BASE_URL}/api/notices/crawl/${SOURCE_ID}`);
 
 			ws.onmessage = (event) => {
 				const data = JSON.parse(event.data);
@@ -127,7 +116,7 @@
 						crawlLogs = [
 							...crawlLogs,
 							{ timestamp, message: data.message || 'RSS 크롤링 완료', type: 'success' },
-							{ timestamp, message: `크롤링 대기열 탭에서 ${crawlProgress.success}개의 뉴스를 확인하세요`, type: 'info' }
+							{ timestamp, message: `📋 크롤링 대기열 탭에서 ${crawlProgress.success}개의 뉴스를 확인하세요`, type: 'info' }
 						];
 						loading = false;
 						activeTab = 'queue';
@@ -200,14 +189,14 @@
 </script>
 
 <svelte:head>
-	<title>RSS 뉴스 - JB SQUARE</title>
+	<title>식약처 뉴스 - JB SQUARE</title>
 </svelte:head>
 
 <div class="page">
 	<div class="page-header">
 		<div>
-			<h1 class="page-title">RSS 뉴스</h1>
-			<p class="page-subtitle">RSS 피드 뉴스 크롤링 및 관리 (식약처, 복지부)</p>
+			<h1 class="page-title">식약처 뉴스</h1>
+			<p class="page-subtitle">식품의약품안전처 RSS 뉴스 크롤링 및 관리</p>
 		</div>
 		<div class="header-actions">
 			<Button variant="outline" onclick={() => (showAddModal = true)}>
@@ -217,27 +206,10 @@
 	</div>
 
 	<!-- Crawler Config Panel -->
-	<Panel title="RSS 뉴스 크롤러">
+	<Panel title="식약처 RSS 크롤러">
 		<div class="crawler-card-content">
-			<div class="source-selector">
-				<label class="source-label">RSS 소스 선택</label>
-				<div class="source-buttons">
-					{#each RSS_SOURCES as source}
-						<button
-							onclick={() => {
-								selectedSourceId = source.source_id;
-								crawlStatus = 'idle';
-								crawlLogs = [];
-							}}
-							class="source-button {selectedSourceId === source.source_id ? 'active' : ''}"
-						>
-							{source.fullName}
-						</button>
-					{/each}
-				</div>
-			</div>
 			<p class="crawler-description">
-				{selectedSource?.fullName}의 RSS 피드를 통해 뉴스를 수집합니다.
+				식품의약품안전처 RSS 피드를 통해 뉴스를 수집합니다.
 			</p>
 			<Button variant="primary" onclick={crawlRSSNews} disabled={loading}>
 				{loading ? '크롤링 중...' : 'RSS 크롤링 시작'}
@@ -246,14 +218,14 @@
 	</Panel>
 
 	<!-- Crawling Configuration -->
-	<RSSConfigInline selectedSourceId={selectedSourceId} />
+	<CrawlerConfigInline crawlerType="rss" sourceId={SOURCE_ID} />
 
 	<!-- Crawling Status -->
 	{#if crawlStatus !== 'idle'}
 		<Panel title="크롤링 진행 상황">
 			<CrawlingStatus
-				sourceId={selectedSourceId}
-				sourceName={selectedSource?.fullName || 'RSS 뉴스'}
+				sourceId={SOURCE_ID}
+				sourceName="식품의약품안전처"
 				status={crawlStatus === 'collecting' || crawlStatus === 'processing' ? 'running' : crawlStatus}
 				progress={crawlProgress.progress}
 				total={crawlProgress.total}
@@ -303,7 +275,7 @@
 	{:else}
 		<Panel title="게시된 뉴스">
 			{#key publishedListKey}
-				<PublishedNoticesList sourceId={selectedSourceId} />
+				<PublishedNoticesList sourceId={SOURCE_ID} />
 			{/key}
 		</Panel>
 	{/if}
@@ -311,7 +283,7 @@
 	<!-- Add Notice Modal -->
 	{#if showAddModal}
 		<AddNoticeModal
-			sourceId={selectedSourceId}
+			sourceId={SOURCE_ID}
 			onClose={() => (showAddModal = false)}
 			onSuccess={() => {
 				loadQueue();
@@ -360,45 +332,6 @@
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-4);
-	}
-
-	.source-selector {
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-2);
-	}
-
-	.source-label {
-		font-size: var(--text-sm);
-		font-weight: var(--font-medium);
-		color: var(--fg);
-	}
-
-	.source-buttons {
-		display: flex;
-		gap: var(--space-2);
-	}
-
-	.source-button {
-		padding: var(--space-2) var(--space-4);
-		background: var(--surface-1);
-		border: var(--border-width) solid var(--hair);
-		cursor: pointer;
-		font-size: var(--text-sm);
-		font-weight: var(--font-medium);
-		color: var(--muted);
-		transition: all 0.2s;
-	}
-
-	.source-button:hover {
-		background: var(--surface-2);
-		color: var(--fg);
-	}
-
-	.source-button.active {
-		background: var(--fg);
-		color: var(--bg);
-		border-color: var(--fg);
 	}
 
 	.crawler-description {
@@ -463,10 +396,6 @@
 		.queue-actions {
 			flex-direction: column;
 			align-items: flex-start;
-		}
-
-		.source-buttons {
-			flex-direction: column;
 		}
 	}
 </style>

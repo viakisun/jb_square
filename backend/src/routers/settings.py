@@ -12,10 +12,15 @@ async def get_crawling_sources():
 
     return {
         "sources": [
-            {"id": "jbtp", "name": "JBTP 전북테크노파크", "enabled": True, "last_run": "2025-10-24T14:30:00"},
-            {"id": "ntis_rss", "name": "NTIS 국가R&D", "enabled": True, "last_run": "2025-10-24T14:28:00"},
-            {"id": "bizinfo", "name": "기업마당", "enabled": True, "last_run": "2025-10-24T14:25:00"},
-            {"id": "bi_center", "name": "창업보육센터", "enabled": True, "last_run": "2025-10-24T15:54:00"}
+            {"id": "source:jbtp:local", "name": "JBTP 지자체공고", "enabled": True, "last_run": "2025-10-24T14:30:00"},
+            {"id": "source:jbtp:external", "name": "JBTP 유관기관공고", "enabled": True, "last_run": "2025-10-24T14:30:00"},
+            {"id": "source:jbtp:events", "name": "JBTP 바이오행사", "enabled": True, "last_run": "2025-10-24T14:30:00"},
+            {"id": "source:ntis:rss", "name": "NTIS 국가R&D", "enabled": True, "last_run": "2025-10-24T14:28:00"},
+            {"id": "source:bizinfo:api", "name": "기업마당", "enabled": True, "last_run": "2025-10-24T14:25:00"},
+            {"id": "source:news:mfds", "name": "식약처 뉴스", "enabled": True, "last_run": "2025-10-24T14:20:00"},
+            {"id": "source:news:mohw", "name": "보건복지부 뉴스", "enabled": True, "last_run": "2025-10-24T14:20:00"},
+            # Note: bi_center is NOT a notice source - it's a directory crawler (separate system)
+            {"id": "bi_center", "name": "창업보육센터 (디렉토리)", "enabled": True, "last_run": "2025-10-24T15:54:00"}
         ],
         "schedule": "0 9 * * *"  # 매일 09:00
     }

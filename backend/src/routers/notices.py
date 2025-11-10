@@ -442,6 +442,8 @@ CRAWLER_EXECUTORS = {
     NoticeSource.JBTP_EVENTS: lambda: crawler_manager.execute_jbtp_events,
     NoticeSource.NTIS_RSS: lambda: crawler_manager.execute_ntis_rss,
     NoticeSource.BIZINFO_API: lambda: crawler_manager.execute_bizinfo,
+    NoticeSource.NEWS_MFDS: lambda: crawler_manager.execute_mfds_news,
+    NoticeSource.NEWS_MOHW: lambda: crawler_manager.execute_mohw_news,
 }
 
 @router.websocket("/crawl/{source_id}")
@@ -455,8 +457,11 @@ async def crawl_source(websocket: WebSocket, source_id: str):
     Supported sources:
         - source:jbtp:local - 지자체 공고
         - source:jbtp:external - 유관기관 공고
-        - source:ntis:rss - 정부공고
+        - source:jbtp:events - 바이오행사
+        - source:ntis:rss - 정부공고 (NTIS)
         - source:bizinfo:api - 기업마당 정보
+        - source:news:mfds - 식약처 뉴스
+        - source:news:mohw - 보건복지부 뉴스
     """
     print(f"[WebSocket] Connection attempt for source: {source_id}")
     await websocket.accept()

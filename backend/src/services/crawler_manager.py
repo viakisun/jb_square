@@ -18,8 +18,8 @@ sys.path.append(str(Path(__file__).parent.parent.parent.parent / "crawler"))
 from src.services.rate_limiter import RateLimiter
 from src.core.database import SessionLocal, CrawlerConfig, CrawlResult
 from src.models.notice import CrawlQueue
-from src.models.crawler_config import JBTPConfig, BinetConfig
-from src.services.crawlers import BICenterCrawler, BizinfoCrawler, JBTPCrawler, JBTPExternalCrawler, JBTPEventsCrawler, NTISCrawler
+from src.models.crawler_config import JBTPConfig, BinetConfig, RSSConfig
+from src.services.crawlers import BICenterCrawler, BizinfoCrawler, JBTPCrawler, JBTPExternalCrawler, JBTPEventsCrawler, NTISCrawler, RSSNewsCrawler
 from src.constants.sources import NoticeSource
 
 
@@ -84,6 +84,24 @@ class CrawlerManager:
                 "last_run": None,
                 "error_message": None
             },
+            NoticeSource.NEWS_MFDS: {
+                "status": CrawlerStatus.IDLE,
+                "progress": 0,
+                "total": 0,
+                "success": 0,
+                "failed": 0,
+                "last_run": None,
+                "error_message": None
+            },
+            NoticeSource.NEWS_MOHW: {
+                "status": CrawlerStatus.IDLE,
+                "progress": 0,
+                "total": 0,
+                "success": 0,
+                "failed": 0,
+                "last_run": None,
+                "error_message": None
+            },
             "bi_center": {
                 "status": CrawlerStatus.IDLE,
                 "progress": 0,
@@ -101,6 +119,8 @@ class CrawlerManager:
             NoticeSource.JBTP_EVENTS: False,
             NoticeSource.NTIS_RSS: False,
             NoticeSource.BIZINFO_API: False,
+            NoticeSource.NEWS_MFDS: False,
+            NoticeSource.NEWS_MOHW: False,
             "bi_center": False
         }
 
@@ -334,9 +354,9 @@ class CrawlerManager:
             matched_keywords = self._match_keywords(title, keywords)
 
         # Parse structured data from raw_data
-        if source_id == 'jbtp':
+        if source_id == NoticeSource.JBTP_LOCAL:
             parsed_data = self._parse_jbtp_data(notice)
-        elif source_id == 'jbtp_external':
+        elif source_id == NoticeSource.JBTP_EXTERNAL:
             parsed_data = self._parse_jbtp_external_data(notice)
         else:
             parsed_data = {}
@@ -670,6 +690,91 @@ class CrawlerManager:
         3. bi_centers, bi_companies 테이블에 저장
         """
         return await self.crawlers["bi_center"].run(callback)
+
+    async def execute_rss_news(self, source_id: str, callback: Optional[Callable] = None):
+        """
+        RSS 뉴스 크롤러를 실행합니다.
+
+        DB에서 RSS 설정을 읽어서 RSSNewsCrawler를 동적으로 생성하고 실행합니다.
+
+        Args:
+            source_id: 'source:news:mfds' 또는 'source:news:mohw'
+            callback: 실시간 업데이트를 전송할 콜백 함수 (WebSocket send)
+        """
+        db = SessionLocal()
+        try:
+            # DB에서 RSS 설정 로드
+            rss_config = db.query(RSSConfig).filter(RSSConfig.source_id == source_id).first()
+
+            if not rss_config:
+                error_msg = f"RSS 설정을 찾을 수 없습니다: {source_id}"
+                if callback:
+                    await self._send_event(callback, "error", {
+                        "source_id": source_id,
+                        "error": error_msg
+                    })
+                return {
+                    "source_id": source_id,
+                    "status": "error",
+                    "error": error_msg
+                }
+
+            if not rss_config.enabled:
+                error_msg = f"RSS 크롤러가 비활성화되어 있습니다: {source_id}"
+                if callback:
+                    await self._send_event(callback, "error", {
+                        "source_id": source_id,
+                        "error": error_msg
+                    })
+                return {
+                    "source_id": source_id,
+                    "status": "error",
+                    "error": error_msg
+                }
+
+            # RSSNewsCrawler 인스턴스 생성
+            config = {
+                'keywords': rss_config.keywords or [],
+                'date_range_days': rss_config.date_range_days or 30
+            }
+
+            crawler = RSSNewsCrawler(
+                source_id=source_id,
+                feed_url=rss_config.feed_url,
+                config=config
+            )
+
+            # 크롤링 실행
+            result = await crawler.execute(callback=callback, db_session=db)
+
+            return result
+
+        except Exception as e:
+            error_msg = f"RSS 크롤링 중 오류 발생: {str(e)}"
+            if callback:
+                await self._send_event(callback, "error", {
+                    "source_id": source_id,
+                    "error": error_msg
+                })
+            return {
+                "source_id": source_id,
+                "status": "error",
+                "error": error_msg
+            }
+        finally:
+            db.close()
+
+    async def execute_mfds_news(self, callback: Optional[Callable] = None):
+        """
+        식약처 RSS 뉴스를 수집합니다.
+        """
+        return await self.execute_rss_news(NoticeSource.NEWS_MFDS, callback)
+
+    async def execute_mohw_news(self, callback: Optional[Callable] = None):
+        """
+        보건복지부 RSS 뉴스를 수집합니다.
+        """
+        return await self.execute_rss_news(NoticeSource.NEWS_MOHW, callback)
 
 
 # Singleton instance

@@ -7,6 +7,7 @@ from .jbtp_crawler import JBTPCrawler
 from .jbtp_external_crawler import JBTPExternalCrawler
 from .jbtp_events_crawler import JBTPEventsCrawler
 from .ntis_crawler import NTISCrawler
+from .rss_news_crawler import RSSNewsCrawler
 
 __all__ = [
     'BaseCrawler',
@@ -17,4 +18,5 @@ __all__ = [
     'JBTPExternalCrawler',
     'JBTPEventsCrawler',
     'NTISCrawler',
+    'RSSNewsCrawler',
 ]
