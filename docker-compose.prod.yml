@@ -16,6 +16,8 @@ services:
       - NTIS_API_KEY=${NTIS_API_KEY}
       - BIZINFO_API_KEY=${BIZINFO_API_KEY}
       - JBTP_API_KEY=${JBTP_API_KEY:-}
+      - HANCOM_CLIENT_ID=${HANCOM_CLIENT_ID}
+      - HANCOM_CLIENT_SECRET=${HANCOM_CLIENT_SECRET}
     expose:
       - "8000"
     volumes:

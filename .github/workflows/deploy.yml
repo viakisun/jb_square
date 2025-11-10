@@ -98,6 +98,8 @@ jobs:
           NTIS_API_KEY=${{ secrets.NTIS_API_KEY }}
           BIZINFO_API_KEY=${{ secrets.BIZINFO_API_KEY }}
           JBTP_API_KEY=${{ secrets.JBTP_API_KEY }}
+          HANCOM_CLIENT_ID=${{ secrets.HANCOM_CLIENT_ID }}
+          HANCOM_CLIENT_SECRET=${{ secrets.HANCOM_CLIENT_SECRET }}
           EOF
 
       - name: Copy files to EC2
