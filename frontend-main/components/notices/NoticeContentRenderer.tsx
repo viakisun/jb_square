@@ -20,8 +20,22 @@
  * @version 1.0.0
  */
 
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Notice } from '@/lib/api/types';
+import dynamic from 'next/dynamic';
+
+// HWPViewer를 dynamic import로 로드 (SSR 비활성화)
+const HWPViewer = dynamic(() => import('./HWPViewer'), {
+  ssr: false,
+  loading: () => (
+    <div className="flex justify-center items-center py-20 bg-gray-50 border border-gray-300 rounded-lg">
+      <div className="text-center">
+        <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+        <p className="text-gray-600">뷰어를 불러오는 중...</p>
+      </div>
+    </div>
+  ),
+});
 
 /**
  * 컴포넌트 Props 인터페이스
@@ -32,12 +46,122 @@ interface NoticeContentRendererProps {
 }
 
 /**
+ * 파일 확장자 추출
+ */
+function getFileExtension(filename: string | null | undefined): string {
+  if (!filename) return '';
+  return filename.split('.').pop()?.toLowerCase() || '';
+}
+
+/**
+ * PDF 파일인지 확인
+ */
+function isPDF(filename: string | null | undefined): boolean {
+  return getFileExtension(filename) === 'pdf';
+}
+
+/**
+ * HWP 파일인지 확인
+ */
+function isHWP(filename: string | null | undefined): boolean {
+  const ext = getFileExtension(filename);
+  return ext === 'hwp' || ext === 'hwpx';
+}
+
+/**
  * 공고 콘텐츠 렌더러 컴포넌트
  *
  * @param props - NoticeContentRendererProps
  * @returns 콘텐츠 렌더링 JSX
  */
 export const NoticeContentRenderer: React.FC<NoticeContentRendererProps> = ({ notice }) => {
+  // JBTP 공고인지 확인
+  const isJBTPNotice = notice.crawler_source_id?.startsWith('source:jbtp:');
+
+  // 첫 번째 첨부파일 가져오기
+  const firstAttachment = notice.attachment_links?.[0];
+
+  /**
+   * JBTP 공고이고 첨부파일이 있는 경우: 첨부파일 렌더링
+   */
+  if (isJBTPNotice && firstAttachment) {
+    // PDF 파일
+    if (isPDF(firstAttachment.filename)) {
+      return (
+        <div className="mb-6">
+          <h3 className="text-base font-semibold text-gray-900 mb-4">첨부 문서 (PDF)</h3>
+          <div className="bg-white border border-gray-300 rounded-lg overflow-hidden" style={{ height: '800px' }}>
+            <embed
+              src={firstAttachment.url}
+              type="application/pdf"
+              className="w-full h-full"
+              title="PDF 문서"
+            />
+          </div>
+          <div className="mt-3 flex items-center justify-between text-sm">
+            <span className="text-gray-600">{firstAttachment.filename}</span>
+            <a
+              href={firstAttachment.url}
+              download
+              className="inline-flex items-center text-blue-600 hover:text-blue-700 font-medium"
+            >
+              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              다운로드
+            </a>
+          </div>
+        </div>
+      );
+    }
+
+    // HWP 파일
+    if (isHWP(firstAttachment.filename)) {
+      return (
+        <div className="mb-6">
+          <h3 className="text-base font-semibold text-gray-900 mb-4">첨부 문서 (한글)</h3>
+          <HWPViewer url={firstAttachment.url} filename={firstAttachment.filename} />
+          <div className="mt-3 flex items-center justify-between text-sm">
+            <span className="text-gray-600">{firstAttachment.filename}</span>
+            <a
+              href={firstAttachment.url}
+              download
+              className="inline-flex items-center text-blue-600 hover:text-blue-700 font-medium"
+            >
+              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              다운로드
+            </a>
+          </div>
+        </div>
+      );
+    }
+
+    // 지원하지 않는 파일 형식
+    return (
+      <div className="mb-6 bg-gray-50 border border-gray-200 p-6 rounded-lg text-center">
+        <p className="text-gray-700 mb-2">
+          이 파일 형식({getFileExtension(firstAttachment.filename)})은 미리보기를 지원하지 않습니다.
+        </p>
+        <p className="text-gray-600 text-sm mb-4">파일을 다운로드하여 확인해주세요.</p>
+        <a
+          href={firstAttachment.url}
+          download
+          className="inline-flex items-center px-5 py-2.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors font-medium"
+        >
+          <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          {firstAttachment.filename} 다운로드
+        </a>
+      </div>
+    );
+  }
+
+  /**
+   * 비-JBTP 공고 또는 첨부파일이 없는 경우: 기존 로직 유지
+   */
   /**
    * Case 1: PDF 뷰어 타입
    * content_type === 'pdf_viewer'이고 content_viewer_url이 있는 경우

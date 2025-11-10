@@ -6,11 +6,12 @@ API endpoints for JB SQUARE notice management
 from datetime import datetime
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect, Query, UploadFile, File
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from sqlalchemy import desc, or_, and_, cast, func
 from sqlalchemy.dialects.postgresql import JSONB
+import httpx
 
 from src.core.database import get_db
 from src.core.s3_client import s3_client
@@ -161,6 +162,333 @@ async def get_notices(
         "has_prev": has_prev,
         "items": [notice.to_dict() for notice in notices]
     }
+
+
+# ============================================
+# 1.5. GET /api/notices/proxy-file - Proxy external file (CORS workaround)
+# ============================================
+
+@router.get("/proxy-file")
+async def proxy_file(url: str = Query(..., description="External file URL to proxy")):
+    """
+    Proxy external files to bypass CORS restrictions.
+
+    This endpoint is used to fetch HWP/PDF files from JBTP servers
+    that don't have CORS headers, allowing the frontend to render them.
+    """
+    try:
+        async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
+            response = await client.get(url)
+            response.raise_for_status()
+
+            # Get content type from response or default to octet-stream
+            content_type = response.headers.get("content-type", "application/octet-stream")
+
+            # Return the file content with appropriate headers
+            return StreamingResponse(
+                iter([response.content]),
+                media_type=content_type,
+                headers={
+                    "Content-Disposition": response.headers.get("content-disposition", ""),
+                    "Access-Control-Allow-Origin": "*",
+                }
+            )
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(status_code=e.response.status_code, detail=f"Failed to fetch file: {str(e)}")
+    except httpx.RequestError as e:
+        raise HTTPException(status_code=502, detail=f"Network error while fetching file: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error proxying file: {str(e)}")
+
+
+# ============================================
+# 1.6. GET /api/notices/serve-pdf - Serve PDF through backend proxy
+# ============================================
+
+@router.get("/serve-pdf")
+async def serve_pdf(pdf_key: str = Query(..., description="S3 key of the PDF file")):
+    """
+    Serve PDF file through backend proxy to avoid S3 403 errors with special characters
+
+    Args:
+        pdf_key: S3 key (e.g., "notices/869/file.pdf"), can be URL-encoded
+
+    Returns:
+        StreamingResponse with PDF content
+    """
+    import os
+    import boto3
+    from fastapi.responses import StreamingResponse
+    from urllib.parse import unquote
+
+    try:
+        # URL decode the pdf_key in case it's encoded
+        decoded_key = unquote(pdf_key)
+
+        # Initialize boto3 S3 client
+        s3_client = boto3.client(
+            's3',
+            region_name=os.getenv('AWS_S3_REGION', 'ap-northeast-2'),
+            aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
+            aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY')
+        )
+
+        # Download PDF from S3
+        response = s3_client.get_object(
+            Bucket=os.getenv('AWS_S3_BUCKET_NAME', 'jb2-bucket'),
+            Key=decoded_key
+        )
+        pdf_content = response['Body'].read()
+
+        # Extract filename for Content-Disposition header
+        filename = decoded_key.split("/")[-1]
+
+        # URL encode filename for Content-Disposition header (RFC 2231)
+        from urllib.parse import quote
+        encoded_filename = quote(filename)
+
+        # Return PDF as streaming response
+        return StreamingResponse(
+            iter([pdf_content]),
+            media_type='application/pdf',
+            headers={
+                'Access-Control-Allow-Origin': '*',
+                'Content-Disposition': f"inline; filename*=UTF-8''{encoded_filename}"
+            }
+        )
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to serve PDF: {str(e)}"
+        )
+
+
+# ============================================
+# 1.7. GET /api/notices/convert-hwp-to-pdf - Convert HWP to PDF
+# ============================================
+
+@router.get("/convert-hwp-to-pdf")
+async def convert_hwp_to_pdf(
+    hwp_url: str = Query(..., description="S3 URL of the HWP file"),
+    db: Session = Depends(get_db)
+):
+    """
+    Convert HWP file to PDF using Hancom Cloud Document Converter API
+
+    This endpoint:
+    1. Checks if PDF already exists in S3 cache
+    2. If not, downloads HWP from S3
+    3. Converts HWP to PDF using Hancom API
+    4. Uploads PDF to S3
+    5. Returns PDF URL
+    """
+    import os
+    import io
+    from pathlib import Path
+
+    try:
+        # Determine if URL is S3 or JBTP original
+        is_s3_url = '.amazonaws.com/' in hwp_url
+
+        if is_s3_url:
+            # S3 URL: https://jb2-bucket.s3.ap-northeast-2.amazonaws.com/notices/{notice_id}/{filename}
+            # or: https://jb2-bucket.s3.ap-northeast-2.amazonaws.com/notices/temp/{hash}/{filename}
+            url_parts = hwp_url.split('.amazonaws.com/')
+            if len(url_parts) != 2:
+                raise HTTPException(status_code=400, detail="Invalid S3 URL format")
+
+            s3_path = url_parts[1]  # notices/{notice_id}/{filename} or notices/temp/{hash}/{filename}
+            path_parts = s3_path.split('/')
+
+            if len(path_parts) < 3 or path_parts[0] != 'notices':
+                raise HTTPException(status_code=400, detail="Invalid S3 path format")
+
+            # Handle both notices/{notice_id}/{filename} and notices/temp/{hash}/{filename}
+            if path_parts[1] == 'temp':
+                # Temp folder: notices/temp/{hash}/{filename}
+                if len(path_parts) < 4:
+                    raise HTTPException(status_code=400, detail="Invalid S3 temp path format")
+                temp_hash = path_parts[2]
+                hwp_filename = path_parts[-1]
+                # Use temp path for PDF as well
+                pdf_filename = Path(hwp_filename).stem + '.pdf'
+                pdf_s3_key = f"notices/temp/{temp_hash}/{pdf_filename}"
+            else:
+                # Regular folder: notices/{notice_id}/{filename}
+                notice_id = path_parts[1]
+                hwp_filename = path_parts[-1]
+                pdf_filename = Path(hwp_filename).stem + '.pdf'
+                pdf_s3_key = f"notices/{notice_id}/{pdf_filename}"
+        else:
+            # JBTP original URL: https://www.jbtp.or.kr/board/download.jbtp?...
+            # Extract filename from URL or use a default
+            import hashlib
+            from urllib.parse import urlparse, parse_qs
+
+            parsed_url = urlparse(hwp_url)
+            query_params = parse_qs(parsed_url.query)
+
+            # Try to extract filename from URL parameters or generate one
+            hwp_filename = "document.hwp"  # Default
+
+            # Generate unique hash for this URL
+            url_hash = hashlib.md5(hwp_url.encode()).hexdigest()[:8]
+            pdf_filename = f"{url_hash}.pdf"
+            pdf_s3_key = f"notices/converted/{url_hash}/{pdf_filename}"
+
+        # Generate proxy URL to serve PDF through backend
+        from urllib.parse import quote
+        encoded_key = quote(pdf_s3_key, safe='/')
+        pdf_proxy_url = f"/api/notices/serve-pdf?pdf_key={encoded_key}"
+
+        # Check if PDF already exists in S3
+        try:
+            import boto3
+            s3_boto_client = boto3.client(
+                's3',
+                region_name=os.getenv('AWS_S3_REGION', 'ap-northeast-2'),
+                aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
+                aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY')
+            )
+
+            # Try to check if file exists
+            try:
+                s3_boto_client.head_object(
+                    Bucket=os.getenv('AWS_S3_BUCKET_NAME', 'jb2-bucket'),
+                    Key=pdf_s3_key
+                )
+                # PDF already exists, return cached version
+                return {
+                    "success": True,
+                    "pdf_url": pdf_proxy_url,
+                    "cached": True,
+                    "original_hwp_url": hwp_url
+                }
+            except:
+                # PDF doesn't exist, proceed with conversion
+                pass
+        except:
+            # boto3 client initialization failed, proceed with conversion
+            pass
+
+        # Download HWP file from S3 using boto3 (to handle special characters in filename)
+        s3_key = s3_path  # notices/{notice_id}/{filename}
+        try:
+            import boto3
+            s3_boto_client = boto3.client(
+                's3',
+                region_name=os.getenv('AWS_S3_REGION', 'ap-northeast-2'),
+                aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
+                aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY')
+            )
+
+            # Download file from S3
+            response = s3_boto_client.get_object(
+                Bucket=os.getenv('AWS_S3_BUCKET_NAME', 'jb2-bucket'),
+                Key=s3_key
+            )
+            hwp_content = response['Body'].read()
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to download HWP from S3: {str(e)}"
+            )
+
+        # Get Hancom API credentials
+        hancom_client_id = os.getenv('HANCOM_CLIENT_ID')
+        hancom_client_secret = os.getenv('HANCOM_CLIENT_SECRET')
+
+        if not hancom_client_id or not hancom_client_secret:
+            raise HTTPException(
+                status_code=500,
+                detail="Hancom API credentials not configured"
+            )
+
+        # Call Hancom Cloud Document Converter API
+        hancom_api_url = "https://docsconverter-example.cloud.hancom.com/hwp/doc2pdf"
+
+        # Prepare multipart form data
+        files = {
+            'file': (hwp_filename, io.BytesIO(hwp_content), 'application/octet-stream')
+        }
+
+        headers = {
+            'Client-Id': hancom_client_id,
+            'Client-Secret': hancom_client_secret
+        }
+
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            conversion_response = await client.post(
+                hancom_api_url,
+                files=files,
+                headers=headers
+            )
+            conversion_response.raise_for_status()
+
+            # Parse JSON response to get the converted PDF path
+            import json
+            result = json.loads(conversion_response.content)
+
+            # Check if conversion was successful
+            if result.get('docsconverter', {}).get('result', {}).get('code') != '0000':
+                error_msg = result.get('docsconverter', {}).get('result', {}).get('message', 'Unknown error')
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Hancom API conversion failed: {error_msg}"
+                )
+
+            # Get the target file path
+            target_file = result.get('docsconverter', {}).get('file', {}).get('target_file')
+            if not target_file:
+                raise HTTPException(
+                    status_code=500,
+                    detail="Hancom API did not return target file path"
+                )
+
+            # Download the converted PDF from Hancom API
+            pdf_download_url = f"https://docsconverter-example.cloud.hancom.com{target_file}"
+            pdf_download_response = await client.get(pdf_download_url, headers=headers)
+            pdf_download_response.raise_for_status()
+            pdf_content = pdf_download_response.content
+
+        # Upload PDF to S3
+        upload_success = s3_client.upload_file_content(
+            content=pdf_content,
+            key=pdf_s3_key,
+            content_type='application/pdf'
+        )
+
+        if not upload_success:
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to upload PDF to S3"
+            )
+
+        # Return PDF proxy URL
+        return {
+            "success": True,
+            "pdf_url": pdf_proxy_url,
+            "cached": False,
+            "original_hwp_url": hwp_url,
+            "converted_at": datetime.now().isoformat()
+        }
+
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(
+            status_code=e.response.status_code,
+            detail=f"HTTP error during conversion: {str(e)}"
+        )
+    except httpx.RequestError as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Network error during conversion: {str(e)}"
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Conversion failed: {str(e)}"
+        )
 
 
 # ============================================
@@ -683,6 +1011,19 @@ async def publish_from_queue(
 
         db.add(notice)
         db.flush()  # Get the notice ID
+
+        # Migrate S3 files from temp to final location
+        if attachment_links and len(attachment_links) > 0:
+            # Check if any files are in temp folder
+            has_temp_files = any('notices/temp/' in att.get('url', '') for att in attachment_links)
+            if has_temp_files:
+                from src.core.s3_client import s3_client
+                migrated_attachments = s3_client.migrate_temp_files_to_notice(
+                    attachment_links, notice.id
+                )
+                # Update notice with new attachment URLs
+                notice.attachment_links = migrated_attachments
+                db.flush()
 
         published_ids.append(notice.id)
 

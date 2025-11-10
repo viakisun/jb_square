@@ -5,7 +5,8 @@
 	 */
 
 	import { Button } from '$lib/components/ui/buttons';
-	import { getSourceLabel } from '$lib/constants/sources';
+	import { getSourceDisplayName } from '$lib/constants/sources';
+	import HWPViewer from './HWPViewer.svelte';
 
 	type NoticeItem = {
 		id: number;
@@ -90,12 +91,37 @@
 	// RSS 뉴스인지 확인 (source:news:* 패턴)
 	let isRssNews = $derived(activeItem?.crawler_source_id?.startsWith('source:news:'));
 
+	// JBTP 공고인지 확인
+	let isJBTPNotice = $derived(activeItem?.crawler_source_id?.startsWith('source:jbtp:'));
+
+	// 첫 번째 첨부파일 가져오기
+	let firstAttachment = $derived(
+		attachments?.[0] || detail?.attachments?.[0]
+	);
+
+	// 파일 타입 감지 유틸 함수
+	function getFileExtension(filename: string | null | undefined): string {
+		if (!filename) return '';
+		return filename.split('.').pop()?.toLowerCase() || '';
+	}
+
+	function isPDF(filename: string | null | undefined): boolean {
+		return getFileExtension(filename) === 'pdf';
+	}
+
+	function isHWP(filename: string | null | undefined): boolean {
+		const ext = getFileExtension(filename);
+		return ext === 'hwp' || ext === 'hwpx';
+	}
+
+
 	// Debug logging
 	$effect(() => {
 		if (open && activeItem) {
 			console.log('NoticePreviewModal - activeItem:', activeItem);
 			console.log('NoticePreviewModal - raw_data:', activeItem?.raw_data);
 			console.log('NoticePreviewModal - detail:', detail);
+			console.log('NoticePreviewModal - firstAttachment:', firstAttachment);
 		}
 	});
 
@@ -118,7 +144,7 @@
 			<!-- Header -->
 			<div class="modal-header">
 				<div class="header-top">
-					<span class="source-badge">{getSourceLabel(activeItem.crawler_source_id)}</span>
+					<span class="source-badge">{getSourceDisplayName(activeItem.crawler_source_id)}</span>
 					{#if activeItem.source_board_name}
 						<span class="board-label">{activeItem.source_board_name}</span>
 					{/if}
@@ -211,8 +237,86 @@
 					</div>
 				{/if}
 
-				<!-- Content Viewer (for JBTP PDF viewer) -->
-				{#if contentType === 'pdf_viewer' && contentViewerUrl}
+				<!-- JBTP Attachment Viewer (replaces SYNAP viewer) -->
+				{#if isJBTPNotice && firstAttachment}
+					<!-- PDF Attachment -->
+					{#if isPDF(firstAttachment.filename)}
+						<div class="attachment-viewer-section">
+							<h3 class="section-title">첨부 문서 (PDF)</h3>
+							<div class="pdf-viewer-container">
+								<embed
+									src={firstAttachment.url}
+									type="application/pdf"
+									width="100%"
+									height="600px"
+									class="pdf-embed"
+								/>
+							</div>
+							<div class="viewer-footer">
+								<span class="attachment-info">
+									{firstAttachment.filename}
+									{#if attachments && attachments.length > 1}
+										<span class="attachment-count">(총 {attachments.length}개 첨부파일)</span>
+									{/if}
+								</span>
+								<a
+									href={firstAttachment.url}
+									download
+									class="viewer-link"
+								>
+									다운로드 →
+								</a>
+							</div>
+						</div>
+					<!-- HWP/HWPX Attachment -->
+					{:else if isHWP(firstAttachment.filename)}
+						<div class="attachment-viewer-section">
+							<h3 class="section-title">첨부 문서 (한글)</h3>
+							<HWPViewer url={firstAttachment.url} filename={firstAttachment.filename} />
+
+							<div class="viewer-footer">
+								<span class="attachment-info">
+									{firstAttachment.filename}
+									{#if attachments && attachments.length > 1}
+										<span class="attachment-count">(총 {attachments.length}개 첨부파일)</span>
+									{/if}
+								</span>
+								<a
+									href={firstAttachment.url}
+									download
+									class="viewer-link download-button"
+								>
+									다운로드 →
+								</a>
+							</div>
+						</div>
+					<!-- Unsupported File Type -->
+					{:else}
+						<div class="attachment-viewer-section">
+							<h3 class="section-title">첨부 파일</h3>
+							<div class="hwp-viewer-notice">
+								<p>이 파일 형식({getFileExtension(firstAttachment.filename)})은 미리보기를 지원하지 않습니다.</p>
+								<p>파일을 다운로드하여 확인해주세요.</p>
+							</div>
+							<div class="viewer-footer">
+								<span class="attachment-info">
+									{firstAttachment.filename}
+									{#if attachments && attachments.length > 1}
+										<span class="attachment-count">(총 {attachments.length}개 첨부파일)</span>
+									{/if}
+								</span>
+								<a
+									href={firstAttachment.url}
+									download
+									class="viewer-link download-button"
+								>
+									다운로드 →
+								</a>
+							</div>
+						</div>
+					{/if}
+				<!-- Non-JBTP: Original SYNAP Viewer (for other sources) -->
+				{:else if !isJBTPNotice && contentType === 'pdf_viewer' && contentViewerUrl}
 						<div class="content-viewer-section">
 							<h3 class="section-title">문서 내용</h3>
 							<div class="pdf-viewer-container">
@@ -234,7 +338,7 @@
 								</a>
 							</div>
 						</div>
-					{:else if detail?.content_viewer_url}
+					{:else if !isJBTPNotice && detail?.content_viewer_url}
 						<!-- Fallback for crawl queue preview -->
 						<div class="content-viewer-section">
 							<h3 class="section-title">문서 내용</h3>
@@ -682,6 +786,82 @@
 	.viewer-link:hover {
 		background-color: var(--fg);
 		color: var(--bg);
+	}
+
+	/* JBTP Attachment Viewer */
+	.attachment-viewer-section {
+		padding: var(--space-4);
+		border: var(--border-width) solid var(--hair);
+		margin-bottom: var(--space-6);
+	}
+
+	.pdf-embed {
+		width: 100%;
+		height: 100%;
+		border: none;
+	}
+
+	.attachment-info {
+		font-size: var(--text-sm);
+		color: var(--fg);
+		font-weight: var(--font-medium);
+		display: inline-flex;
+		align-items: center;
+		gap: var(--space-2);
+	}
+
+	.attachment-count {
+		font-size: var(--text-xs);
+		color: var(--muted);
+		font-weight: var(--font-normal);
+	}
+
+	.download-button {
+		margin-left: var(--space-3);
+	}
+
+	/* HWP Viewer */
+	.hwp-viewer-container {
+		width: 100%;
+		min-height: 600px;
+		max-height: 800px;
+		overflow-y: auto;
+		background-color: var(--bg);
+		border: var(--border-width) solid var(--hair);
+		margin-bottom: var(--space-3);
+		padding: var(--space-4);
+	}
+
+	.hwp-loading {
+		text-align: center;
+		padding: var(--space-12);
+		background-color: var(--surface-1);
+		border: var(--border-width) solid var(--hair);
+		margin-bottom: var(--space-3);
+	}
+
+	.hwp-loading p {
+		color: var(--muted);
+		font-size: var(--text-sm);
+		font-weight: var(--font-medium);
+	}
+
+	.hwp-error {
+		text-align: center;
+		padding: var(--space-8);
+		background-color: var(--surface-1);
+		border: var(--border-width) solid var(--hair);
+		margin-bottom: var(--space-3);
+	}
+
+	.hwp-error p {
+		color: var(--muted);
+		font-size: var(--text-sm);
+		margin-bottom: var(--space-2);
+	}
+
+	.hwp-error p:last-child {
+		margin-bottom: 0;
 	}
 
 	/* No Detail */

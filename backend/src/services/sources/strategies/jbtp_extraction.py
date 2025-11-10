@@ -4,10 +4,12 @@ JBTP 상세 페이지에서 정보를 추출하는 전략
 """
 
 import requests
+import hashlib
 from typing import Dict, Optional
 from bs4 import BeautifulSoup
 
 from src.services.rate_limiter import RateLimiter
+from src.core.s3_client import s3_client
 
 
 class JBTPExtractionStrategy:
@@ -68,13 +70,20 @@ class JBTPExtractionStrategy:
             print(f"Error extracting meta info: {str(error)}")
 
     @staticmethod
-    def extract_attachments(bbs_view, detail: Dict) -> None:
+    def extract_attachments(
+        bbs_view,
+        detail: Dict,
+        session: Optional[requests.Session] = None,
+        notice_id: Optional[int] = None
+    ) -> None:
         """
-        JBTP 상세 페이지에서 첨부파일 정보를 추출합니다.
+        JBTP 상세 페이지에서 첨부파일 정보를 추출하고 S3에 업로드합니다.
 
         Args:
             bbs_view: BeautifulSoup 객체 (.bbs_view 영역)
             detail: 추출된 정보를 저장할 딕셔너리
+            session: requests.Session 인스턴스 (S3 업로드를 위해 필요)
+            notice_id: 공고 ID (S3 폴더 구조에 사용)
         """
         try:
             file_dl = bbs_view.select('.bbs_filedown dl dd')
@@ -99,13 +108,105 @@ class JBTPExtractionStrategy:
                     if file_url and not file_url.startswith('http'):
                         file_url = 'https://www.jbtp.or.kr' + file_url
 
-                    if file_url:
-                        detail['attachments'].append({
-                            'filename': filename,
-                            'url': file_url
-                        })
+                    if not file_url:
+                        continue
+
+                    # S3 업로드 시도
+                    s3_url = None
+                    if session:
+                        s3_url = JBTPExtractionStrategy._upload_attachment_to_s3(
+                            session, file_url, filename, notice_id
+                        )
+
+                    # S3 업로드 성공 시 S3 URL 사용, 실패 시 원본 URL 사용
+                    attachment_entry = {
+                        'filename': filename,
+                        'url': s3_url if s3_url else file_url,
+                    }
+
+                    # S3 업로드가 성공한 경우 원본 URL도 보관
+                    if s3_url:
+                        attachment_entry['original_url'] = file_url
+
+                    detail['attachments'].append(attachment_entry)
+
         except Exception as error:
             print(f"Error extracting attachments: {str(error)}")
+
+    @staticmethod
+    def _upload_attachment_to_s3(
+        session: requests.Session,
+        file_url: str,
+        filename: str,
+        notice_id: Optional[int] = None
+    ) -> Optional[str]:
+        """
+        첨부파일을 다운로드하여 S3에 업로드합니다.
+
+        Args:
+            session: requests.Session 인스턴스 (JBTP 세션 쿠키 포함)
+            file_url: 다운로드할 파일의 URL
+            filename: 파일명
+            notice_id: 공고 ID (S3 폴더 구조에 사용)
+
+        Returns:
+            S3 URL (업로드 성공 시) 또는 None (실패 시)
+        """
+        try:
+            # 파일 다운로드
+            response = session.get(file_url, timeout=30)
+
+            # 응답 상태 확인
+            if response.status_code != 200:
+                print(f"Failed to download file {filename}: HTTP {response.status_code}")
+                return None
+
+            # Content-Type 확인 (HTML 에러 페이지가 아닌지 체크)
+            content_type = response.headers.get('content-type', '').lower()
+            if 'text/html' in content_type:
+                print(f"Received HTML instead of file for {filename}, skipping S3 upload")
+                return None
+
+            # 파일 크기 확인 (너무 작으면 에러 페이지일 가능성)
+            content_length = len(response.content)
+            if content_length < 100:  # 100 bytes 미만은 의심
+                print(f"File {filename} too small ({content_length} bytes), might be error page")
+                return None
+
+            # S3 키 생성: notices/{notice_id}/{filename}
+            # notice_id가 없으면 임시 폴더에 저장
+            if notice_id:
+                s3_key = f"notices/{notice_id}/{filename}"
+            else:
+                # 임시 해시를 사용하여 고유한 경로 생성
+                file_hash = hashlib.md5(response.content).hexdigest()[:8]
+                s3_key = f"notices/temp/{file_hash}/{filename}"
+
+            # S3에 업로드
+            success = s3_client.upload_file_content(
+                content=response.content,
+                key=s3_key,
+                content_type=content_type or 'application/octet-stream'
+            )
+
+            if success:
+                # S3 URL 반환
+                s3_url = s3_client.get_public_url(s3_key)
+                print(f"Successfully uploaded {filename} to S3: {s3_url}")
+                return s3_url
+            else:
+                print(f"Failed to upload {filename} to S3")
+                return None
+
+        except requests.exceptions.Timeout:
+            print(f"Timeout downloading {filename}")
+            return None
+        except requests.exceptions.RequestException as error:
+            print(f"Network error downloading {filename}: {str(error)}")
+            return None
+        except Exception as error:
+            print(f"Error uploading {filename} to S3: {str(error)}")
+            return None
 
     @staticmethod
     def extract_content_viewer(bbs_view, detail: Dict) -> None:
@@ -175,8 +276,8 @@ class JBTPExtractionStrategy:
             # 메타 정보 추출
             JBTPExtractionStrategy.extract_meta_info(bbs_view, detail)
 
-            # 첨부파일 추출
-            JBTPExtractionStrategy.extract_attachments(bbs_view, detail)
+            # 첨부파일 추출 (S3 업로드 포함)
+            JBTPExtractionStrategy.extract_attachments(bbs_view, detail, session)
 
             # 콘텐츠 뷰어 추출
             JBTPExtractionStrategy.extract_content_viewer(bbs_view, detail)
