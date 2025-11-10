@@ -7,7 +7,7 @@
 	import { Input } from '$lib/components/ui/forms';
 	import { toast } from '$lib/stores/toast';
 	import { API_BASE_URL } from '$lib/config/api';
-	import { getLocationDisplay } from '$lib/constants/sources';
+	import { getSourceDisplayName } from '$lib/constants/sources';
 	import { useFileUpload } from '$lib/composables/useFileUpload.svelte';
 
 	interface Props {
@@ -18,7 +18,7 @@
 
 	let { sourceId, onClose, onSuccess }: Props = $props();
 
-	let locationDisplay = $derived(getLocationDisplay(sourceId));
+	let locationDisplay = $derived(getSourceDisplayName(sourceId));
 
 	// Form state
 	let formData = $state({

@@ -14,6 +14,9 @@
 	} from '$lib/components/notices';
 	import { toast } from '$lib/stores/toast';
 	import { API_BASE_URL, WS_BASE_URL } from '$lib/config/api';
+	import { NoticeSource } from '$lib/constants/sources';
+
+	const SOURCE_ID = NoticeSource.NTIS_RSS;
 
 	interface LogEntry {
 		timestamp: string;
@@ -45,7 +48,7 @@
 	async function loadQueue() {
 		loading = true;
 		try {
-			const res = await fetch(`${API_BASE_URL}/notices/crawl-queue/list?source_id=source:ntis:rss`);
+			const res = await fetch(`${API_BASE_URL}/notices/crawl-queue/list?source_id=${SOURCE_ID}`);
 			const data = await res.json();
 			queueItems = data.items;
 		} catch (error) {
@@ -64,7 +67,7 @@
 		errorMessage = '';
 
 		try {
-			const ws = new WebSocket(`${WS_BASE_URL}/api/notices/crawl/source:ntis:rss`);
+			const ws = new WebSocket(`${WS_BASE_URL}/api/notices/crawl/${SOURCE_ID}`);
 
 			ws.onmessage = (event) => {
 				const data = JSON.parse(event.data);
@@ -196,7 +199,7 @@
 	</Panel>
 
 	<!-- Crawling Configuration -->
-	<CrawlerConfigInline sourceId="source:ntis:rss" />
+	<CrawlerConfigInline sourceId={SOURCE_ID} />
 
 	<!-- Crawling Status -->
 	{#if crawlStatus !== 'idle'}
@@ -252,14 +255,14 @@
 		</Panel>
 	{:else}
 		<Panel title="게시된 공고">
-			<PublishedNoticesList sourceId="source:ntis:rss" />
+			<PublishedNoticesList sourceId={SOURCE_ID} />
 		</Panel>
 	{/if}
 
 	<!-- Add Notice Modal -->
 	{#if showAddModal}
 		<AddNoticeModal
-			sourceId="source:ntis:rss"
+			sourceId={SOURCE_ID}
 			onClose={() => (showAddModal = false)}
 			onSuccess={() => {
 				loadQueue();

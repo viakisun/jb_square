@@ -10,7 +10,7 @@
 	import { toast } from '$lib/stores/toast';
 	import { bulkDeleteQueueItems } from '$lib/api/crawl-queue';
 	import { formatDate, getDaysUntilDeadline } from '$lib/utils/date';
-	import { getSourceLabel } from '$lib/constants/sources';
+	import { getSourceDisplayName } from '$lib/constants/sources';
 	import { useSelection } from '$lib/composables/useSelection.svelte';
 
 	type QueueItem = {

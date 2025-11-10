@@ -1,125 +1,125 @@
 /**
  * Notice Source Constants
- * 공고 출처 상수 정의
+ * TypeScript equivalent of backend/src/constants/sources.py
  *
- * Naming convention: source:organization:type
+ * IMPORTANT: Keep in sync with backend NoticeSource enum
  */
 
 /**
- * 공고 출처 Enum
+ * Notice Source IDs
+ * Format: source:{organization}:{type}
  */
-export enum NoticeSource {
-	NTIS_RSS = 'source:ntis:rss',           // 정부공고 - NTIS
-	JBTP_LOCAL = 'source:jbtp:local',       // 지자체 공고 - (재)전북테크노파크
-	JBTP_EXTERNAL = 'source:jbtp:external', // 유관기관 공고 - (재)전북테크노파크
-	JBTP_EVENTS = 'source:jbtp:events',     // 교육/행사 - (재)전북테크노파크
-	BIZINFO_API = 'source:bizinfo:api',     // 기업마당 정보 - 기업마당
-	NEWS_MFDS = 'source:news:mfds',         // 뉴스 - 식품의약품안전처
-	NEWS_MOHW = 'source:news:mohw',         // 뉴스 - 보건복지부
-}
+export const NoticeSource = {
+	NTIS_RSS: 'source:ntis:rss',
+	JBTP_LOCAL: 'source:jbtp:local',
+	JBTP_EXTERNAL: 'source:jbtp:external',
+	JBTP_EVENTS: 'source:jbtp:events',
+	BIZINFO_API: 'source:bizinfo:api',
+	NEWS_MFDS: 'source:news:mfds',
+	NEWS_MOHW: 'source:news:mohw'
+} as const;
 
 /**
- * Source 메타데이터
+ * Type for notice source values
+ */
+export type NoticeSourceType = (typeof NoticeSource)[keyof typeof NoticeSource];
+
+/**
+ * Source metadata interface
  */
 export interface SourceInfo {
-	displayName: string;
+	display_name: string;
 	organization: string;
-	organizationFull: string;
-	type: string;
+	type: 'rss' | 'api' | 'scraping';
 	description: string;
+	url?: string;
 }
 
-export const SOURCE_INFO: Record<NoticeSource, SourceInfo> = {
+/**
+ * Source metadata mapping
+ * Contains display names, organizations, types, and descriptions for each source
+ */
+export const SOURCE_INFO: Record<string, SourceInfo> = {
 	[NoticeSource.NTIS_RSS]: {
-		displayName: '정부공고',
+		display_name: '정부공고',
 		organization: 'NTIS',
-		organizationFull: '국가과학기술지식정보서비스',
-		type: 'RSS',
-		description: '정부 R&D 지원 사업 공고',
+		type: 'rss',
+		description: '국가과학기술지식정보서비스 R&D 과제공고',
+		url: 'https://www.ntis.go.kr'
 	},
 	[NoticeSource.JBTP_LOCAL]: {
-		displayName: '지자체 공고',
-		organization: '(재)전북테크노파크',
-		organizationFull: '재단법인 전북테크노파크',
-		type: 'Crawling',
-		description: '전북 지역 지자체 지원 사업 공고',
+		display_name: '지자체 사업공고',
+		organization: 'JBTP',
+		type: 'scraping',
+		description: '전북테크노파크 사업공고',
+		url: 'https://www.jbtp.or.kr'
 	},
 	[NoticeSource.JBTP_EXTERNAL]: {
-		displayName: '유관기관 공고',
-		organization: '(재)전북테크노파크',
-		organizationFull: '재단법인 전북테크노파크',
-		type: 'Crawling',
-		description: '유관기관 지원 사업 공고',
+		display_name: '유관기관 공고',
+		organization: 'JBTP',
+		type: 'scraping',
+		description: '전북테크노파크 유관기관 공고',
+		url: 'https://www.jbtp.or.kr'
 	},
 	[NoticeSource.JBTP_EVENTS]: {
-		displayName: 'JBTP 행사',
-		organization: '(재)전북테크노파크',
-		organizationFull: '재단법인 전북테크노파크',
-		type: 'Crawling',
-		description: '전북테크노파크 교육/행사 정보',
+		display_name: '뉴스/행사',
+		organization: 'JBTP',
+		type: 'scraping',
+		description: '전북테크노파크 교육/행사',
+		url: 'https://www.jbtp.or.kr'
 	},
 	[NoticeSource.BIZINFO_API]: {
-		displayName: '기업마당 정보',
-		organization: '기업마당',
-		organizationFull: '중소기업 종합정보시스템',
-		type: 'API',
-		description: '중소기업 지원 사업 정보',
+		display_name: '기업지원',
+		organization: 'BizInfo',
+		type: 'api',
+		description: '중소기업 정책정보 종합지원시스템',
+		url: 'https://www.bizinfo.go.kr'
 	},
 	[NoticeSource.NEWS_MFDS]: {
-		displayName: '식약처 뉴스',
-		organization: '식품의약품안전처',
-		organizationFull: '식품의약품안전처',
-		type: 'RSS',
-		description: '의약품 승인, 안전 규제, 식품 위생 관련 공지사항',
+		display_name: '식약처',
+		organization: 'MFDS',
+		type: 'rss',
+		description: '식품의약품안전처 보도자료',
+		url: 'https://www.mfds.go.kr'
 	},
 	[NoticeSource.NEWS_MOHW]: {
-		displayName: '복지부 뉴스',
-		organization: '보건복지부',
-		organizationFull: '보건복지부',
-		type: 'RSS',
-		description: '보건의료 정책, R&D 지원, 바이오 산업 보도자료',
-	},
+		display_name: '보건복지부',
+		organization: 'MOHW',
+		type: 'rss',
+		description: '보건복지부 보도자료',
+		url: 'https://www.mohw.go.kr'
+	}
 };
 
 /**
- * Source ID로 표시명 가져오기
- */
-export function getSourceDisplayName(sourceId: string): string {
-	return SOURCE_INFO[sourceId as NoticeSource]?.displayName || sourceId;
-}
-
-/**
- * Source ID로 기관명 가져오기
- */
-export function getSourceOrganization(sourceId: string): string {
-	return SOURCE_INFO[sourceId as NoticeSource]?.organization || '알 수 없음';
-}
-
-/**
- * 유효한 Source ID인지 확인
- */
-export function isValidSource(sourceId: string): boolean {
-	return Object.values(NoticeSource).includes(sourceId as NoticeSource);
-}
-
-/**
- * 모든 Source ID 리스트
+ * Array of all valid source IDs
  */
 export const ALL_SOURCES = Object.values(NoticeSource);
 
 /**
- * Legacy compatibility - deprecated
- * @deprecated Use getSourceDisplayName instead
+ * Helper function to get display name for a source
  */
-export function getSourceLabel(sourceId: string): string {
-	return getSourceDisplayName(sourceId);
+export function getSourceDisplayName(sourceId: string): string {
+	return SOURCE_INFO[sourceId]?.display_name || sourceId;
 }
 
 /**
- * Legacy compatibility - deprecated
- * @deprecated Use getSourceDisplayName with SOURCE_INFO instead
+ * Helper function to get organization for a source
  */
-export function getLocationDisplay(sourceId: string): string {
-	const info = SOURCE_INFO[sourceId as NoticeSource];
-	return info ? `${info.displayName} (${info.organization})` : `공고 (${sourceId})`;
+export function getSourceOrganization(sourceId: string): string {
+	return SOURCE_INFO[sourceId]?.organization || 'Unknown';
+}
+
+/**
+ * Helper function to validate source ID
+ */
+export function isValidSource(sourceId: string): sourceId is NoticeSourceType {
+	return ALL_SOURCES.includes(sourceId as NoticeSourceType);
+}
+
+/**
+ * Helper function to get source type
+ */
+export function getSourceType(sourceId: string): 'rss' | 'api' | 'scraping' | undefined {
+	return SOURCE_INFO[sourceId]?.type;
 }

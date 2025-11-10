@@ -13,6 +13,9 @@
 	import { fetchCrawlQueue } from '$lib/api/crawl-queue';
 	import { publishNotices } from '$lib/api/notices';
 	import { useCrawlWebSocket } from '$lib/composables/useCrawlWebSocket.svelte';
+	import { NoticeSource } from '$lib/constants/sources';
+
+	const SOURCE_ID = NoticeSource.BIZINFO_API;
 
 	// Tab state
 	let activeTab = $state<'queue' | 'published'>('queue');
@@ -34,7 +37,7 @@
 	async function loadQueue() {
 		loading = true;
 		try {
-			queueItems = await fetchCrawlQueue('bizinfo');
+			queueItems = await fetchCrawlQueue(SOURCE_ID);
 		} catch (error) {
 			console.error('Failed to load queue:', error);
 			toast.error('대기열 로드 실패');
@@ -44,7 +47,7 @@
 	}
 
 	function crawlBizinfo() {
-		const wsUrl = `${WS_BASE_URL}/api/notices/crawl/bizinfo`;
+		const wsUrl = `${WS_BASE_URL}/api/notices/crawl/${SOURCE_ID}`;
 
 		crawlWs.connect(
 			wsUrl,
@@ -116,7 +119,7 @@
 	</Panel>
 
 	<!-- Bizinfo Crawler Settings -->
-	<CrawlerConfigInline sourceId="source:bizinfo:web" />
+	<CrawlerConfigInline sourceId={SOURCE_ID} />
 
 	{#if crawlWs.status !== 'idle'}
 		<Panel title="데이터 수집 진행 상황">
@@ -187,14 +190,14 @@
 		</Panel>
 	{:else}
 		<Panel title="게시된 공고">
-			<PublishedNoticesList sourceId="source:bizinfo:api" />
+			<PublishedNoticesList sourceId={SOURCE_ID} />
 		</Panel>
 	{/if}
 
 	<!-- Add Notice Modal -->
 	{#if showAddModal}
 		<AddNoticeModal
-			sourceId="source:bizinfo:api"
+			sourceId={SOURCE_ID}
 			onClose={() => (showAddModal = false)}
 			onSuccess={() => {
 				loadQueue();

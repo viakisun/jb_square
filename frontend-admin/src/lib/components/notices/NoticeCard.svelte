@@ -10,7 +10,7 @@
 	import NoticePreviewModal from './NoticePreviewModal.svelte';
 	import NoticeTagEditor from './NoticeTagEditor.svelte';
 	import { formatDate, getDaysUntilDeadline } from '$lib/utils/date';
-	import { getSourceLabel } from '$lib/constants/sources';
+	import { getSourceDisplayName } from '$lib/constants/sources';
 
 	type Notice = {
 		id: number;
@@ -101,7 +101,7 @@
 	<!-- Header -->
 	<div class="card-header">
 		<div class="header-left">
-			<span class="source-badge">{getSourceLabel(notice.crawler_source_id)}</span>
+			<span class="source-badge">{getSourceDisplayName(notice.crawler_source_id)}</span>
 		</div>
 		<div class="header-right">
 			{#if notice.crawler_source_id === 'source:jbtp:external'}

@@ -14,6 +14,9 @@
 	} from '$lib/components/notices';
 	import { toast } from '$lib/stores/toast';
 	import { API_BASE_URL, WS_BASE_URL } from '$lib/config/api';
+	import { NoticeSource } from '$lib/constants/sources';
+
+	const SOURCE_ID = NoticeSource.JBTP_EVENTS;
 
 	interface LogEntry {
 		timestamp: string;
@@ -47,7 +50,7 @@
 	async function loadQueue() {
 		loading = true;
 		try {
-			const res = await fetch(`${API_BASE_URL}/notices/crawl-queue/list?source_id=source:jbtp:events`);
+			const res = await fetch(`${API_BASE_URL}/notices/crawl-queue/list?source_id=${SOURCE_ID}`);
 			const data = await res.json();
 			// Remove duplicates by ID
 			const uniqueItems = Array.from(
@@ -71,7 +74,7 @@
 		errorMessage = '';
 
 		try {
-			const ws = new WebSocket(`${WS_BASE_URL}/api/notices/crawl/source:jbtp:events`);
+			const ws = new WebSocket(`${WS_BASE_URL}/api/notices/crawl/${SOURCE_ID}`);
 
 			ws.onmessage = (event) => {
 				const data = JSON.parse(event.data);
@@ -230,7 +233,7 @@
 	</Panel>
 
 	<!-- Crawling Configuration -->
-	<CrawlerConfigInline sourceId="source:jbtp:events" />
+	<CrawlerConfigInline sourceId={SOURCE_ID} />
 
 	<!-- Crawling Status -->
 	{#if crawlStatus !== 'idle'}
@@ -252,7 +255,7 @@
 			{/if}
 
 			<CrawlingStatus
-				sourceId="source:jbtp:events"
+				sourceId={SOURCE_ID}
 				sourceName="JBTP 바이오행사"
 				status={crawlStatus === 'collecting' || crawlStatus === 'processing' ? 'running' : crawlStatus}
 				progress={crawlProgress.progress}
@@ -303,7 +306,7 @@
 	{:else}
 		<Panel title="게시된 바이오행사">
 			{#key publishedListKey}
-				<PublishedNoticesList sourceId="source:jbtp:events" />
+				<PublishedNoticesList sourceId={SOURCE_ID} />
 			{/key}
 		</Panel>
 	{/if}
@@ -311,7 +314,7 @@
 	<!-- Add Notice Modal -->
 	{#if showAddModal}
 		<AddNoticeModal
-			sourceId="source:jbtp:events"
+			sourceId={SOURCE_ID}
 			onClose={() => (showAddModal = false)}
 			onSuccess={() => {
 				loadQueue();
