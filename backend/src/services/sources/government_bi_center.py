@@ -8,8 +8,8 @@ from typing import Callable, List, Optional
 
 from src.core.database import SessionLocal
 from src.models.bi_center import BICenter, BICompany
-from src.models.crawler_config import BinetConfig
 from ._base import BaseAdapter, CrawlerStatus
+from .repositories.config_repository import ConfigRepository
 
 
 class GovernmentBiCenterAdapter(BaseAdapter):
@@ -26,12 +26,7 @@ class GovernmentBiCenterAdapter(BaseAdapter):
 
     def _load_binet_configs(self) -> List[tuple]:
         """BI Center 설정을 DB에서 로드합니다."""
-        db = SessionLocal()
-        try:
-            configs = db.query(BinetConfig).filter(BinetConfig.enabled == True).all()
-            return [(c.region_name, c.region_code) for c in configs]
-        finally:
-            db.close()
+        return ConfigRepository.load_binet_configs()
 
     async def execute(self, callback: Optional[Callable] = None):
         """크롤링 실행"""

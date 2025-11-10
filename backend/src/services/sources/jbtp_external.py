@@ -12,11 +12,11 @@ from typing import Callable, List, Optional
 from dateutil import parser
 
 from src.core.database import SessionLocal
-from src.models.crawler_config import JBTPConfig
 from src.models.notice import CrawlQueue, Notice
 from src.services.rate_limiter import RateLimiter
 from src.constants.sources import NoticeSource
 from ._base import BaseAdapter, CrawlerStatus
+from .repositories.config_repository import ConfigRepository
 
 
 class JBTPExternalAdapter(BaseAdapter):
@@ -31,15 +31,7 @@ class JBTPExternalAdapter(BaseAdapter):
 
     def _load_jbtp_external_configs(self) -> List[tuple]:
         """JBTP 유관기관공고 설정을 DB에서 로드합니다. (게시판명, URL, 키워드, date_range_days) 반환"""
-        db = SessionLocal()
-        try:
-            configs = db.query(JBTPConfig).filter(
-                JBTPConfig.config_type == 'external_notices',
-                JBTPConfig.enabled == True
-            ).all()
-            return [(c.name, c.board_url, c.keywords or [], c.date_range_days or 30) for c in configs]
-        finally:
-            db.close()
+        return ConfigRepository.load_jbtp_external_configs()
 
     def parse_date(self, date_str: str) -> Optional[datetime]:
         """
