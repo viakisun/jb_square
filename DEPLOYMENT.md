@@ -1,6 +1,6 @@
-# 🚀 JB2 Backoffice - EC2 배포 가이드
+# 🚀 JB SQUARE - EC2 배포 가이드
 
-이 가이드는 JB2 Backoffice를 AWS EC2에 자동으로 배포하는 방법을 설명합니다.
+이 가이드는 JB SQUARE를 AWS EC2에 자동으로 배포하는 방법을 설명합니다.
 
 ## ⚠️ 중요: 배포 방법
 
@@ -58,7 +58,7 @@
 ### 1. EC2 인스턴스 생성
 
 1. AWS Console → EC2 → Launch Instance
-2. **Name**: `jb2-backoffice-prod`
+2. **Name**: `jb_square-prod`
 3. **AMI**: Ubuntu Server 22.04 LTS
 4. **Instance Type**: t3.medium
 5. **Key Pair**: 새로 생성 또는 기존 키 사용 (다운로드 보관!)
@@ -85,8 +85,8 @@ ssh -i your-key.pem ubuntu@<EC2-PUBLIC-IP>
 ```bash
 # 프로젝트 클론
 cd ~
-git clone https://github.com/your-username/your-repo.git jb2-backoffice
-cd jb2-backoffice
+git clone https://github.com/your-username/your-repo.git jb_square
+cd jb_square
 
 # 설정 스크립트 실행 (Docker, Nginx 등 설치)
 sudo bash scripts/setup-ec2.sh
@@ -99,7 +99,7 @@ ssh -i your-key.pem ubuntu@<EC2-PUBLIC-IP>
 ### 4. 환경 변수 설정
 
 ```bash
-cd ~/jb2-backoffice
+cd ~/jb_square
 
 # .env 파일 생성
 cp .env.example .env
@@ -279,9 +279,9 @@ sudo certbot certonly --standalone -d your-domain.com -d www.your-domain.com
 # /etc/letsencrypt/live/your-domain.com/privkey.pem
 
 # nginx/ssl 디렉토리로 복사
-sudo cp /etc/letsencrypt/live/your-domain.com/fullchain.pem ~/jb2-backoffice/nginx/ssl/
-sudo cp /etc/letsencrypt/live/your-domain.com/privkey.pem ~/jb2-backoffice/nginx/ssl/
-sudo chown ubuntu:ubuntu ~/jb2-backoffice/nginx/ssl/*
+sudo cp /etc/letsencrypt/live/your-domain.com/fullchain.pem ~/jb_square/nginx/ssl/
+sudo cp /etc/letsencrypt/live/your-domain.com/privkey.pem ~/jb_square/nginx/ssl/
+sudo chown ubuntu:ubuntu ~/jb_square/nginx/ssl/*
 ```
 
 ### nginx 설정 수정
@@ -303,7 +303,7 @@ server {
 ### 컨테이너 재시작
 
 ```bash
-cd ~/jb2-backoffice
+cd ~/jb_square
 docker-compose -f docker-compose.prod.yml restart nginx
 ```
 
@@ -314,7 +314,7 @@ docker-compose -f docker-compose.prod.yml restart nginx
 sudo crontab -e
 
 # 매일 새벽 3시에 인증서 갱신 시도
-0 3 * * * certbot renew --quiet && cp /etc/letsencrypt/live/your-domain.com/*.pem ~/jb2-backoffice/nginx/ssl/ && docker-compose -f ~/jb2-backoffice/docker-compose.prod.yml restart nginx
+0 3 * * * certbot renew --quiet && cp /etc/letsencrypt/live/your-domain.com/*.pem ~/jb_square/nginx/ssl/ && docker-compose -f ~/jb_square/docker-compose.prod.yml restart nginx
 ```
 
 ---
@@ -448,7 +448,7 @@ docker-compose -f docker-compose.prod.yml logs nginx
 ### 빠른 배포 (수동)
 
 ```bash
-cd ~/jb2-backoffice
+cd ~/jb_square
 bash scripts/deploy.sh
 ```
 
@@ -494,7 +494,7 @@ conn.close()
 
 ```bash
 # EC2에서 수동 배포 테스트
-cd ~/jb2-backoffice
+cd ~/jb_square
 git pull origin main
 docker-compose -f docker-compose.prod.yml up -d --build
 
@@ -576,7 +576,7 @@ sudo dpkg -i amazon-cloudwatch-agent.deb
 
 ```bash
 # EC2 접속
-cd ~/jb2-backoffice
+cd ~/jb_square
 
 # 이전 커밋으로 되돌리기
 git log --oneline -10  # 커밋 목록 확인

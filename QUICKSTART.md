@@ -42,7 +42,7 @@ gh auth login
 
 ```bash
 # 프로젝트 디렉토리에서 실행
-cd /path/to/backoffice
+cd /path/to/jb_square
 
 # .env 파일이 있는지 확인
 ls .env
@@ -70,8 +70,8 @@ bash scripts/setup-github-secrets.sh
 ssh -i ~/.ssh/jb2-key.pem ec2-user@<EC2-PUBLIC-IP>
 
 # 프로젝트 클론
-git clone https://github.com/your-username/jb_square.git jb2-backoffice
-cd jb2-backoffice
+git clone https://github.com/your-username/jb_square.git jb_square
+cd jb_square
 
 # 초기 설정 스크립트 실행 (Docker, Nginx 등 설치)
 # 스크립트가 자동으로 OS를 감지합니다 (Amazon Linux 2023, Amazon Linux 2, Ubuntu)
@@ -85,7 +85,7 @@ ssh -i ~/.ssh/jb2-key.pem ec2-user@<EC2-PUBLIC-IP>
 ### Step 3: .env 파일 생성 (EC2에서)
 
 ```bash
-cd ~/jb2-backoffice
+cd ~/jb_square
 
 # .env 템플릿 복사
 cp .env.example .env
@@ -97,7 +97,7 @@ nano .env
 **또는 로컬에서 파일 전송:**
 ```bash
 # 로컬에서 실행 (사용자명은 ec2-user 또는 ubuntu)
-scp -i ~/.ssh/jb2-key.pem .env ec2-user@<EC2-IP>:~/jb2-backoffice/.env
+scp -i ~/.ssh/jb2-key.pem .env ec2-user@<EC2-IP>:~/jb_square/.env
 ```
 
 ---
@@ -124,7 +124,7 @@ git push origin main
 ```bash
 # EC2 접속
 ssh -i ~/.ssh/jb2-key.pem ec2-user@<EC2-IP>
-cd ~/jb2-backoffice
+cd ~/jb_square
 
 # 배포 스크립트 실행
 bash scripts/deploy.sh
@@ -154,7 +154,7 @@ curl http://<EC2-PUBLIC-IP>/health
 
 ```bash
 # EC2에서
-cd ~/jb2-backoffice
+cd ~/jb_square
 docker-compose -f docker-compose.prod.yml logs -f
 
 # 특정 서비스 로그
@@ -266,7 +266,7 @@ gh secret delete SECRET_NAME
 2. **EC2에서 수동 배포 시도**
    ```bash
    ssh -i ~/.ssh/jb2-key.pem ec2-user@<EC2-IP>
-   cd ~/jb2-backoffice
+   cd ~/jb_square
    bash scripts/deploy.sh
    ```
 
@@ -279,7 +279,7 @@ gh secret delete SECRET_NAME
 
 ```bash
 # 이미지 재빌드
-cd ~/jb2-backoffice
+cd ~/jb_square
 docker-compose -f docker-compose.prod.yml build --no-cache
 
 # 강제 재생성
@@ -293,7 +293,7 @@ docker-compose -f docker-compose.prod.yml up -d --force-recreate
 # EC2의 보안 그룹이 RDS 인바운드 규칙에 추가되어 있는지 확인
 
 # .env 파일 확인
-cat ~/jb2-backoffice/.env | grep DB
+cat ~/jb_square/.env | grep DB
 ```
 
 ---
@@ -301,8 +301,8 @@ cat ~/jb2-backoffice/.env | grep DB
 ## 📚 추가 문서
 
 - **전체 배포 가이드**: [DEPLOYMENT.md](./DEPLOYMENT.md)
-- **백오피스 매뉴얼**: [README_BACKOFFICE.md](./README_BACKOFFICE.md)
-- **API 설정**: [API_SETUP.md](./API_SETUP.md)
+- **백오피스 매뉴얼**: [docs/archived/README_BACKOFFICE.md](./docs/archived/README_BACKOFFICE.md)
+- **API 설정**: [docs/setup/API_SETUP.md](./docs/setup/API_SETUP.md)
 
 ---
 

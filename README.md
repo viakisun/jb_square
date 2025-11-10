@@ -105,23 +105,28 @@ docker-compose -f docker-compose.prod.yml up -d
 `.env` 파일에 다음 API 키들을 설정해야 합니다:
 
 - **NTIS_API_KEY**: 국가과학기술지식정보서비스
-- **BIZINFO_API_KEY**: 기업마당
-- **JBTP_API_KEY**: 전북테크노파크
+- **JBTP_API_KEY**: 전북테크노파크 (선택사항)
+- **NAVER_MAPS_CLIENT_ID**: Naver Maps API (BI Center 지도용)
+
+자세한 API 설정 방법은 [docs/setup/API_SETUP.md](docs/setup/API_SETUP.md)를 참조하세요.
 
 ## 배포
 
-### 프로덕션 배포
+### GitHub Actions 자동 배포 (권장)
 ```bash
-# EC2 서버에서
-cd /home/ec2-user/jb_square
-bash scripts/deploy.sh
+# main 브랜치에 푸시하면 자동 배포
+git push origin main
 ```
 
-### 배포 스크립트 기능
-- 자동 백업
-- Docker 이미지 빌드
-- 헬스 체크
-- 롤백 기능
+### 수동 배포 (EC2)
+```bash
+# EC2 서버에서
+cd ~/jb_square
+git pull origin main
+docker-compose -f docker-compose.prod.yml up -d --build
+```
+
+자세한 배포 가이드는 [DEPLOYMENT.md](DEPLOYMENT.md)와 [QUICKSTART.md](QUICKSTART.md)를 참조하세요.
 
 ## 개발 가이드
 
@@ -155,11 +160,13 @@ npm run dev  # http://localhost:5173
 #### Backend
 ```
 backend/src/
-├── core/         # 핵심 설정 (DB, 인증 등)
-├── models/       # 데이터베이스 모델
-├── routers/      # API 엔드포인트
-├── services/     # 비즈니스 로직
-└── main.py       # 애플리케이션 진입점
+├── core/              # 핵심 설정 (DB, 인증 등)
+├── models/            # 데이터베이스 모델
+├── routers/           # API 엔드포인트
+├── services/
+│   ├── sources/       # 데이터 소스 어댑터 (크롤러)
+│   └── ...            # 기타 비즈니스 로직
+└── main.py            # 애플리케이션 진입점
 ```
 
 #### Frontend
