@@ -71,6 +71,9 @@
 	let content = $derived(activeItem?.content);
 	let attachments = $derived(activeItem?.attachment_links);
 
+	// RSS 뉴스인지 확인 (source:news:* 패턴)
+	let isRssNews = $derived(activeItem?.crawler_source_id?.startsWith('source:news:'));
+
 	// Debug logging
 	$effect(() => {
 		if (open && activeItem) {
@@ -261,7 +264,7 @@
 							<h3 class="section-title">공고 상세</h3>
 							<div class="content-body">
 								{#if detail.content_html}
-									<div class="isolated-html-content">
+									<div class="isolated-html-content {isRssNews ? 'block-scripts' : ''}">
 										{@html detail.content_html}
 									</div>
 								{:else if detail.content}
@@ -1055,14 +1058,15 @@
 		padding: 1rem;
 	}
 
-	/* 위험한 요소 숨김 (재귀적 페이지 로딩 방지) */
-	.isolated-html-content iframe,
-	.isolated-html-content script {
+	/* 위험한 요소 숨김 (재귀적 페이지 로딩 방지) - RSS 뉴스에만 적용 */
+	/* 지자체 공고(JBTP local)는 SYNAP 뷰어 iframe이 필요하므로 제외 */
+	.isolated-html-content.block-scripts iframe,
+	.isolated-html-content.block-scripts script {
 		display: none !important;
 	}
 
-	/* JavaScript 이벤트 핸들러가 있는 버튼 비활성화 */
-	.isolated-html-content button[onclick] {
+	/* JavaScript 이벤트 핸들러가 있는 버튼 비활성화 (RSS 뉴스에만) */
+	.isolated-html-content.block-scripts button[onclick] {
 		opacity: 0.5;
 		cursor: not-allowed;
 		pointer-events: none;
