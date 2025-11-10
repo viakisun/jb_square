@@ -45,6 +45,7 @@ jobs:
           echo "🔨 Building frontend-main image..."
           cd frontend-main
           docker build --build-arg NEXT_PUBLIC_API_BASE_URL=https://api.jb2.kr \
+                       --build-arg NEXT_PUBLIC_NAVER_CLIENT_ID=${{ secrets.NEXT_PUBLIC_NAVER_CLIENT_ID }} \
                        -t ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:frontend-main-latest \
                        -t ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:frontend-main-${{ github.sha }} .
           docker push ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:frontend-main-latest
