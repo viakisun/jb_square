@@ -261,9 +261,11 @@
 							<h3 class="section-title">공고 상세</h3>
 							<div class="content-body">
 								{#if detail.content_html}
-									{@html detail.content_html}
+									<div class="isolated-html-content">
+										{@html detail.content_html}
+									</div>
 								{:else if detail.content}
-									<pre class="content-text">{detail.content}</pre>
+									<div class="content-text-wrapper">{detail.content}</div>
 								{/if}
 							</div>
 						</div>
@@ -648,6 +650,16 @@
 		transition: all var(--duration-base) var(--ease-out);
 	}
 
+	/* RSS Content Text Wrapper */
+	.content-text-wrapper {
+		white-space: pre-wrap;
+		word-wrap: break-word;
+		overflow-wrap: break-word;
+		line-height: 1.7;
+		color: var(--fg);
+		font-size: var(--text-base);
+	}
+
 	.viewer-link:hover {
 		background-color: var(--fg);
 		color: var(--bg);
@@ -1024,5 +1036,65 @@
 		.meta-grid {
 			grid-template-columns: 1fr;
 		}
+	}
+
+	/* ========================================
+	   ISOLATED HTML CONTENT (RSS 뉴스 등)
+	   ======================================== */
+	.isolated-html-content {
+		/* CSS containment으로 외부 HTML 격리 (all: initial 제거 - 모달 containment 파괴 방지) */
+		contain: layout style paint;
+		display: block;
+		max-width: 100%;
+		overflow: auto;
+		font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+		font-size: 16px;
+		line-height: 1.6;
+		color: #333;
+		background: white;
+		padding: 1rem;
+	}
+
+	/* 위험한 요소 숨김 (재귀적 페이지 로딩 방지) */
+	.isolated-html-content iframe,
+	.isolated-html-content script {
+		display: none !important;
+	}
+
+	/* JavaScript 이벤트 핸들러가 있는 버튼 비활성화 */
+	.isolated-html-content button[onclick] {
+		opacity: 0.5;
+		cursor: not-allowed;
+		pointer-events: none;
+	}
+
+	/* 이미지가 컨테이너를 넘지 않도록 */
+	.isolated-html-content img {
+		max-width: 100% !important;
+		height: auto !important;
+	}
+
+	/* 테이블 스타일 */
+	.isolated-html-content table {
+		border-collapse: collapse;
+		width: 100%;
+		margin: 1em 0;
+	}
+
+	.isolated-html-content th,
+	.isolated-html-content td {
+		border: 1px solid #ddd;
+		padding: 8px;
+		text-align: left;
+	}
+
+	/* 링크 스타일 */
+	.isolated-html-content a {
+		color: #0066cc;
+		text-decoration: underline;
+	}
+
+	.isolated-html-content a:hover {
+		color: #0052a3;
 	}
 </style>
