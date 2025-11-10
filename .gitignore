@@ -70,9 +70,9 @@ tmp/
 temp/
 *.tmp
 
-# Test files
-backend/test_*.py
-**/test_*.py
+# Test files (테스트 디렉토리의 test_*.py는 git에 추가)
+# backend/test_*.py
+# **/test_*.py
 
 # TypeScript build cache
 *.tsbuildinfo
