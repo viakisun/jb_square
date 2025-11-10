@@ -17,13 +17,19 @@ class S3Client:
     """AWS S3 클라이언트"""
 
     def __init__(self):
+        # Get required environment variables
+        self.region = os.getenv('AWS_S3_REGION') or os.getenv('AWS_REGION', 'ap-northeast-2')
+        self.bucket_name = os.getenv('AWS_S3_BUCKET_NAME')
+
+        if not self.bucket_name:
+            raise ValueError("AWS_S3_BUCKET_NAME environment variable is required")
+
         self.s3_client = boto3.client(
             's3',
-            region_name=os.getenv('AWS_S3_REGION', 'ap-northeast-2'),
+            region_name=self.region,
             aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
             aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY')
         )
-        self.bucket_name = os.getenv('AWS_S3_BUCKET_NAME', 'jb2_bucket')
 
     def upload_file(
         self,
@@ -64,7 +70,7 @@ class S3Client:
             )
 
             # S3 URL 생성
-            s3_url = f"https://{self.bucket_name}.s3.{os.getenv('AWS_S3_REGION')}.amazonaws.com/{s3_key}"
+            s3_url = f"https://{self.bucket_name}.s3.{self.region}.amazonaws.com/{s3_key}"
 
             return original_filename, s3_url
 
@@ -111,7 +117,7 @@ class S3Client:
         Returns:
             str: S3 공개 URL
         """
-        return f"https://{self.bucket_name}.s3.{os.getenv('AWS_S3_REGION', 'ap-northeast-2')}.amazonaws.com/{key}"
+        return f"https://{self.bucket_name}.s3.{self.region}.amazonaws.com/{key}"
 
     def delete_file(self, url: str) -> bool:
         """
