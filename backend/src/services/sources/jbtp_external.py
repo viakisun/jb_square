@@ -16,10 +16,10 @@ from src.models.crawler_config import JBTPConfig
 from src.models.notice import CrawlQueue, Notice
 from src.services.rate_limiter import RateLimiter
 from src.constants.sources import NoticeSource
-from .base_crawler import BaseCrawler, CrawlerStatus
+from ._base import BaseAdapter, CrawlerStatus
 
 
-class JBTPExternalCrawler(BaseCrawler):
+class JBTPExternalAdapter(BaseAdapter):
     """
     JBTP 유관기관공고 크롤러
 

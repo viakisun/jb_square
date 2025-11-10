@@ -13,11 +13,11 @@ from bs4 import BeautifulSoup
 
 from src.services.rate_limiter import RateLimiter
 from src.constants.sources import NoticeSource
-from .base_crawler import BaseCrawler, CrawlerStatus, CrawlerPhase
+from ._base import BaseAdapter, CrawlerStatus, CrawlerPhase
 from .repositories import ConfigRepository
 
 
-class NTISCrawler(BaseCrawler):
+class GovernmentNTISAdapter(BaseAdapter):
     """
     NTIS RSS 피드 크롤러
 

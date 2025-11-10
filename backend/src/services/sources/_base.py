@@ -1,6 +1,6 @@
 """
-Base Crawler
-모든 크롤러의 기본 클래스
+Base Adapter
+모든 소스 어댑터의 기본 클래스
 """
 
 from abc import ABC, abstractmethod
@@ -13,7 +13,7 @@ from .repositories import ConfigRepository, CrawlQueueRepository
 
 
 class CrawlerStatus(str, Enum):
-    """크롤러 상태"""
+    """어댑터 상태"""
     IDLE = "idle"
     RUNNING = "running"
     COMPLETED = "completed"
@@ -22,7 +22,7 @@ class CrawlerStatus(str, Enum):
 
 
 class CrawlerPhase(str, Enum):
-    """크롤러 실행 단계"""
+    """어댑터 실행 단계"""
     INITIALIZING = "initializing"
     LIST_COLLECTION = "list_collection"
     FILTERING = "filtering"
@@ -31,11 +31,12 @@ class CrawlerPhase(str, Enum):
     COMPLETED = "completed"
 
 
-class BaseCrawler(ABC):
+class BaseAdapter(ABC):
     """
-    모든 크롤러의 기본 추상 클래스
+    모든 소스 어댑터의 기본 추상 클래스
 
-    각 크롤러는 이 클래스를 상속받아 execute() 메서드를 구현해야 합니다.
+    외부 데이터 소스를 내부 Notice 모델로 변환하는 Adapter 패턴 구현
+    각 어댑터는 이 클래스를 상속받아 execute() 메서드를 구현해야 합니다.
     """
 
     def __init__(self, source_id: str):

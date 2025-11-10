@@ -30,7 +30,7 @@ class BizinfoNoticeSaver:
             notice: 공고 데이터
             keywords: 키워드 리스트
             db: 데이터베이스 세션
-            keyword_matcher_func: 키워드 매칭 함수 (BaseCrawler.match_keywords)
+            keyword_matcher_func: 키워드 매칭 함수 (BaseAdapter.match_keywords)
 
         Returns:
             tuple[str, list, Optional[CrawlQueue]]: (상태, 매칭된 키워드 리스트, 저장된 객체)

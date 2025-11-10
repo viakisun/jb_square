@@ -14,7 +14,7 @@ from email.utils import parsedate_to_datetime
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 
-from .base_crawler import BaseCrawler, CrawlerPhase, CrawlerStatus
+from ._base import BaseAdapter, CrawlerPhase, CrawlerStatus
 from .services import KeywordService
 from .repositories import CrawlQueueRepository, ConfigRepository
 
@@ -22,7 +22,7 @@ from .repositories import CrawlQueueRepository, ConfigRepository
 logger = logging.getLogger(__name__)
 
 
-class MOHWNewsCrawler(BaseCrawler):
+class GovernmentMOHWAdapter(BaseAdapter):
     """
     보건복지부 RSS 뉴스 크롤러
 

@@ -19,7 +19,7 @@ from src.services.rate_limiter import RateLimiter
 from src.core.database import SessionLocal, CrawlerConfig, CrawlResult
 from src.models.notice import CrawlQueue
 from src.models.crawler_config import JBTPConfig, BinetConfig, RSSConfig
-from src.services.crawlers import BICenterCrawler, BizinfoCrawler, JBTPCrawler, JBTPExternalCrawler, JBTPEventsCrawler, NTISCrawler, MFDSNewsCrawler, MOHWNewsCrawler
+from src.services.sources import GovernmentBiCenterAdapter, GovernmentBizinfoAdapter, JBTPLocalAdapter, JBTPExternalAdapter, JBTPEventsAdapter, GovernmentNTISAdapter, GovernmentMFDSAdapter, GovernmentMOHWAdapter
 from src.constants.sources import NoticeSource
 
 
@@ -32,7 +32,7 @@ class CrawlerStatus(str, Enum):
     STOPPED = "stopped"
 
 
-class CrawlerManager:
+class SourceManager:
     """
     크롤러 실행 및 상태 관리를 담당하는 매니저 클래스
     """
@@ -126,12 +126,12 @@ class CrawlerManager:
 
         # Refactored crawler instances
         self.crawlers = {
-            "bi_center": BICenterCrawler(),
-            NoticeSource.BIZINFO_API: BizinfoCrawler(),
-            NoticeSource.JBTP_LOCAL: JBTPCrawler(),
-            NoticeSource.JBTP_EXTERNAL: JBTPExternalCrawler(),
-            NoticeSource.JBTP_EVENTS: JBTPEventsCrawler(),
-            NoticeSource.NTIS_RSS: NTISCrawler(),
+            "bi_center": GovernmentBiCenterAdapter(),
+            NoticeSource.BIZINFO_API: GovernmentBizinfoAdapter(),
+            NoticeSource.JBTP_LOCAL: JBTPLocalAdapter(),
+            NoticeSource.JBTP_EXTERNAL: JBTPExternalAdapter(),
+            NoticeSource.JBTP_EVENTS: JBTPEventsAdapter(),
+            NoticeSource.NTIS_RSS: GovernmentNTISAdapter(),
         }
 
     def get_status(self, source_id: str) -> dict:
@@ -728,9 +728,9 @@ class CrawlerManager:
                     "error": error_msg
                 }
 
-            # MFDSNewsCrawler 인스턴스 생성 (no-arg constructor)
+            # GovernmentMFDSAdapter 인스턴스 생성 (no-arg constructor)
             # Config is loaded from unified crawler_config table
-            crawler = MFDSNewsCrawler()
+            crawler = GovernmentMFDSAdapter()
 
             # 크롤링 실행
             result = await crawler.execute(callback=callback, db_session=db)
@@ -789,9 +789,9 @@ class CrawlerManager:
                     "error": error_msg
                 }
 
-            # MOHWNewsCrawler 인스턴스 생성 (no-arg constructor)
+            # GovernmentMOHWAdapter 인스턴스 생성 (no-arg constructor)
             # Config is loaded from unified crawler_config table
-            crawler = MOHWNewsCrawler()
+            crawler = GovernmentMOHWAdapter()
 
             # 크롤링 실행
             result = await crawler.execute(callback=callback, db_session=db)
@@ -815,4 +815,4 @@ class CrawlerManager:
 
 
 # Singleton instance
-crawler_manager = CrawlerManager()
+source_manager = SourceManager()

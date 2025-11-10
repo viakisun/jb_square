@@ -9,8 +9,8 @@ from typing import Callable, Optional, List, Dict, Any
 
 from src.core.database import SessionLocal
 from src.services.rate_limiter import RateLimiter
-from ..base_crawler import CrawlerStatus
-from ..strategies import BizinoExtractionStrategy
+from ..._base import CrawlerStatus
+from ...strategies import BizinoExtractionStrategy
 from .bizinfo_notice_saver import BizinfoNoticeSaver
 
 
@@ -34,7 +34,7 @@ class BizinfoDetailProcessor:
             stop_flag_checker: stop_flag 체크 함수
             event_sender: 이벤트 전송 함수
             status_dict: 상태 딕셔너리
-            keyword_matcher_func: 키워드 매칭 함수 (BaseCrawler.match_keywords)
+            keyword_matcher_func: 키워드 매칭 함수 (BaseAdapter.match_keywords)
         """
         self.source_id = source_id
         self.stop_flag_checker = stop_flag_checker

@@ -8,7 +8,7 @@ from typing import List, Optional
 
 from src.core.database import SessionLocal
 from src.models.notice import CrawlQueue, Notice
-from src.services.crawlers.services.keyword_service import KeywordService
+from src.services.sources.services.keyword_service import KeywordService
 from src.services.utils.crawler_utils import parse_date
 
 

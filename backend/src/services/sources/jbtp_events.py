@@ -1,6 +1,6 @@
 """
-JBTP Crawler
-전북테크노파크 크롤러
+JBTP Events Crawler
+전북테크노파크 교육/행사 크롤러
 """
 
 import asyncio
@@ -16,20 +16,20 @@ from src.models.notice import CrawlQueue, Notice
 from src.services.rate_limiter import RateLimiter
 from src.services.utils.crawler_utils import parse_date
 from src.constants.sources import NoticeSource
-from .base_crawler import BaseCrawler, CrawlerStatus, CrawlerPhase
+from ._base import BaseAdapter, CrawlerStatus, CrawlerPhase
 from .repositories import ConfigRepository, CrawlQueueRepository
 from .strategies import JBTPExtractionStrategy
 
 
-class JBTPCrawler(BaseCrawler):
+class JBTPEventsAdapter(BaseAdapter):
     """
-    JBTP 크롤러
+    JBTP 교육/행사 크롤러
 
-    전북테크노파크의 공고를 수집합니다.
+    전북테크노파크의 교육/행사 정보를 수집합니다.
     """
 
     def __init__(self):
-        super().__init__(NoticeSource.JBTP_LOCAL)
+        super().__init__(NoticeSource.JBTP_EVENTS)
 
     def _parse_jbtp_data(self, notice: dict) -> dict:
         """
@@ -173,7 +173,7 @@ class JBTPCrawler(BaseCrawler):
             })
 
             # 크롤링할 게시판 목록 (DB에서 로드)
-            board_configs = ConfigRepository.load_jbtp_configs('notices')
+            board_configs = ConfigRepository.load_jbtp_configs('events')
 
             # 초기값: 아직 공고 개수를 모르므로 0으로 시작
             self.status["total"] = 0
@@ -262,7 +262,7 @@ class JBTPCrawler(BaseCrawler):
 
                             for row in rows:
                                 cols = row.find_all('td')
-                                if len(cols) >= 7:  # 최소 7개 컬럼 필요 (0-6)
+                                if len(cols) >= 8:  # 최소 8개 컬럼 필요 (0-7: notice, type, title, deadline, dday, attachment, author, date)
                                     # 번호 컬럼 확인 (컬럼 0)
                                     num_col = cols[0].get_text(strip=True)
 
@@ -294,11 +294,11 @@ class JBTPCrawler(BaseCrawler):
                                                 else:
                                                     link = 'https://www.jbtp.or.kr/' + link
 
-                                            # 마감일 추출 (컬럼 2)
-                                            deadline = cols[2].get_text(strip=True) if len(cols) > 2 else ''
+                                            # 마감일 추출 (컬럼 3 - class="t_date")
+                                            deadline = cols[3].get_text(strip=True) if len(cols) > 3 else ''
 
-                                            # 작성일 추출 (컬럼 6)
-                                            posted_date = cols[6].get_text(strip=True) if len(cols) > 6 else ''
+                                            # 작성일 추출 (컬럼 7 - 등록일)
+                                            posted_date = cols[7].get_text(strip=True) if len(cols) > 7 else ''
 
                                             # 날짜 필터링: 게시일 A일 이내 OR 마감일 미래
                                             print(f"[DEBUG] Before parse_date - posted_date: {posted_date}, deadline: {deadline}")

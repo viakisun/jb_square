@@ -10,7 +10,7 @@ from bs4 import BeautifulSoup
 
 from src.services.rate_limiter import RateLimiter
 from src.services.utils.crawler_utils import parse_date
-from ..base_crawler import CrawlerStatus
+from ..._base import CrawlerStatus
 
 
 class BizinfoListCollector:

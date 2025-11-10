@@ -15,7 +15,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from src.core.database import get_db
 from src.core.s3_client import s3_client
 from src.models.notice import Notice, CrawlQueue
-from src.services.crawler_manager import crawler_manager
+from src.services.sources._manager import source_manager
 from src.constants.sources import NoticeSource
 
 
@@ -437,13 +437,13 @@ async def bulk_delete_notices(
 
 # Dispatcher pattern: Enum-driven crawler executor mapping
 CRAWLER_EXECUTORS = {
-    NoticeSource.JBTP_LOCAL: lambda: crawler_manager.execute_jbtp,
-    NoticeSource.JBTP_EXTERNAL: lambda: crawler_manager.execute_jbtp_external,
-    NoticeSource.JBTP_EVENTS: lambda: crawler_manager.execute_jbtp_events,
-    NoticeSource.NTIS_RSS: lambda: crawler_manager.execute_ntis_rss,
-    NoticeSource.BIZINFO_API: lambda: crawler_manager.execute_bizinfo,
-    NoticeSource.NEWS_MFDS: lambda: crawler_manager.execute_mfds_news,
-    NoticeSource.NEWS_MOHW: lambda: crawler_manager.execute_mohw_news,
+    NoticeSource.JBTP_LOCAL: lambda: source_manager.execute_jbtp,
+    NoticeSource.JBTP_EXTERNAL: lambda: source_manager.execute_jbtp_external,
+    NoticeSource.JBTP_EVENTS: lambda: source_manager.execute_jbtp_events,
+    NoticeSource.NTIS_RSS: lambda: source_manager.execute_ntis_rss,
+    NoticeSource.BIZINFO_API: lambda: source_manager.execute_bizinfo,
+    NoticeSource.NEWS_MFDS: lambda: source_manager.execute_mfds_news,
+    NoticeSource.NEWS_MOHW: lambda: source_manager.execute_mohw_news,
 }
 
 @router.websocket("/crawl/{source_id}")

@@ -8,13 +8,13 @@ from typing import Callable, Optional
 
 from src.services.rate_limiter import RateLimiter
 from src.constants.sources import NoticeSource
-from .base_crawler import BaseCrawler, CrawlerStatus
-from .helpers.bizinfo_list_collector import BizinfoListCollector
-from .helpers.bizinfo_detail_processor import BizinfoDetailProcessor
+from ._base import BaseAdapter, CrawlerStatus
+from .helpers.bizinfo.bizinfo_list_collector import BizinfoListCollector
+from .helpers.bizinfo.bizinfo_detail_processor import BizinfoDetailProcessor
 from .repositories.config_repository import ConfigRepository
 
 
-class BizinfoCrawler(BaseCrawler):
+class GovernmentBizinfoAdapter(BaseAdapter):
     """
     기업마당 API 크롤러
 

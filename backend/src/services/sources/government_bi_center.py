@@ -9,10 +9,10 @@ from typing import Callable, List, Optional
 from src.core.database import SessionLocal
 from src.models.bi_center import BICenter, BICompany
 from src.models.crawler_config import BinetConfig
-from .base_crawler import BaseCrawler, CrawlerStatus
+from ._base import BaseAdapter, CrawlerStatus
 
 
-class BICenterCrawler(BaseCrawler):
+class GovernmentBiCenterAdapter(BaseAdapter):
     """
     전북 창업보육센터 크롤러
 
