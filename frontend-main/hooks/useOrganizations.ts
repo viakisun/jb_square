@@ -122,17 +122,32 @@ export function useOrganizations(
     setError(null);
 
     try {
-      const response: PaginatedResponse<Organization> = await api.organizations.getList(filters);
+      // 페이지 번호를 skip 값으로 변환
+      const skip = filters.page ? (filters.page - 1) * (filters.limit || 20) : 0;
+      const apiParams = {
+        ...filters,
+        skip,
+        page: undefined // skip을 사용하므로 page는 제거
+      };
+
+      const response = await api.organizations.getList(apiParams);
 
       // 성공: 데이터 업데이트
       setCompanies(response.items);
+
+      // 페이지네이션 계산
+      const total = response.total || 0;
+      const limit = filters.limit || 20;
+      const totalPages = Math.ceil(total / limit);
+      const currentPage = filters.page || 1;
+
       setPagination({
-        page: response.page,
-        limit: response.limit,
-        total: response.total,
-        totalPages: response.total_pages,
-        hasNext: response.has_next,
-        hasPrev: response.has_prev
+        page: currentPage,
+        limit: limit,
+        total: total,
+        totalPages: totalPages,
+        hasNext: currentPage < totalPages,
+        hasPrev: currentPage > 1
       });
     } catch (err) {
       // 에러 처리

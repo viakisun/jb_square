@@ -200,37 +200,226 @@ export interface APIResponse<T> {
  * 기업/기관 데이터 인터페이스
  *
  * 바이오 산업 기업 정보를 나타냅니다.
+ * 백엔드 Organization 모델과 1:1 매핑됩니다.
  */
 export interface Organization {
   /** 기업 ID */
   id: number;
 
-  /** 기업명 */
-  name: string;
+  /** 기업 식별 코드 */
+  kedcd?: string | null;
+
+  /** 업체명 */
+  company_name: string;
+
+  /** 업체명 (형태 포함) */
+  company_name_with_type?: string | null;
+
+  /** 사업자등록번호 */
+  business_registration_number?: string | null;
+
+  /** 법인등록번호 */
+  corporate_registration_number?: string | null;
+
+  /** 법인번호 */
+  corporation_number?: string | null;
 
   /** 대표자명 */
-  ceo: string | null;
+  ceo_name: string | null;
 
-  /** 산업 분류 */
-  industry: string | null;
+  /** 이메일 */
+  email: string | null;
 
-  /** 설립일 */
+  /** 기업 상태 (영업중/폐업/휴업) */
+  company_status: string | null;
+
+  /** 기업 규모 (대기업/중견기업/중소기업) */
+  company_scale: string | null;
+
+  /** 기업 형태 */
+  company_type?: string | null;
+
+  /** KSIC 11차 코드 */
+  ksic_11th_code?: string | null;
+
+  /** KSIC 11차 명칭 */
+  ksic_11th_name?: string | null;
+
+  /** KSIC 10차 코드 */
+  ksic_10th_code: string | null;
+
+  /** KSIC 10차 명칭 */
+  ksic_10th_name: string | null;
+
+  /** 주업종 KSIC(10차) */
+  main_ksic_10th?: string | null;
+
+  /** 바이오 산업 분류 (BIO_CORE/BIO_RELATED/NON_BIO) */
+  industry_type: string;
+
+  /** 주요 제품명 */
+  main_products: string | null;
+
+  /** 주축산업명 */
+  main_industry_name?: string | null;
+
+  /** 육성품목명 */
+  cultivation_item?: string | null;
+
+  /** 설립일자 */
   established_date: string | null;
 
-  /** 주소 */
-  address: string | null;
+  /** 상장 여부 */
+  is_listed?: boolean;
 
-  /** 웹사이트 */
-  website: string | null;
+  /** 상장일자 */
+  listed_date?: string | null;
 
-  /** 설명 */
-  description: string | null;
+  /** 상장폐지일자 */
+  delisted_date?: string | null;
 
-  /** 생성일 */
+  /** 기업부설연구소 유무 */
+  has_research_institute: boolean;
+
+  /** 생성일시 */
   created_at: string;
 
-  /** 수정일 */
+  /** 수정일시 */
   updated_at: string;
+
+  // 연도별 재무 데이터 (2020-2024)
+  revenue_2020?: number | null;
+  revenue_2021?: number | null;
+  revenue_2022?: number | null;
+  revenue_2023?: number | null;
+  revenue_2024?: number | null;
+
+  employees_2020?: number | null;
+  employees_2021?: number | null;
+  employees_2022?: number | null;
+  employees_2023?: number | null;
+  employees_2024?: number | null;
+
+  export_amount_2020?: number | null;
+  export_amount_2021?: number | null;
+  export_amount_2022?: number | null;
+  export_amount_2023?: number | null;
+  export_amount_2024?: number | null;
+
+  operating_profit_2020?: number | null;
+  operating_profit_2021?: number | null;
+  operating_profit_2022?: number | null;
+  operating_profit_2023?: number | null;
+  operating_profit_2024?: number | null;
+
+  net_income_2020?: number | null;
+  net_income_2021?: number | null;
+  net_income_2022?: number | null;
+  net_income_2023?: number | null;
+  net_income_2024?: number | null;
+
+  rd_expense_2020?: number | null;
+  rd_expense_2021?: number | null;
+  rd_expense_2022?: number | null;
+  rd_expense_2023?: number | null;
+  rd_expense_2024?: number | null;
+
+  value_added_2020?: number | null;
+  value_added_2021?: number | null;
+  value_added_2022?: number | null;
+  value_added_2023?: number | null;
+  value_added_2024?: number | null;
+
+  total_assets_2020?: number | null;
+  total_assets_2021?: number | null;
+  total_assets_2022?: number | null;
+  total_assets_2023?: number | null;
+  total_assets_2024?: number | null;
+
+  total_liabilities_2020?: number | null;
+  total_liabilities_2021?: number | null;
+  total_liabilities_2022?: number | null;
+  total_liabilities_2023?: number | null;
+  total_liabilities_2024?: number | null;
+
+  retained_earnings_2020?: number | null;
+  retained_earnings_2021?: number | null;
+  retained_earnings_2022?: number | null;
+  retained_earnings_2023?: number | null;
+  retained_earnings_2024?: number | null;
+
+  working_capital_2020?: number | null;
+  working_capital_2021?: number | null;
+  working_capital_2022?: number | null;
+  working_capital_2023?: number | null;
+  working_capital_2024?: number | null;
+
+  patent_registrations_2020?: number | null;
+  patent_registrations_2021?: number | null;
+  patent_registrations_2022?: number | null;
+  patent_registrations_2023?: number | null;
+  patent_registrations_2024?: number | null;
+
+  patent_applications_2020?: number | null;
+  patent_applications_2021?: number | null;
+  patent_applications_2022?: number | null;
+  patent_applications_2023?: number | null;
+  patent_applications_2024?: number | null;
+
+  /** 구조화된 연도별 데이터 (include_yearly=true일 때) */
+  yearly_data?: {
+    revenue: Record<number, number | null>;
+    employees: Record<number, number | null>;
+    export_amount: Record<number, number | null>;
+    operating_profit: Record<number, number | null>;
+    net_income: Record<number, number | null>;
+    rd_expense: Record<number, number | null>;
+    value_added: Record<number, number | null>;
+    total_assets: Record<number, number | null>;
+    total_liabilities: Record<number, number | null>;
+    retained_earnings: Record<number, number | null>;
+    working_capital: Record<number, number | null>;
+    patent_registrations: Record<number, number | null>;
+    patent_applications: Record<number, number | null>;
+  };
+}
+
+/**
+ * 기업 목록 조회 필터 파라미터
+ */
+export interface OrganizationFilterParams {
+  /** 산업 분류 (BIO_CORE/BIO_RELATED/NON_BIO) */
+  industry_type?: string;
+
+  /** 기업 규모 (대기업/중견기업/중소기업) */
+  company_scale?: string;
+
+  /** 기업 상태 (영업중/폐업/휴업) */
+  company_status?: string;
+
+  /** KSIC 10차 코드 */
+  ksic_10th_code?: string;
+
+  /** 검색어 (업체명, 대표자명, 주요제품명) */
+  search?: string;
+
+  /** 기업부설연구소 유무 */
+  has_research_institute?: boolean;
+
+  /** 건너뛸 항목 수 */
+  skip?: number;
+
+  /** 조회할 항목 수 (기본값: 20) */
+  limit?: number;
+
+  /** 페이지 번호 */
+  page?: number;
+
+  /** 연도별 데이터 구조화 여부 */
+  include_yearly?: boolean;
+
+  /** 정렬 순서 */
+  sort_order?: 'asc' | 'desc';
 }
 
 /**

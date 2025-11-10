@@ -26,31 +26,38 @@ import { Organization, PaginatedResponse } from '../types';
  * 기업 목록 조회 필터 파라미터
  *
  * GET /api/organizations 엔드포인트에 전달되는 쿼리 파라미터입니다.
+ * 백엔드 API 스펙과 1:1 매핑됩니다.
  */
 export interface OrganizationFilterParams {
-  /** 검색어 (기업명, 대표자명, 제품명 등에서 검색) */
+  /** 검색어 (업체명, 대표자명, 주요제품명에서 검색) */
   search?: string;
 
-  /** 산업 분류 필터 */
-  industry?: string;
+  /** 산업 분류 필터 (BIO_CORE/BIO_RELATED/NON_BIO) */
+  industry_type?: string;
 
-  /** 지역 필터 */
-  region?: string;
+  /** 기업 규모 필터 (대기업/중견기업/중소기업) */
+  company_scale?: string;
 
-  /** 성장 단계 필터 (예: '예비창업', '창업초기', '성장기', '성숙기', '상장기업') */
-  stage?: string;
+  /** 기업 상태 필터 (영업중/폐업/휴업) */
+  company_status?: string;
 
-  /** 매출 규모 필터 (예: '10억 미만', '10-50억', '50-100억', '100-500억', '500억 이상') */
-  revenue?: string;
+  /** KSIC 10차 코드 필터 */
+  ksic_10th_code?: string;
+
+  /** 기업부설연구소 유무 */
+  has_research_institute?: boolean;
+
+  /** 건너뛸 항목 수 */
+  skip?: number;
+
+  /** 페이지당 항목 수 (기본값: 20, 최대: 100) */
+  limit?: number;
 
   /** 페이지 번호 (1부터 시작, 기본값: 1) */
   page?: number;
 
-  /** 페이지당 항목 수 (기본값: 20) */
-  limit?: number;
-
-  /** 정렬 기준 ('name': 기업명, 'created_at': 생성일, 'established_date': 설립일) */
-  sort_by?: 'name' | 'created_at' | 'established_date';
+  /** 연도별 데이터 구조화 여부 */
+  include_yearly?: boolean;
 
   /** 정렬 순서 ('asc': 오름차순, 'desc': 내림차순, 기본값: 'desc') */
   sort_order?: 'asc' | 'desc';
@@ -148,78 +155,75 @@ export class OrganizationsAPI {
   }
 
   /**
-   * 산업 분야별 기업 조회
+   * 산업 분류별 기업 조회
    *
-   * 특정 산업 분야의 기업만 필터링하여 조회합니다.
+   * 특정 산업 분류의 기업만 필터링하여 조회합니다.
    *
-   * @param industry - 산업 분야 (예: '바이오의약품', '의료기기', '농생명', '화장품')
+   * @param industryType - 산업 분류 (BIO_CORE: 바이오 핵심산업, BIO_RELATED: 전후방 연관산업, NON_BIO: 비바이오산업)
    * @param additionalParams - 추가 필터 파라미터
-   * @returns 산업 분야별 기업 목록
+   * @returns 산업 분류별 기업 목록
    *
    * @example
    * ```typescript
-   * // 바이오의약품 기업 전체
-   * const bioCompanies = await organizationsAPI.getByIndustry('바이오의약품');
+   * // 바이오 핵심산업 기업 전체
+   * const bioCore = await organizationsAPI.getByIndustryType('BIO_CORE');
    *
-   * // 의료기기 기업 2페이지
-   * const medicalDevices = await organizationsAPI.getByIndustry('의료기기', { page: 2 });
+   * // 전후방 연관산업 기업 2페이지
+   * const bioRelated = await organizationsAPI.getByIndustryType('BIO_RELATED', { page: 2 });
    * ```
    */
-  async getByIndustry(
-    industry: string,
-    additionalParams?: Omit<OrganizationFilterParams, 'industry'>
+  async getByIndustryType(
+    industryType: string,
+    additionalParams?: Omit<OrganizationFilterParams, 'industry_type'>
   ): Promise<PaginatedResponse<Organization>> {
-    return this.getList({ ...additionalParams, industry });
+    return this.getList({ ...additionalParams, industry_type: industryType });
   }
 
   /**
-   * 지역별 기업 조회
+   * 기업 규모별 조회
    *
-   * 특정 지역의 기업만 필터링하여 조회합니다.
+   * 특정 기업 규모의 기업만 필터링하여 조회합니다.
    *
-   * @param region - 지역 (예: '전주', '군산', '익산', '정읍', '남원', '김제')
+   * @param scale - 기업 규모 (대기업/중견기업/중소기업)
    * @param additionalParams - 추가 필터 파라미터
-   * @returns 지역별 기업 목록
+   * @returns 기업 규모별 기업 목록
    *
    * @example
    * ```typescript
-   * // 전주 지역 기업 전체
-   * const jeonjuCompanies = await organizationsAPI.getByRegion('전주');
+   * // 중소기업 전체
+   * const smes = await organizationsAPI.getByScale('중소기업');
    *
-   * // 군산 지역 바이오의약품 기업
-   * const gunsanBio = await organizationsAPI.getByRegion('군산', { industry: '바이오의약품' });
+   * // 대기업 중 바이오 핵심산업
+   * const largeCoreBio = await organizationsAPI.getByScale('대기업', { industry_type: 'BIO_CORE' });
    * ```
    */
-  async getByRegion(
-    region: string,
-    additionalParams?: Omit<OrganizationFilterParams, 'region'>
+  async getByScale(
+    scale: string,
+    additionalParams?: Omit<OrganizationFilterParams, 'company_scale'>
   ): Promise<PaginatedResponse<Organization>> {
-    return this.getList({ ...additionalParams, region });
+    return this.getList({ ...additionalParams, company_scale: scale });
   }
 
   /**
-   * 성장 단계별 기업 조회
+   * KSIC 코드별 기업 조회
    *
-   * 특정 성장 단계의 기업만 필터링하여 조회합니다.
+   * 특정 KSIC 10차 코드의 기업만 필터링하여 조회합니다.
    *
-   * @param stage - 성장 단계 (예: '예비창업', '창업초기', '성장기', '성숙기', '상장기업')
+   * @param ksicCode - KSIC 10차 코드
    * @param additionalParams - 추가 필터 파라미터
-   * @returns 성장 단계별 기업 목록
+   * @returns KSIC 코드별 기업 목록
    *
    * @example
    * ```typescript
-   * // 창업초기 기업 전체
-   * const startups = await organizationsAPI.getByStage('창업초기');
-   *
-   * // 상장기업 중 바이오의약품 기업
-   * const listedBio = await organizationsAPI.getByStage('상장기업', { industry: '바이오의약품' });
+   * // 특정 KSIC 코드의 기업
+   * const companies = await organizationsAPI.getByKSIC('21101');
    * ```
    */
-  async getByStage(
-    stage: string,
-    additionalParams?: Omit<OrganizationFilterParams, 'stage'>
+  async getByKSIC(
+    ksicCode: string,
+    additionalParams?: Omit<OrganizationFilterParams, 'ksic_10th_code'>
   ): Promise<PaginatedResponse<Organization>> {
-    return this.getList({ ...additionalParams, stage });
+    return this.getList({ ...additionalParams, ksic_10th_code: ksicCode });
   }
 
   /**
