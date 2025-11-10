@@ -6,6 +6,7 @@ JBTP Base Adapter
 import asyncio
 import re
 import requests
+from abc import abstractmethod
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
 from dateutil import parser
@@ -34,6 +35,37 @@ class JBTPBaseAdapter(BaseAdapter):
             source_id: 소스 식별자 (예: 'source:jbtp:local:business')
         """
         super().__init__(source_id)
+
+    @abstractmethod
+    def parse_table_row(self, row) -> Optional[Dict[str, str]]:
+        """
+        게시판 테이블의 한 행을 파싱하여 공고 데이터를 추출합니다.
+
+        각 게시판의 테이블 구조가 다르므로, 자식 클래스에서 반드시 구현해야 합니다.
+
+        Args:
+            row: BeautifulSoup Tag object representing a <tr> element
+
+        Returns:
+            Dict containing:
+                - 'title': 공고 제목 (required)
+                - 'link': 상세 페이지 링크 (required)
+                - 'posted_date': 작성일 (required, format: "YYYY-MM-DD")
+                - 'deadline': 마감일 (optional, format: "YYYY-MM-DD HH:MM" or empty string)
+
+            None if:
+                - Row should be skipped (e.g., invalid structure)
+                - Row doesn't meet minimum requirements
+
+        Example:
+            {
+                'title': '2025년 바이오 기업 육성 사업 공고',
+                'link': 'https://www.jbtp.or.kr/board/view.jbtp?dataSid=12345',
+                'posted_date': '2025-11-07',
+                'deadline': '2025-11-30 17:00',
+            }
+        """
+        pass
 
     def _parse_jbtp_data(self, notice: dict) -> dict:
         """
@@ -221,11 +253,11 @@ class JBTPBaseAdapter(BaseAdapter):
             if self.stop_flag:
                 break
 
-            # 페이지 URL 생성
+            # 페이지 URL 생성 (JBTP는 startPage 파라미터 사용)
             if '?' in url:
-                page_url = f"{url}&pageNo={page}"
+                page_url = f"{url}&startPage={page}"
             else:
-                page_url = f"{url}?pageNo={page}"
+                page_url = f"{url}?startPage={page}"
 
             try:
                 response = session.get(page_url, timeout=10)
@@ -248,67 +280,52 @@ class JBTPBaseAdapter(BaseAdapter):
                 page_total_count = 0
 
                 for row in rows:
-                    cols = row.find_all('td')
-                    if len(cols) >= 7:
-                        # 제목 찾기
-                        title_col = None
-                        for col in cols:
-                            if col.find('a'):
-                                title_col = col
-                                break
+                    # Use polymorphic parsing method
+                    parsed_row = self.parse_table_row(row)
 
-                        if title_col:
-                            title_tag = title_col.find('a')
-                            if title_tag:
-                                title = title_tag.get_text(strip=True)
-                                page_total_count += 1
+                    if not parsed_row:
+                        continue
 
-                                # 중복 체크
-                                if title in seen_titles:
-                                    page_duplicate_count += 1
-                                    continue
-                                seen_titles.add(title)
+                    title = parsed_row['title']
+                    link = parsed_row['link']
+                    posted_date = parsed_row['posted_date']
+                    deadline = parsed_row.get('deadline', '')
 
-                                link = title_tag.get('href', '')
+                    page_total_count += 1
 
-                                # 절대 경로 변환
-                                if link and not link.startswith('http'):
-                                    if link.startswith('/'):
-                                        link = 'https://www.jbtp.or.kr' + link
-                                    else:
-                                        link = 'https://www.jbtp.or.kr/' + link
+                    # 중복 체크
+                    if title in seen_titles:
+                        page_duplicate_count += 1
+                        continue
+                    seen_titles.add(title)
 
-                                # 마감일, 작성일 추출
-                                deadline = cols[2].get_text(strip=True) if len(cols) > 2 else ''
-                                posted_date = cols[6].get_text(strip=True) if len(cols) > 6 else ''
+                    # 날짜 필터링
+                    posted_datetime = parse_date(posted_date)
+                    deadline_datetime = parse_date(deadline) if deadline else None
 
-                                # 날짜 필터링
-                                posted_datetime = parse_date(posted_date)
-                                deadline_datetime = parse_date(deadline)
+                    should_collect = False
 
-                                should_collect = False
+                    # 게시일 체크
+                    if posted_datetime and posted_datetime >= cutoff_date:
+                        should_collect = True
 
-                                # 게시일 체크
-                                if posted_datetime and posted_datetime >= cutoff_date:
-                                    should_collect = True
+                    # 마감일 체크
+                    elif deadline_datetime and deadline_datetime >= now:
+                        should_collect = True
 
-                                # 마감일 체크
-                                elif deadline_datetime and deadline_datetime >= now:
-                                    should_collect = True
+                    if not should_collect:
+                        consecutive_excluded += 1
+                        continue
+                    else:
+                        consecutive_excluded = 0
 
-                                if not should_collect:
-                                    consecutive_excluded += 1
-                                    continue
-                                else:
-                                    consecutive_excluded = 0
-
-                                notice_rows.append({
-                                    'title': title,
-                                    'link': link,
-                                    'posted_date': posted_date,
-                                    'deadline': deadline
-                                })
-                                page_notice_count += 1
+                    notice_rows.append({
+                        'title': title,
+                        'link': link,
+                        'posted_date': posted_date,
+                        'deadline': deadline
+                    })
+                    page_notice_count += 1
 
                 # 페이지 진행 로그
                 page_excluded_count = page_total_count - page_duplicate_count - page_notice_count
@@ -338,6 +355,14 @@ class JBTPBaseAdapter(BaseAdapter):
                     await self.send_event(callback, "log", {
                         "source_id": self.source_id,
                         "message": f"  → 페이지 {page}에 공고 없음, 수집 중단"
+                    })
+                    break
+
+                # 페이지 전체가 중복인 경우 (새로운 공고가 하나도 없음)
+                if page_total_count > 0 and page_notice_count == 0 and page_duplicate_count == page_total_count:
+                    await self.send_event(callback, "log", {
+                        "source_id": self.source_id,
+                        "message": f"  → 페이지 {page} 전체 중복, 수집 중단"
                     })
                     break
 
