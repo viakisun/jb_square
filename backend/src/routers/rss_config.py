@@ -5,7 +5,7 @@ RSS 뉴스 설정 관리 API
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 
 from src.core.database import get_db
 from src.models.crawler_config import RSSConfig
@@ -27,11 +27,11 @@ class RSSConfigCreate(BaseModel):
 
 class RSSConfigUpdate(BaseModel):
     """RSS 설정 업데이트 요청"""
-    name: str | None = None
-    feed_url: str | None = None
-    keywords: List[str] | None = None
-    date_range_days: int | None = None
-    enabled: bool | None = None
+    name: Optional[str] = None
+    feed_url: Optional[str] = None
+    keywords: Optional[List[str]] = None
+    date_range_days: Optional[int] = None
+    enabled: Optional[bool] = None
 
 
 @router.get("")

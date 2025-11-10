@@ -87,8 +87,8 @@ async def get_notices(
     source_id: Optional[str] = Query(None, description="Filter by source"),
     tag: Optional[str] = Query(None, description="Filter by tag"),
     search: Optional[str] = Query(None, description="Search in title/content"),
-    limit: int = Query(50, le=100),
-    offset: int = Query(0),
+    limit: int = Query(50, le=100, ge=1),
+    offset: int = Query(0, ge=0),
     category: Optional[str] = Query(None, description="[DEPRECATED] Use source_id instead"),
     db: Session = Depends(get_db)
 ):

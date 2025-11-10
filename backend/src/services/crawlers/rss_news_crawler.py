@@ -5,9 +5,13 @@ RSS 피드를 통한 뉴스 수집 크롤러
 
 import feedparser
 import logging
+import requests
+import time
 from datetime import datetime, timedelta
 from typing import Callable, Dict, List, Optional
 from email.utils import parsedate_to_datetime
+from bs4 import BeautifulSoup
+from urllib.parse import urljoin, urlparse
 
 from .base_crawler import BaseCrawler, CrawlerPhase, CrawlerStatus
 from .services import KeywordService
@@ -91,7 +95,9 @@ class RSSNewsCrawler(BaseCrawler):
                 "message": self.status["phase_message"]
             })
 
-            cutoff_date = datetime.now() - timedelta(days=self.date_range_days)
+            # Make cutoff_date timezone-aware to match parsed dates
+            from datetime import timezone
+            cutoff_date = datetime.now(timezone.utc) - timedelta(days=self.date_range_days)
             filtered_items = []
 
             for entry in entries:
@@ -100,8 +106,12 @@ class RSSNewsCrawler(BaseCrawler):
 
                 # 날짜 필터링
                 pub_date = self._parse_date(entry)
-                if pub_date and pub_date < cutoff_date:
-                    continue
+                if pub_date:
+                    # Ensure pub_date is timezone-aware for comparison
+                    if pub_date.tzinfo is None:
+                        pub_date = pub_date.replace(tzinfo=timezone.utc)
+                    if pub_date < cutoff_date:
+                        continue
 
                 # 키워드 필터링 (키워드가 있는 경우에만)
                 if self.keywords:
@@ -109,7 +119,7 @@ class RSSNewsCrawler(BaseCrawler):
                     content = self._get_content(entry)
                     combined_text = f"{title} {content}"
 
-                    if not KeywordService.matches_keywords(combined_text, self.keywords):
+                    if not KeywordService.has_any_keyword(combined_text, self.keywords):
                         continue
 
                 filtered_items.append(entry)
@@ -127,27 +137,91 @@ class RSSNewsCrawler(BaseCrawler):
                 "message": self.status["phase_message"]
             })
 
-            for idx, entry in enumerate(filtered_items):
+            # RSS 항목을 표준 notice 형식으로 변환
+            notices = []
+            for idx, entry in enumerate(filtered_items, 1):
                 if self.stop_flag:
                     break
 
-                try:
-                    await self._save_to_queue(entry, db_session)
-                    self.status["success"] += 1
-                except Exception as e:
-                    logger.error(f"항목 저장 실패: {e}")
-                    self.status["failed"] += 1
+                title = entry.get('title', '').strip()
+                link = entry.get('link', '').strip()
+                pub_date = self._parse_date(entry)
+                organization = entry.get('author', '')
 
-                self.status["progress"] = idx + 1
+                if not link or not title:
+                    continue
 
-                # 진행률 업데이트 (10개마다)
-                if (idx + 1) % 10 == 0:
-                    await self.send_event(callback, "progress", {
-                        "progress": self.status["progress"],
-                        "total": self.status["total"],
-                        "success": self.status["success"],
-                        "failed": self.status["failed"]
-                    })
+                await self.send_event(callback, "log", {
+                    "message": f"[{idx}/{len(filtered_items)}] 원본 페이지 크롤링: {title[:50]}..."
+                })
+
+                # 원본 페이지 크롤링으로 상세 정보 가져오기
+                page_detail = self._fetch_detail_page(link)
+
+                # RSS fallback (페이지 크롤링 실패 시)
+                rss_content = self._get_content(entry)
+                rss_attachments = self._extract_attachments(entry)
+
+                # 최종 데이터 결정 (페이지 우선, RSS fallback)
+                content_html = page_detail.get('content_html') or rss_content
+                attachments = page_detail.get('attachments') or rss_attachments
+                images = page_detail.get('images', [])
+
+                # raw_data에 detail 구조를 포함하여 저장 (NoticePreviewModal 호환)
+                detail_data = {
+                    'content_html': content_html,
+                    'published_date': pub_date.isoformat() if pub_date else None,
+                    'organization': organization,
+                    'link': link
+                }
+
+                # 첨부파일이 있으면 추가
+                if attachments:
+                    detail_data['attachments'] = attachments
+
+                # 이미지가 있으면 추가
+                if images:
+                    detail_data['images'] = images
+
+                notice = {
+                    'title': title,
+                    'link': link,
+                    'board': self._get_feed_name(),
+                    'published_date': pub_date,
+                    'organization': organization,
+                    'raw_data': {
+                        'detail': detail_data,
+                        # 원본 RSS entry 데이터도 보존
+                        'rss_entry': dict(entry)
+                    }
+                }
+                notices.append(notice)
+
+                # Rate limiting: 페이지 크롤링 간 딜레이
+                time.sleep(1)
+
+            # CrawlQueueRepository.save_results() 사용 (키워드 필터링 포함)
+            try:
+                stats = CrawlQueueRepository.save_results(
+                    notices=notices,
+                    keywords=self.keywords,
+                    source_id=self.source_id
+                )
+
+                self.status["success"] = stats['added'] + stats['updated']
+                self.status["failed"] = stats['skipped_filtered'] + stats['skipped_rejected']
+                self.status["progress"] = len(notices)
+
+                await self.send_event(callback, "progress", {
+                    "progress": self.status["progress"],
+                    "total": self.status["total"],
+                    "success": self.status["success"],
+                    "failed": self.status["failed"]
+                })
+
+            except Exception as e:
+                logger.error(f"항목 저장 실패: {e}")
+                self.status["failed"] = len(notices)
 
             # Phase 4: 완료
             self.status["status"] = CrawlerStatus.COMPLETED
@@ -210,68 +284,106 @@ class RSSNewsCrawler(BaseCrawler):
         return None
 
     def _get_content(self, entry: Dict) -> str:
-        """RSS 항목에서 컨텐츠 추출"""
-        # content:encoded 또는 description 사용
-        if 'content' in entry and len(entry.content) > 0:
-            return entry.content[0].get('value', '')
+        """
+        RSS 항목에서 컨텐츠 추출
 
-        if 'summary' in entry:
+        우선순위:
+        1. content:encoded (가장 상세한 HTML 컨텐츠)
+        2. content (feedparser가 파싱한 content)
+        3. summary (요약)
+        4. description (기본 설명)
+        """
+        # content:encoded 또는 content 사용 (HTML 포함 가능)
+        if 'content' in entry and len(entry.content) > 0:
+            content = entry.content[0].get('value', '')
+            if content:
+                return content
+
+        # summary_detail 확인 (HTML type일 수 있음)
+        if hasattr(entry, 'summary_detail'):
+            content_type = entry.summary_detail.get('type', '')
+            if content_type == 'text/html' and entry.get('summary'):
+                return entry.summary
+
+        # summary 사용
+        if 'summary' in entry and entry.summary:
             return entry.summary
 
-        if 'description' in entry:
+        # description 사용
+        if 'description' in entry and entry.description:
             return entry.description
 
         return ''
 
-    async def _save_to_queue(self, entry: Dict, db_session):
+    def _extract_attachments(self, entry: Dict) -> List[Dict[str, str]]:
         """
-        RSS 항목을 크롤 큐에 저장
+        RSS 항목에서 첨부파일 추출
 
-        중복 검사: link URL 기준
+        지원하는 형식:
+        1. <enclosure> 태그 (RSS 2.0 표준)
+        2. <media:content> 태그 (Media RSS)
+        3. <link rel="enclosure"> (Atom)
+
+        Returns:
+            [{'filename': '파일명', 'url': 'URL'}, ...]
         """
-        title = entry.get('title', '').strip()
-        link = entry.get('link', '').strip()
-        content = self._get_content(entry)
-        pub_date = self._parse_date(entry)
+        attachments = []
 
-        # 링크가 없으면 저장하지 않음
-        if not link:
-            logger.warning(f"링크 없는 항목 건너뜀: {title}")
-            return
+        # 1. enclosures (RSS 2.0 표준)
+        if hasattr(entry, 'enclosures') and entry.enclosures:
+            for enclosure in entry.enclosures:
+                url = enclosure.get('href') or enclosure.get('url', '')
+                if url:
+                    # URL에서 파일명 추출
+                    filename = url.split('/')[-1].split('?')[0]
+                    if not filename:
+                        filename = 'attachment'
 
-        # 중복 검사
-        existing = CrawlQueueRepository.find_by_link(db_session, link)
-        if existing:
-            logger.debug(f"이미 존재하는 항목: {link}")
-            return
+                    # MIME type이 있으면 확장자 추가
+                    mime_type = enclosure.get('type', '')
+                    if mime_type and '.' not in filename:
+                        ext_map = {
+                            'application/pdf': '.pdf',
+                            'application/msword': '.doc',
+                            'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '.docx',
+                            'application/vnd.ms-excel': '.xls',
+                            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': '.xlsx',
+                            'image/jpeg': '.jpg',
+                            'image/png': '.png',
+                            'application/zip': '.zip'
+                        }
+                        if mime_type in ext_map:
+                            filename += ext_map[mime_type]
 
-        # 키워드 매칭 (키워드가 있는 경우)
-        matched_keywords = []
-        if self.keywords:
-            combined_text = f"{title} {content}"
-            matched_keywords = KeywordService.find_matching_keywords(combined_text, self.keywords)
+                    attachments.append({
+                        'filename': filename,
+                        'url': url
+                    })
 
-        # 크롤 큐 데이터
-        queue_data = {
-            "crawler_source_id": self.source_id,
-            "source_board_name": self._get_feed_name(),
-            "title": title,
-            "link": link,
-            "crawler_extracted_at": datetime.now(),
-            "published_date": pub_date.date() if pub_date else None,
-            "organization": entry.get('author', ''),
-            "matched_keywords": matched_keywords,
-            "raw_data": {
-                "title": title,
-                "link": link,
-                "content": content,
-                "published": pub_date.isoformat() if pub_date else None,
-                "author": entry.get('author', '')
-            }
-        }
+        # 2. media_content (Media RSS)
+        if hasattr(entry, 'media_content') and entry.media_content:
+            for media in entry.media_content:
+                url = media.get('url', '')
+                if url and url not in [a['url'] for a in attachments]:
+                    filename = url.split('/')[-1].split('?')[0] or 'media'
+                    attachments.append({
+                        'filename': filename,
+                        'url': url
+                    })
 
-        CrawlQueueRepository.create(db_session, queue_data)
-        logger.info(f"크롤 큐에 저장: {title}")
+        # 3. links with rel="enclosure" (Atom)
+        if hasattr(entry, 'links'):
+            for link_obj in entry.links:
+                if isinstance(link_obj, dict) and link_obj.get('rel') == 'enclosure':
+                    url = link_obj.get('href', '')
+                    if url and url not in [a['url'] for a in attachments]:
+                        filename = url.split('/')[-1].split('?')[0] or 'attachment'
+                        attachments.append({
+                            'filename': filename,
+                            'url': url
+                        })
+
+        return attachments
 
     def _get_feed_name(self) -> str:
         """소스 ID로부터 피드 이름 가져오기"""
@@ -281,3 +393,173 @@ class RSSNewsCrawler(BaseCrawler):
             return '보건복지부 보도자료'
         else:
             return 'RSS 뉴스'
+
+    def _fetch_detail_page(self, url: str) -> Dict:
+        """
+        원본 페이지를 크롤링하여 상세 정보 추출
+
+        Args:
+            url: 원본 페이지 URL
+
+        Returns:
+            Dict: {
+                'content_html': HTML 컨텐츠,
+                'attachments': 첨부파일 목록,
+                'images': 이미지 목록
+            }
+        """
+        try:
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            }
+
+            response = requests.get(url, headers=headers, timeout=30)
+            response.raise_for_status()
+            response.encoding = response.apparent_encoding  # 한글 깨짐 방지
+
+            soup = BeautifulSoup(response.text, 'lxml')
+
+            # 소스별로 다른 파싱 로직 적용
+            if 'mohw.go.kr' in url:
+                return self._parse_mohw_page(soup, url)
+            elif 'mfds.go.kr' in url:
+                return self._parse_mfds_page(soup, url)
+            else:
+                # 기본 파싱
+                return {
+                    'content_html': '',
+                    'attachments': [],
+                    'images': []
+                }
+
+        except Exception as e:
+            logger.warning(f"페이지 크롤링 실패 ({url}): {e}")
+            return {
+                'content_html': '',
+                'attachments': [],
+                'images': []
+            }
+
+    def _parse_mohw_page(self, soup: BeautifulSoup, url: str) -> Dict:
+        """보건복지부 페이지 파싱"""
+        try:
+            content_html = ''
+            attachments = []
+            images = []
+
+            # 본문 추출 (보건복지부 게시판 구조)
+            # 보건복지부는 보통 class="view_con" 또는 id="viewCon" 사용
+            content_area = soup.find('div', class_='view_con') or \
+                          soup.find('div', id='viewCon') or \
+                          soup.find('div', class_='view-content') or \
+                          soup.find('div', class_='board_view')
+
+            if content_area:
+                # 본문 HTML 추출
+                content_html = str(content_area)
+
+                # 이미지 URL 추출
+                for img in content_area.find_all('img'):
+                    img_url = img.get('src', '')
+                    if img_url:
+                        # 상대 URL을 절대 URL로 변환
+                        img_url = urljoin(url, img_url)
+                        images.append({
+                            'url': img_url,
+                            'alt': img.get('alt', '')
+                        })
+
+            # 첨부파일 추출
+            # 보건복지부는 첨부파일 영역이 별도로 있음
+            attach_area = soup.find('div', class_='attach') or \
+                         soup.find('div', class_='file_list') or \
+                         soup.find('ul', class_='attach_list')
+
+            if attach_area:
+                for link in attach_area.find_all('a'):
+                    href = link.get('href', '')
+                    if href:
+                        # 절대 URL로 변환
+                        file_url = urljoin(url, href)
+                        filename = link.get_text(strip=True) or href.split('/')[-1]
+
+                        attachments.append({
+                            'filename': filename,
+                            'url': file_url
+                        })
+
+            return {
+                'content_html': content_html,
+                'attachments': attachments,
+                'images': images
+            }
+
+        except Exception as e:
+            logger.warning(f"보건복지부 페이지 파싱 실패: {e}")
+            return {
+                'content_html': '',
+                'attachments': [],
+                'images': []
+            }
+
+    def _parse_mfds_page(self, soup: BeautifulSoup, url: str) -> Dict:
+        """식약처 페이지 파싱"""
+        try:
+            content_html = ''
+            attachments = []
+            images = []
+
+            # 본문 추출 (식약처 게시판 구조)
+            # 식약처는 보통 class="cont_view" 또는 id="content" 사용
+            content_area = soup.find('div', class_='cont_view') or \
+                          soup.find('div', id='content') or \
+                          soup.find('div', class_='view_cont') or \
+                          soup.find('div', class_='board_view')
+
+            if content_area:
+                # 본문 HTML 추출
+                content_html = str(content_area)
+
+                # 이미지 URL 추출
+                for img in content_area.find_all('img'):
+                    img_url = img.get('src', '')
+                    if img_url:
+                        # 상대 URL을 절대 URL로 변환
+                        img_url = urljoin(url, img_url)
+                        images.append({
+                            'url': img_url,
+                            'alt': img.get('alt', '')
+                        })
+
+            # 첨부파일 추출
+            # 식약처는 파일 목록 테이블 사용
+            file_table = soup.find('table', class_='fileList') or \
+                        soup.find('div', class_='file_area') or \
+                        soup.find('div', class_='attach')
+
+            if file_table:
+                for link in file_table.find_all('a'):
+                    href = link.get('href', '')
+                    if href and ('download' in href.lower() or 'file' in href.lower()):
+                        # 절대 URL로 변환
+                        file_url = urljoin(url, href)
+                        filename = link.get_text(strip=True) or href.split('/')[-1]
+
+                        attachments.append({
+                            'filename': filename,
+                            'url': file_url
+                        })
+
+            return {
+                'content_html': content_html,
+                'attachments': attachments,
+                'images': images
+            }
+
+        except Exception as e:
+            logger.warning(f"식약처 페이지 파싱 실패: {e}")
+            return {
+                'content_html': '',
+                'attachments': [],
+                'images': []
+            }
