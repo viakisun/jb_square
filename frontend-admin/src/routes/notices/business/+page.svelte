@@ -116,7 +116,7 @@
 	</Panel>
 
 	<!-- Bizinfo Crawler Settings -->
-	<CrawlerConfigInline crawlerType="bizinfo" />
+	<CrawlerConfigInline sourceId="source:bizinfo:web" />
 
 	{#if crawlWs.status !== 'idle'}
 		<Panel title="데이터 수집 진행 상황">

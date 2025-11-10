@@ -1,82 +1,39 @@
 <script lang="ts">
 	/**
-	 * 통합 크롤러 설정 인라인 관리 컴포넌트
-	 * NTIS, JBTP, Bizinfo, RSS 등 모든 크롤러 설정을 단일 컴포넌트로 관리
+	 * Unified Crawler Config Component
+	 * 통합 크롤러 설정 관리 컴포넌트
+	 *
+	 * Uses new unified /api/crawling/configs API
 	 */
 
 	import { onMount } from 'svelte';
 	import { toast } from '$lib/stores/toast';
 	import { API_BASE_URL } from '$lib/config/api';
 
-	interface SimpleConfig {
-		keywords: string[];
-		date_range_days: number;
-	}
-
-	interface BoardConfig {
+	interface CrawlerConfig {
 		id: number;
+		source_id: string;
+		crawler_type: string;
 		name: string;
-		board_url: string;
+		url: string | null;
+		config_data: Record<string, any>;
 		keywords: string[];
 		date_range_days: number;
 		enabled: boolean;
 	}
 
 	type Props = {
-		/**
-		 * 크롤러 타입 ('ntis' | 'bizinfo' | 'jbtp' | 'rss')
-		 */
-		crawlerType: 'ntis' | 'bizinfo' | 'jbtp' | 'rss';
-
-		/**
-		 * JBTP용 설정 타입 ('notices' | 'external_notices' | 'events')
-		 */
-		configType?: 'notices' | 'external_notices' | 'events';
-
-		/**
-		 * RSS용 소스 ID ('source:news:mfds' | 'source:news:mohw')
-		 */
-		sourceId?: string;
+		sourceId: string; // 'source:jbtp:local', 'source:news:mfds', etc.
 	};
 
-	let { crawlerType, configType = 'notices', sourceId = '' }: Props = $props();
+	let { sourceId }: Props = $props();
 
-	// Simple config (NTIS, Bizinfo)
-	let simpleConfig = $state<SimpleConfig>({
-		keywords: [],
-		date_range_days: 30
-	});
-
-	// Board configs (JBTP)
-	let boardConfigs = $state<BoardConfig[]>([]);
-
-	// RSS config
-	let rssConfig = $state<any>(null);
-
+	let config = $state<CrawlerConfig | null>(null);
 	let loading = $state(false);
 	let addingKeyword = $state(false);
-	let addingKeywordForId = $state<number | null>(null);
 	let newKeyword = $state('');
-	let newKeywordInputs = $state<Record<number, string>>({});
 
-	const API_ENDPOINTS = {
-		ntis: {
-			get: `${API_BASE_URL}/crawling/configs/ntis/config`,
-			put: `${API_BASE_URL}/crawling/configs/ntis/config`
-		},
-		bizinfo: {
-			get: `${API_BASE_URL}/crawling/configs/bizinfo/config`,
-			put: `${API_BASE_URL}/crawling/configs/bizinfo/config`
-		},
-		jbtp: {
-			get: (type: string) => `${API_BASE_URL}/crawling/configs/jbtp/configs?config_type=${type}`,
-			put: (id: number) => `${API_BASE_URL}/crawling/configs/jbtp/configs/${id}`
-		},
-		rss: {
-			get: (sid: string) => `${API_BASE_URL}/crawling/configs/rss/${sid}`,
-			put: (sid: string) => `${API_BASE_URL}/crawling/configs/rss/${sid}`
-		}
-	};
+	const API_ENDPOINT = `${API_BASE_URL}/crawling/configs/${sourceId}`;
 
 	onMount(() => {
 		loadConfig();
@@ -85,20 +42,9 @@
 	async function loadConfig() {
 		loading = true;
 		try {
-			if (crawlerType === 'jbtp') {
-				const res = await fetch(API_ENDPOINTS.jbtp.get(configType));
-				if (!res.ok) throw new Error(`HTTP ${res.status}`);
-				const data = await res.json();
-				boardConfigs = data.items || [];
-			} else if (crawlerType === 'rss') {
-				const res = await fetch(API_ENDPOINTS.rss.get(sourceId));
-				if (!res.ok) throw new Error(`HTTP ${res.status}`);
-				rssConfig = await res.json();
-			} else {
-				const res = await fetch(API_ENDPOINTS[crawlerType].get);
-				if (!res.ok) throw new Error(`HTTP ${res.status}`);
-				simpleConfig = await res.json();
-			}
+			const res = await fetch(API_ENDPOINT);
+			if (!res.ok) throw new Error(`HTTP ${res.status}`);
+			config = await res.json();
 		} catch (error) {
 			console.error('Failed to load config:', error);
 			toast.error('설정을 불러오는데 실패했습니다');
@@ -107,330 +53,153 @@
 		}
 	}
 
-	// Simple config functions
-	async function addKeywordSimple() {
-		const keyword = newKeyword.trim();
-		if (!keyword) return;
-
-		if (simpleConfig.keywords.includes(keyword)) {
-			toast.info('이미 추가된 키워드입니다');
-			return;
-		}
-
-		const updatedKeywords = [...simpleConfig.keywords, keyword];
-
+	async function updateConfig(updates: Partial<CrawlerConfig>) {
 		try {
-			const res = await fetch(API_ENDPOINTS[crawlerType].put, {
+			const res = await fetch(API_ENDPOINT, {
 				method: 'PUT',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ keywords: updatedKeywords })
+				body: JSON.stringify(updates)
 			});
 
 			if (res.ok) {
-				simpleConfig = await res.json();
-				newKeyword = '';
-				addingKeyword = false;
-				toast.success('키워드가 추가되었습니다');
-			} else {
-				toast.error('키워드 추가 실패');
-			}
-		} catch (error) {
-			console.error('Failed to add keyword:', error);
-			toast.error('키워드 추가 실패');
-		}
-	}
-
-	async function removeKeywordSimple(keyword: string) {
-		const updatedKeywords = simpleConfig.keywords.filter((k) => k !== keyword);
-
-		try {
-			const res = await fetch(API_ENDPOINTS[crawlerType].put, {
-				method: 'PUT',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ keywords: updatedKeywords })
-			});
-
-			if (res.ok) {
-				simpleConfig = await res.json();
-				toast.success('키워드가 삭제되었습니다');
-			} else {
-				toast.error('키워드 삭제 실패');
-			}
-		} catch (error) {
-			console.error('Failed to remove keyword:', error);
-			toast.error('키워드 삭제 실패');
-		}
-	}
-
-	async function updateDateRangeSimple(days: number) {
-		try {
-			const res = await fetch(API_ENDPOINTS[crawlerType].put, {
-				method: 'PUT',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ date_range_days: days })
-			});
-
-			if (res.ok) {
-				simpleConfig = await res.json();
-				toast.success(`검색 기간이 ${days}일로 변경되었습니다`);
+				config = await res.json();
+				return true;
 			} else {
 				toast.error('설정 변경 실패');
+				return false;
 			}
 		} catch (error) {
-			console.error('Failed to update date range:', error);
+			console.error('Failed to update config:', error);
 			toast.error('설정 변경 실패');
+			return false;
 		}
 	}
 
-	// Board config functions (JBTP)
-	async function addKeywordBoard(boardId: number) {
-		const keyword = newKeywordInputs[boardId]?.trim();
-		if (!keyword) return;
-
-		const config = boardConfigs.find((c) => c.id === boardId);
-		if (!config) return;
+	async function addKeyword() {
+		const keyword = newKeyword.trim();
+		if (!keyword || !config) return;
 
 		if (config.keywords.includes(keyword)) {
 			toast.info('이미 추가된 키워드입니다');
 			return;
 		}
 
-		const updatedKeywords = [...config.keywords, keyword];
+		const success = await updateConfig({
+			keywords: [...config.keywords, keyword]
+		});
 
-		try {
-			const res = await fetch(API_ENDPOINTS.jbtp.put(boardId), {
-				method: 'PUT',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ keywords: updatedKeywords })
-			});
-
-			if (res.ok) {
-				const updated = await res.json();
-				boardConfigs = boardConfigs.map((c) => (c.id === boardId ? updated : c));
-				newKeywordInputs[boardId] = '';
-				addingKeywordForId = null;
-				toast.success('키워드가 추가되었습니다');
-			} else {
-				toast.error('키워드 추가 실패');
-			}
-		} catch (error) {
-			console.error('Failed to add keyword:', error);
-			toast.error('키워드 추가 실패');
+		if (success) {
+			newKeyword = '';
+			addingKeyword = false;
+			toast.success('키워드가 추가되었습니다');
 		}
 	}
 
-	async function removeKeywordBoard(boardId: number, keyword: string) {
-		const config = boardConfigs.find((c) => c.id === boardId);
+	async function removeKeyword(keyword: string) {
 		if (!config) return;
 
-		const updatedKeywords = config.keywords.filter((k) => k !== keyword);
+		const success = await updateConfig({
+			keywords: config.keywords.filter((k) => k !== keyword)
+		});
 
-		try {
-			const res = await fetch(API_ENDPOINTS.jbtp.put(boardId), {
-				method: 'PUT',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ keywords: updatedKeywords })
-			});
-
-			if (res.ok) {
-				const updated = await res.json();
-				boardConfigs = boardConfigs.map((c) => (c.id === boardId ? updated : c));
-				toast.success('키워드가 삭제되었습니다');
-			} else {
-				toast.error('키워드 삭제 실패');
-			}
-		} catch (error) {
-			console.error('Failed to remove keyword:', error);
-			toast.error('키워드 삭제 실패');
+		if (success) {
+			toast.success('키워드가 삭제되었습니다');
 		}
 	}
 
-	async function updateDateRangeBoard(boardId: number, days: number) {
-		try {
-			const res = await fetch(API_ENDPOINTS.jbtp.put(boardId), {
-				method: 'PUT',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ date_range_days: days })
-			});
-
-			if (res.ok) {
-				const updated = await res.json();
-				boardConfigs = boardConfigs.map((c) => (c.id === boardId ? updated : c));
-				toast.success(`검색 기간이 ${days}일로 변경되었습니다`);
-			} else {
-				toast.error('설정 변경 실패');
-			}
-		} catch (error) {
-			console.error('Failed to update date range:', error);
-			toast.error('설정 변경 실패');
+	async function updateDateRange(days: number) {
+		const success = await updateConfig({ date_range_days: days });
+		if (success) {
+			toast.success(`검색 기간이 ${days}일로 변경되었습니다`);
 		}
-	}
-
-	function startAddingKeyword() {
-		addingKeyword = true;
-	}
-
-	function cancelAddingKeyword() {
-		addingKeyword = false;
-		newKeyword = '';
 	}
 
 	function handleKeyPress(event: KeyboardEvent) {
 		if (event.key === 'Enter') {
 			event.preventDefault();
-			addKeywordSimple();
+			addKeyword();
 		} else if (event.key === 'Escape') {
-			cancelAddingKeyword();
-		}
-	}
-
-	function handleKeyPressBoard(event: KeyboardEvent, boardId: number) {
-		if (event.key === 'Enter') {
-			event.preventDefault();
-			addKeywordBoard(boardId);
-		} else if (event.key === 'Escape') {
-			addingKeywordForId = null;
-			newKeywordInputs[boardId] = '';
+			addingKeyword = false;
+			newKeyword = '';
 		}
 	}
 </script>
 
-<details class="crawler-config">
+<details class="crawler-config" open>
 	<summary class="config-summary">
 		<h3 class="config-title">크롤링 설정</h3>
 	</summary>
 
 	{#if loading}
 		<div class="loading">설정을 불러오는 중...</div>
-	{:else if crawlerType === 'jbtp'}
-		<!-- JBTP Board Configs -->
-		<div class="config-list">
-			{#each boardConfigs as config (config.id)}
-				<div class="config-item">
-					<div class="config-header-board">
-						<h4 class="board-name">{config.name}</h4>
-						<span class="config-status" class:enabled={config.enabled}>
-							{config.enabled ? '활성화' : '비활성화'}
-						</span>
-					</div>
-
-					<div class="config-row">
-						<span class="config-label">주소</span>
-						<a href={config.board_url} target="_blank" rel="noopener noreferrer" class="board-url">
-							{config.board_url}
-						</a>
-					</div>
-
-					<div class="config-row">
-						<span class="config-label">검색 기간</span>
-						<div class="date-range-buttons">
-							<button
-								class="date-range-btn"
-								class:active={config.date_range_days === 7}
-								onclick={() => updateDateRangeBoard(config.id, 7)}
-							>
-								1주일
-							</button>
-							<button
-								class="date-range-btn"
-								class:active={config.date_range_days === 30}
-								onclick={() => updateDateRangeBoard(config.id, 30)}
-							>
-								1개월
-							</button>
-							<button
-								class="date-range-btn"
-								class:active={config.date_range_days === 90}
-								onclick={() => updateDateRangeBoard(config.id, 90)}
-							>
-								3개월
-							</button>
-						</div>
-					</div>
-
-					<div class="config-row">
-						<span class="config-label">키워드</span>
-						<div class="keywords-container">
-							{#each config.keywords as keyword (keyword)}
-								<div class="keyword-tag">
-									<span class="keyword-text">{keyword}</span>
-									<button
-										class="keyword-remove"
-										onclick={() => removeKeywordBoard(config.id, keyword)}
-										aria-label="키워드 삭제"
-									>
-										✕
-									</button>
-								</div>
-							{/each}
-
-							{#if addingKeywordForId === config.id}
-								<div class="keyword-input-wrapper">
-									<input
-										type="text"
-										class="keyword-input"
-										placeholder="키워드 입력"
-										bind:value={newKeywordInputs[config.id]}
-										onkeydown={(e) => handleKeyPressBoard(e, config.id)}
-										autofocus
-									/>
-									<button class="keyword-save" onclick={() => addKeywordBoard(config.id)}>✓</button>
-									<button class="keyword-cancel" onclick={() => { addingKeywordForId = null; newKeywordInputs[config.id] = ''; }}>✕</button>
-								</div>
-							{:else}
-								<button class="keyword-add" onclick={() => addingKeywordForId = config.id}>+ 추가</button>
-							{/if}
-						</div>
-					</div>
-				</div>
-			{/each}
-		</div>
-	{:else}
-		<!-- Simple Config (NTIS, Bizinfo) -->
+	{:else if config}
 		<div class="config-content">
+			<!-- Config Info -->
+			<div class="config-row">
+				<span class="config-label">소스 ID</span>
+				<span class="config-value">{config.source_id}</span>
+			</div>
+
+			<!-- URL (if exists) -->
+			{#if config.url}
+				<div class="config-row">
+					<span class="config-label">URL</span>
+					<a
+						href={config.url}
+						target="_blank"
+						rel="noopener noreferrer"
+						class="config-link"
+					>
+						{config.url}
+					</a>
+				</div>
+			{/if}
+
+			<!-- Date Range -->
 			<div class="config-row">
 				<span class="config-label">검색 기간</span>
 				<div class="date-range-buttons">
 					<button
 						class="date-range-btn"
-						class:active={simpleConfig.date_range_days === 7}
-						onclick={() => updateDateRangeSimple(7)}
+						class:active={config.date_range_days === 7}
+						onclick={() => updateDateRange(7)}
 					>
 						1주일
 					</button>
 					<button
 						class="date-range-btn"
-						class:active={simpleConfig.date_range_days === 30}
-						onclick={() => updateDateRangeSimple(30)}
+						class:active={config.date_range_days === 30}
+						onclick={() => updateDateRange(30)}
 					>
 						1개월
 					</button>
 					<button
 						class="date-range-btn"
-						class:active={simpleConfig.date_range_days === 90}
-						onclick={() => updateDateRangeSimple(90)}
+						class:active={config.date_range_days === 90}
+						onclick={() => updateDateRange(90)}
 					>
 						3개월
 					</button>
 					<button
 						class="date-range-btn"
-						class:active={simpleConfig.date_range_days === 180}
-						onclick={() => updateDateRangeSimple(180)}
+						class:active={config.date_range_days === 180}
+						onclick={() => updateDateRange(180)}
 					>
 						6개월
 					</button>
 				</div>
 			</div>
 
+			<!-- Keywords -->
 			<div class="config-row">
 				<span class="config-label">키워드</span>
 				<div class="keywords-container">
-					{#each simpleConfig.keywords as keyword (keyword)}
+					{#each config.keywords as keyword (keyword)}
 						<div class="keyword-tag">
 							<span class="keyword-text">{keyword}</span>
 							<button
 								class="keyword-remove"
-								onclick={() => removeKeywordSimple(keyword)}
+								onclick={() => removeKeyword(keyword)}
 								aria-label="키워드 삭제"
 							>
 								✕
@@ -448,24 +217,45 @@
 								onkeydown={handleKeyPress}
 								autofocus
 							/>
-							<button class="keyword-save" onclick={addKeywordSimple}>✓</button>
-							<button class="keyword-cancel" onclick={cancelAddingKeyword}>✕</button>
+							<button class="keyword-save" onclick={addKeyword}>✓</button>
+							<button
+								class="keyword-cancel"
+								onclick={() => {
+									addingKeyword = false;
+									newKeyword = '';
+								}}
+							>
+								✕
+							</button>
 						</div>
 					{:else}
-						<button class="keyword-add" onclick={startAddingKeyword}>+ 추가</button>
+						<button class="keyword-add" onclick={() => (addingKeyword = true)}>
+							+ 추가
+						</button>
 					{/if}
 				</div>
 			</div>
+
+			<!-- Config Data (for debugging/advanced users) -->
+			{#if Object.keys(config.config_data).length > 0}
+				<details class="config-data-details">
+					<summary>고급 설정</summary>
+					<pre>{JSON.stringify(config.config_data, null, 2)}</pre>
+				</details>
+			{/if}
 		</div>
+	{:else}
+		<div class="error">설정을 찾을 수 없습니다</div>
 	{/if}
 </details>
 
 <style>
 	.crawler-config {
-		padding: var(--space-6);
-		background-color: var(--bg);
-		border: var(--border-width) solid var(--hair);
-		margin-bottom: var(--space-6);
+		border: 1px solid var(--border-color);
+		border-radius: 8px;
+		padding: 16px;
+		background: var(--card-bg);
+		margin-bottom: 24px;
 	}
 
 	.config-summary {
@@ -474,270 +264,250 @@
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		margin-bottom: 0;
+		padding: 8px 0;
 	}
 
 	.config-summary::-webkit-details-marker {
 		display: none;
 	}
 
-	.config-summary::before {
-		content: '▶';
-		margin-right: var(--space-2);
-		transition: transform var(--duration-fast);
-		display: inline-block;
-		font-size: var(--text-xs);
-	}
-
-	details[open] .config-summary::before {
-		transform: rotate(90deg);
-	}
-
-	details[open] .config-summary {
-		margin-bottom: var(--space-4);
-	}
-
-	details:not([open]) .config-summary {
-		margin-bottom: 0;
-	}
-
 	.config-title {
-		font-size: var(--text-lg);
-		font-weight: var(--font-semibold);
-		color: var(--fg);
+		font-size: 16px;
+		font-weight: 600;
+		color: var(--text-primary);
 		margin: 0;
-		letter-spacing: var(--tracking-tight);
 	}
 
-	.loading {
-		padding: var(--space-4);
+	.loading,
+	.error {
+		padding: 24px;
 		text-align: center;
-		color: var(--muted);
+		color: var(--text-muted);
+	}
+
+	.error {
+		color: var(--error-color);
 	}
 
 	.config-content {
 		display: flex;
 		flex-direction: column;
-		gap: var(--space-4);
-	}
-
-	.config-list {
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-4);
-	}
-
-	.config-item {
-		padding: var(--space-4);
-		border: var(--border-width) solid var(--hair);
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-3);
-	}
-
-	.config-header-board {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: var(--space-3);
-	}
-
-	.board-name {
-		font-size: var(--text-base);
-		font-weight: var(--font-semibold);
-		color: var(--fg);
-		margin: 0;
-	}
-
-	.config-status {
-		font-size: var(--text-xs);
-		padding: var(--space-1) var(--space-2);
-		border: var(--border-width) solid var(--muted);
-		color: var(--muted);
-	}
-
-	.config-status.enabled {
-		border-color: var(--fg);
-		color: var(--fg);
-	}
-
-	.board-url {
-		font-size: var(--text-sm);
-		color: var(--muted);
-		text-decoration: none;
-		word-break: break-all;
-	}
-
-	.board-url:hover {
-		color: var(--fg);
-		text-decoration: underline;
+		gap: 20px;
+		padding-top: 16px;
 	}
 
 	.config-row {
 		display: flex;
-		gap: var(--space-3);
-		align-items: flex-start;
+		flex-direction: column;
+		gap: 8px;
 	}
 
 	.config-label {
-		font-size: var(--text-sm);
-		font-weight: var(--font-medium);
-		color: var(--muted);
-		min-width: 60px;
-		padding-top: var(--space-1);
+		font-size: 13px;
+		font-weight: 500;
+		color: var(--text-muted);
+		text-transform: uppercase;
+		letter-spacing: 0.5px;
 	}
 
-	.keywords-container {
-		flex: 1;
-		display: flex;
-		flex-wrap: wrap;
-		gap: var(--space-2);
-		align-items: center;
+	.config-value {
+		font-size: 14px;
+		color: var(--text-primary);
+		font-family: 'Monaco', 'Courier New', monospace;
 	}
 
-	.keyword-tag {
-		display: flex;
-		align-items: center;
-		gap: var(--space-2);
-		padding: var(--space-1) var(--space-3);
-		background-color: var(--bg);
-		border: var(--border-width) solid var(--hair);
-		transition: border-color var(--duration-fast) var(--ease-out);
+	.config-link {
+		font-size: 13px;
+		color: var(--primary-color);
+		text-decoration: none;
+		word-break: break-all;
 	}
 
-	.keyword-tag:hover {
-		border-color: var(--muted);
-	}
-
-	.keyword-text {
-		font-size: var(--text-sm);
-		color: var(--fg);
-	}
-
-	.keyword-remove {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		width: 16px;
-		height: 16px;
-		padding: 0;
-		background: none;
-		border: none;
-		color: var(--muted);
-		font-size: var(--text-xs);
-		cursor: pointer;
-		transition: color var(--duration-fast) var(--ease-out);
-	}
-
-	.keyword-remove:hover {
-		color: var(--fg);
-	}
-
-	.keyword-add {
-		padding: var(--space-1) var(--space-3);
-		background: none;
-		border: var(--border-width) dashed var(--hair);
-		color: var(--muted);
-		font-size: var(--text-sm);
-		cursor: pointer;
-		transition: all var(--duration-fast) var(--ease-out);
-	}
-
-	.keyword-add:hover {
-		border-color: var(--fg);
-		color: var(--fg);
-	}
-
-	.keyword-input-wrapper {
-		display: flex;
-		gap: var(--space-2);
-		align-items: center;
-	}
-
-	.keyword-input {
-		padding: var(--space-1) var(--space-3);
-		background-color: var(--bg);
-		border: var(--border-width) solid var(--fg);
-		color: var(--fg);
-		font-size: var(--text-sm);
-		font-family: var(--font-sans);
-		min-width: 120px;
-	}
-
-	.keyword-input:focus {
-		outline: none;
-	}
-
-	.keyword-save,
-	.keyword-cancel {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		width: 24px;
-		height: 24px;
-		padding: 0;
-		background: none;
-		border: var(--border-width) solid var(--hair);
-		color: var(--fg);
-		font-size: var(--text-sm);
-		cursor: pointer;
-		transition: all var(--duration-fast) var(--ease-out);
-	}
-
-	.keyword-save:hover {
-		border-color: var(--fg);
-		background-color: var(--fg);
-		color: var(--bg);
-	}
-
-	.keyword-cancel:hover {
-		border-color: var(--muted);
-		color: var(--muted);
+	.config-link:hover {
+		text-decoration: underline;
 	}
 
 	.date-range-buttons {
 		display: flex;
-		gap: var(--space-2);
+		gap: 8px;
 		flex-wrap: wrap;
 	}
 
 	.date-range-btn {
-		padding: var(--space-2) var(--space-4);
-		background-color: var(--bg);
-		border: var(--border-width) solid var(--hair);
-		color: var(--muted);
-		font-size: var(--text-sm);
-		font-family: var(--font-sans);
+		padding: 6px 12px;
+		border: 1px solid var(--border-color);
+		border-radius: 4px;
+		background: var(--bg-secondary);
+		color: var(--text-primary);
+		font-size: 13px;
 		cursor: pointer;
-		transition: all var(--duration-fast) var(--ease-out);
+		transition: all 0.2s;
 	}
 
 	.date-range-btn:hover {
-		border-color: var(--muted);
-		color: var(--fg);
+		background: var(--bg-hover);
+		border-color: var(--primary-color);
 	}
 
 	.date-range-btn.active {
-		background-color: var(--fg);
-		border-color: var(--fg);
-		color: var(--bg);
-		font-weight: var(--font-semibold);
+		background: var(--primary-color);
+		color: white;
+		border-color: var(--primary-color);
 	}
 
-	@media (max-width: 768px) {
-		.config-summary {
-			flex-direction: column;
-			align-items: flex-start;
-			gap: var(--space-3);
-		}
+	.keywords-container {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 8px;
+		align-items: center;
+	}
 
-		.config-row {
-			flex-direction: column;
-			gap: var(--space-2);
-		}
+	.keyword-tag {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		padding: 4px 10px;
+		background: var(--tag-bg);
+		border: 1px solid var(--border-color);
+		border-radius: 4px;
+		font-size: 13px;
+		color: var(--text-primary);
+	}
 
-		.config-label {
-			min-width: auto;
+	.keyword-text {
+		line-height: 1.4;
+	}
+
+	.keyword-remove {
+		background: none;
+		border: none;
+		color: var(--text-muted);
+		cursor: pointer;
+		padding: 0;
+		font-size: 14px;
+		line-height: 1;
+		transition: color 0.2s;
+	}
+
+	.keyword-remove:hover {
+		color: var(--error-color);
+	}
+
+	.keyword-input-wrapper {
+		display: inline-flex;
+		align-items: center;
+		gap: 4px;
+	}
+
+	.keyword-input {
+		padding: 4px 8px;
+		border: 1px solid var(--primary-color);
+		border-radius: 4px;
+		font-size: 13px;
+		outline: none;
+		min-width: 120px;
+	}
+
+	.keyword-save,
+	.keyword-cancel {
+		padding: 4px 8px;
+		border: 1px solid var(--border-color);
+		border-radius: 4px;
+		background: var(--bg-secondary);
+		cursor: pointer;
+		font-size: 13px;
+		line-height: 1;
+		transition: all 0.2s;
+	}
+
+	.keyword-save {
+		color: var(--success-color);
+		border-color: var(--success-color);
+	}
+
+	.keyword-save:hover {
+		background: var(--success-color);
+		color: white;
+	}
+
+	.keyword-cancel {
+		color: var(--error-color);
+		border-color: var(--error-color);
+	}
+
+	.keyword-cancel:hover {
+		background: var(--error-color);
+		color: white;
+	}
+
+	.keyword-add {
+		padding: 4px 10px;
+		border: 1px dashed var(--border-color);
+		border-radius: 4px;
+		background: transparent;
+		color: var(--text-muted);
+		font-size: 13px;
+		cursor: pointer;
+		transition: all 0.2s;
+	}
+
+	.keyword-add:hover {
+		border-color: var(--primary-color);
+		color: var(--primary-color);
+		background: var(--bg-hover);
+	}
+
+	.config-data-details {
+		margin-top: 8px;
+		padding: 12px;
+		border: 1px solid var(--border-color);
+		border-radius: 4px;
+		background: var(--bg-secondary);
+	}
+
+	.config-data-details summary {
+		cursor: pointer;
+		font-size: 13px;
+		font-weight: 500;
+		color: var(--text-muted);
+		user-select: none;
+	}
+
+	.config-data-details pre {
+		margin-top: 8px;
+		padding: 8px;
+		background: var(--bg-tertiary);
+		border-radius: 4px;
+		font-size: 12px;
+		overflow-x: auto;
+	}
+
+	/* CSS Variables (adjust based on your theme) */
+	:root {
+		--border-color: #e5e7eb;
+		--card-bg: #ffffff;
+		--bg-secondary: #f9fafb;
+		--bg-hover: #f3f4f6;
+		--bg-tertiary: #f1f3f5;
+		--text-primary: #111827;
+		--text-muted: #6b7280;
+		--primary-color: #3b82f6;
+		--error-color: #ef4444;
+		--success-color: #10b981;
+		--tag-bg: #f3f4f6;
+	}
+
+	/* Dark mode support */
+	@media (prefers-color-scheme: dark) {
+		:root {
+			--border-color: #374151;
+			--card-bg: #1f2937;
+			--bg-secondary: #111827;
+			--bg-hover: #374151;
+			--bg-tertiary: #0f172a;
+			--text-primary: #f9fafb;
+			--text-muted: #9ca3af;
+			--tag-bg: #374151;
 		}
 	}
 </style>

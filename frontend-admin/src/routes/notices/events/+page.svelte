@@ -230,7 +230,7 @@
 	</Panel>
 
 	<!-- Crawling Configuration -->
-	<CrawlerConfigInline crawlerType="jbtp" configType="events" />
+	<CrawlerConfigInline sourceId="source:jbtp:events" />
 
 	<!-- Crawling Status -->
 	{#if crawlStatus !== 'idle'}

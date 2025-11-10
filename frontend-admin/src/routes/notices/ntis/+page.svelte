@@ -196,7 +196,7 @@
 	</Panel>
 
 	<!-- Crawling Configuration -->
-	<CrawlerConfigInline crawlerType="ntis" />
+	<CrawlerConfigInline sourceId="source:ntis:rss" />
 
 	<!-- Crawling Status -->
 	{#if crawlStatus !== 'idle'}

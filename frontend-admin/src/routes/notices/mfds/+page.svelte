@@ -218,7 +218,7 @@
 	</Panel>
 
 	<!-- Crawling Configuration -->
-	<CrawlerConfigInline crawlerType="rss" sourceId={SOURCE_ID} />
+	<CrawlerConfigInline sourceId={SOURCE_ID} />
 
 	<!-- Crawling Status -->
 	{#if crawlStatus !== 'idle'}

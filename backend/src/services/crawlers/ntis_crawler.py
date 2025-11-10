@@ -27,10 +27,19 @@ class NTISCrawler(BaseCrawler):
 
     def __init__(self):
         super().__init__(NoticeSource.NTIS_RSS)
-        # RSS 피드에서 최대한 많은 항목 가져오기 (기본 100 → 500)
-        # prt 파라미터: 한 번에 가져올 항목 수
-        self.rss_url = "http://www.ntis.go.kr/rndgate/unRndRss.xml?prt=500&bbs=true"
-        self.days_filter = ConfigRepository.get_date_range_days(self.source_id)  # DB 설정에서 기간 가져오기
+
+        # Load config from unified crawler_config table
+        config = ConfigRepository.get_config_by_source_id(self.source_id)
+
+        if config and config.url:
+            # Use URL from database
+            self.rss_url = config.url
+        else:
+            # Fallback to hardcoded URL (for backwards compatibility)
+            self.rss_url = "http://www.ntis.go.kr/rndgate/unRndRss.xml?prt=500&bbs=true"
+
+        # Get date range from config (default 30 days)
+        self.days_filter = ConfigRepository.get_date_range_days(self.source_id)
 
     def _clean_description(self, html_text: str) -> str:
         """HTML 태그 제거 및 텍스트 정리"""

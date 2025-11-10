@@ -19,7 +19,7 @@ from src.services.rate_limiter import RateLimiter
 from src.core.database import SessionLocal, CrawlerConfig, CrawlResult
 from src.models.notice import CrawlQueue
 from src.models.crawler_config import JBTPConfig, BinetConfig, RSSConfig
-from src.services.crawlers import BICenterCrawler, BizinfoCrawler, JBTPCrawler, JBTPExternalCrawler, JBTPEventsCrawler, NTISCrawler, RSSNewsCrawler
+from src.services.crawlers import BICenterCrawler, BizinfoCrawler, JBTPCrawler, JBTPExternalCrawler, JBTPEventsCrawler, NTISCrawler, MFDSNewsCrawler, MOHWNewsCrawler
 from src.constants.sources import NoticeSource
 
 
@@ -691,18 +691,14 @@ class CrawlerManager:
         """
         return await self.crawlers["bi_center"].run(callback)
 
-    async def execute_rss_news(self, source_id: str, callback: Optional[Callable] = None):
+    async def execute_mfds_news(self, callback: Optional[Callable] = None):
         """
-        RSS 뉴스 크롤러를 실행합니다.
-
-        DB에서 RSS 설정을 읽어서 RSSNewsCrawler를 동적으로 생성하고 실행합니다.
-
-        Args:
-            source_id: 'source:news:mfds' 또는 'source:news:mohw'
-            callback: 실시간 업데이트를 전송할 콜백 함수 (WebSocket send)
+        식약처 RSS 뉴스를 수집합니다.
         """
         db = SessionLocal()
         try:
+            source_id = NoticeSource.NEWS_MFDS
+
             # DB에서 RSS 설정 로드
             rss_config = db.query(RSSConfig).filter(RSSConfig.source_id == source_id).first()
 
@@ -732,17 +728,9 @@ class CrawlerManager:
                     "error": error_msg
                 }
 
-            # RSSNewsCrawler 인스턴스 생성
-            config = {
-                'keywords': rss_config.keywords or [],
-                'date_range_days': rss_config.date_range_days or 30
-            }
-
-            crawler = RSSNewsCrawler(
-                source_id=source_id,
-                feed_url=rss_config.feed_url,
-                config=config
-            )
+            # MFDSNewsCrawler 인스턴스 생성 (no-arg constructor)
+            # Config is loaded from unified crawler_config table
+            crawler = MFDSNewsCrawler()
 
             # 크롤링 실행
             result = await crawler.execute(callback=callback, db_session=db)
@@ -750,31 +738,80 @@ class CrawlerManager:
             return result
 
         except Exception as e:
-            error_msg = f"RSS 크롤링 중 오류 발생: {str(e)}"
+            error_msg = f"식약처 RSS 크롤링 중 오류 발생: {str(e)}"
             if callback:
                 await self._send_event(callback, "error", {
-                    "source_id": source_id,
+                    "source_id": NoticeSource.NEWS_MFDS,
                     "error": error_msg
                 })
             return {
-                "source_id": source_id,
+                "source_id": NoticeSource.NEWS_MFDS,
                 "status": "error",
                 "error": error_msg
             }
         finally:
             db.close()
 
-    async def execute_mfds_news(self, callback: Optional[Callable] = None):
-        """
-        식약처 RSS 뉴스를 수집합니다.
-        """
-        return await self.execute_rss_news(NoticeSource.NEWS_MFDS, callback)
-
     async def execute_mohw_news(self, callback: Optional[Callable] = None):
         """
         보건복지부 RSS 뉴스를 수집합니다.
         """
-        return await self.execute_rss_news(NoticeSource.NEWS_MOHW, callback)
+        db = SessionLocal()
+        try:
+            source_id = NoticeSource.NEWS_MOHW
+
+            # DB에서 RSS 설정 로드
+            rss_config = db.query(RSSConfig).filter(RSSConfig.source_id == source_id).first()
+
+            if not rss_config:
+                error_msg = f"RSS 설정을 찾을 수 없습니다: {source_id}"
+                if callback:
+                    await self._send_event(callback, "error", {
+                        "source_id": source_id,
+                        "error": error_msg
+                    })
+                return {
+                    "source_id": source_id,
+                    "status": "error",
+                    "error": error_msg
+                }
+
+            if not rss_config.enabled:
+                error_msg = f"RSS 크롤러가 비활성화되어 있습니다: {source_id}"
+                if callback:
+                    await self._send_event(callback, "error", {
+                        "source_id": source_id,
+                        "error": error_msg
+                    })
+                return {
+                    "source_id": source_id,
+                    "status": "error",
+                    "error": error_msg
+                }
+
+            # MOHWNewsCrawler 인스턴스 생성 (no-arg constructor)
+            # Config is loaded from unified crawler_config table
+            crawler = MOHWNewsCrawler()
+
+            # 크롤링 실행
+            result = await crawler.execute(callback=callback, db_session=db)
+
+            return result
+
+        except Exception as e:
+            error_msg = f"보건복지부 RSS 크롤링 중 오류 발생: {str(e)}"
+            if callback:
+                await self._send_event(callback, "error", {
+                    "source_id": NoticeSource.NEWS_MOHW,
+                    "error": error_msg
+                })
+            return {
+                "source_id": NoticeSource.NEWS_MOHW,
+                "status": "error",
+                "error": error_msg
+            }
+        finally:
+            db.close()
 
 
 # Singleton instance

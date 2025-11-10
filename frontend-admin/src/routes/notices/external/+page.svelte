@@ -228,7 +228,7 @@
 	</Panel>
 
 	<!-- Crawling Configuration -->
-	<CrawlerConfigInline crawlerType="jbtp" configType="external_notices" />
+	<CrawlerConfigInline sourceId="source:jbtp:external" />
 
 	<!-- Crawling Status -->
 	{#if crawlStatus !== 'idle'}

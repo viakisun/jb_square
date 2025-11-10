@@ -140,3 +140,55 @@ class RSSConfig(Base):
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
         }
+
+
+class CrawlerConfig(Base):
+    """
+    Unified Crawler Configuration Model
+
+    Consolidates all crawler configs into a single table.
+    Replaces: JBTPConfig, BinetConfig, NTISConfig, BizinfoConfig, RSSConfig
+    """
+    __tablename__ = 'crawler_config'
+
+    id = Column(Integer, primary_key=True)
+
+    # Identity
+    source_id = Column(String(100), nullable=False, unique=True)  # 'source:jbtp:local', 'source:news:mfds', etc.
+    crawler_type = Column(String(50), nullable=False)             # 'jbtp', 'rss', 'api', 'binet', 'web'
+    name = Column(String(200), nullable=False)                    # Display name
+
+    # URL (board_url, feed_url, api_url, or web_url depending on type)
+    url = Column(Text)
+
+    # Type-specific configuration as JSONB
+    config_data = Column(JSONB, default={})
+    # Examples:
+    # - JBTP: {"config_type": "notices", "max_pages": 5}
+    # - BI Center: {"region_code": "063", "region_name": "전북"}
+    # - Others: {}
+
+    # Common settings
+    keywords = Column(JSONB, default=[])                          # Keyword filters
+    date_range_days = Column(Integer, default=30)                 # Search period in days
+    enabled = Column(Boolean, default=True)                       # Active status
+
+    # Metadata
+    created_at = Column(DateTime, default=datetime.now)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+
+    def to_dict(self):
+        """Convert to dictionary for API responses"""
+        return {
+            'id': self.id,
+            'source_id': self.source_id,
+            'crawler_type': self.crawler_type,
+            'name': self.name,
+            'url': self.url,
+            'config_data': self.config_data or {},
+            'keywords': self.keywords or [],
+            'date_range_days': self.date_range_days or 30,
+            'enabled': self.enabled,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+        }
