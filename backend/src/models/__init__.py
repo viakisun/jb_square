@@ -4,7 +4,7 @@ Models package
 
 from .notice import Notice, CrawlQueue
 from .bi_center import BICenter, BICompany
-from .crawler_config import CrawlerConfig, RSSConfig
+from .crawler_config import CrawlerConfig
 
 __all__ = [
     'Notice',
@@ -12,5 +12,4 @@ __all__ = [
     'BICenter',
     'BICompany',
     'CrawlerConfig',
-    'RSSConfig',  # Still used by rss_config.py router
 ]

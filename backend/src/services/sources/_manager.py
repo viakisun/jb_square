@@ -19,6 +19,7 @@ from src.services.rate_limiter import RateLimiter
 from src.core.database import SessionLocal, CrawlResult
 from src.models.notice import CrawlQueue
 from src.models.crawler_config import CrawlerConfig
+from src.services.sources.repositories.config_repository import ConfigRepository
 from src.services.sources import (
     GovernmentBiCenterAdapter,
     GovernmentBizinfoAdapter,
@@ -686,11 +687,11 @@ class SourceManager:
         try:
             source_id = NoticeSource.NEWS_MFDS
 
-            # DB에서 RSS 설정 로드
-            rss_config = db.query(RSSConfig).filter(RSSConfig.source_id == source_id).first()
+            # DB에서 통합 크롤러 설정 로드
+            config = ConfigRepository.get_config_by_source_id(source_id)
 
-            if not rss_config:
-                error_msg = f"RSS 설정을 찾을 수 없습니다: {source_id}"
+            if not config:
+                error_msg = f"크롤러 설정을 찾을 수 없습니다: {source_id}"
                 if callback:
                     await self._send_event(callback, "error", {
                         "source_id": source_id,
@@ -702,8 +703,8 @@ class SourceManager:
                     "error": error_msg
                 }
 
-            if not rss_config.enabled:
-                error_msg = f"RSS 크롤러가 비활성화되어 있습니다: {source_id}"
+            if not config.enabled:
+                error_msg = f"크롤러가 비활성화되어 있습니다: {source_id}"
                 if callback:
                     await self._send_event(callback, "error", {
                         "source_id": source_id,
@@ -747,11 +748,11 @@ class SourceManager:
         try:
             source_id = NoticeSource.NEWS_MOHW
 
-            # DB에서 RSS 설정 로드
-            rss_config = db.query(RSSConfig).filter(RSSConfig.source_id == source_id).first()
+            # DB에서 통합 크롤러 설정 로드
+            config = ConfigRepository.get_config_by_source_id(source_id)
 
-            if not rss_config:
-                error_msg = f"RSS 설정을 찾을 수 없습니다: {source_id}"
+            if not config:
+                error_msg = f"크롤러 설정을 찾을 수 없습니다: {source_id}"
                 if callback:
                     await self._send_event(callback, "error", {
                         "source_id": source_id,
@@ -763,8 +764,8 @@ class SourceManager:
                     "error": error_msg
                 }
 
-            if not rss_config.enabled:
-                error_msg = f"RSS 크롤러가 비활성화되어 있습니다: {source_id}"
+            if not config.enabled:
+                error_msg = f"크롤러가 비활성화되어 있습니다: {source_id}"
                 if callback:
                     await self._send_event(callback, "error", {
                         "source_id": source_id,

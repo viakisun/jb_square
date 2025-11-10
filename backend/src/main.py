@@ -5,7 +5,7 @@ FastAPI 메인 애플리케이션
 import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from src.routers import dashboard, contents, organizations, analytics, settings, notices, bi_centers, crawling_config, tags, ksic_codes, system_monitor, rss_config, unified_config
+from src.routers import dashboard, contents, organizations, analytics, settings, notices, bi_centers, crawling_config, tags, ksic_codes, system_monitor, unified_config
 from src.core.database import init_db
 
 app = FastAPI(
@@ -53,7 +53,6 @@ app.include_router(unified_config.router, prefix="/api", tags=["통합 크롤링
 
 # LEGACY: Old Config APIs (for backwards compatibility)
 app.include_router(crawling_config.router, prefix="/api/crawling/configs/legacy", tags=["크롤링 설정 (구버전)"])
-app.include_router(rss_config.router, prefix="/api/legacy", tags=["RSS 뉴스 설정 (구버전)"])
 
 app.include_router(notices.router, tags=["공고관리"])  # Notice: prefix already in router
 app.include_router(bi_centers.router, prefix="/api/bi-centers", tags=["창업보육센터"])
