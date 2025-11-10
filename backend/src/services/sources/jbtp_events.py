@@ -19,6 +19,9 @@ class JBTPEventsAdapter(JBTPBaseAdapter):
     TODO: Verify actual HTML structure if events board behaves differently
     """
 
+    # 교육/행사는 항상 전북테크노파크가 발행 기관
+    DEFAULT_ORGANIZATION = '(재)전북테크노파크'
+
     def __init__(self):
         super().__init__("source:jbtp:events")
 
@@ -88,3 +91,18 @@ class JBTPEventsAdapter(JBTPBaseAdapter):
             }
 
         return None
+
+    def get_organization(self, notice_data: dict, detail: dict) -> str:
+        """
+        교육/행사의 발행 기관을 반환합니다.
+
+        교육/행사는 항상 전북테크노파크가 주최하므로 고정값을 반환합니다.
+
+        Args:
+            notice_data: 테이블에서 파싱한 공고 데이터 (사용 안 함)
+            detail: 상세 페이지에서 추출한 데이터 (사용 안 함)
+
+        Returns:
+            "(재)전북테크노파크"
+        """
+        return self.DEFAULT_ORGANIZATION

@@ -67,6 +67,29 @@ class JBTPBaseAdapter(BaseAdapter):
         """
         pass
 
+    def get_organization(self, notice_data: dict, detail: dict) -> Optional[str]:
+        """
+        공고의 발행 기관을 결정합니다.
+
+        기본 구현은 None을 반환합니다.
+        각 게시판의 특성에 맞게 자식 클래스에서 오버라이드해야 합니다.
+
+        Args:
+            notice_data: 테이블에서 파싱한 공고 데이터 (parse_table_row 반환값)
+            detail: 상세 페이지에서 추출한 데이터
+
+        Returns:
+            발행 기관명 (예: "(재)전북테크노파크", "한국산업기술진흥원" 등)
+            또는 None (기관 정보 없음)
+
+        Example (jbtp_local):
+            return "(재)전북테크노파크"  # 항상 고정값
+
+        Example (jbtp_external):
+            return notice_data.get('writer') or detail.get('writer')  # 파싱된 값
+        """
+        return None
+
     def _parse_jbtp_data(self, notice: dict) -> dict:
         """
         JBTP raw_data 파싱 및 구조화된 필드 추출
@@ -109,7 +132,7 @@ class JBTPBaseAdapter(BaseAdapter):
             parsed['announcement_date'] = None
 
         # 3. 기타 필드
-        parsed['organization'] = '(재)전북테크노파크'
+        parsed['organization'] = self.get_organization(notice, detail)
         parsed['department'] = None
         parsed['contact'] = None
         parsed['views'] = detail.get('views', 0)

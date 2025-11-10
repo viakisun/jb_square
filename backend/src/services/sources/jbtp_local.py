@@ -17,6 +17,9 @@ class JBTPLocalAdapter(JBTPBaseAdapter):
     [번호] [제목] [마감일] [파일] [작성자] [작성일] [조회]
     """
 
+    # 사업공고는 항상 전북테크노파크가 발행 기관
+    DEFAULT_ORGANIZATION = '(재)전북테크노파크'
+
     def __init__(self):
         super().__init__("source:jbtp:local")
 
@@ -63,3 +66,18 @@ class JBTPLocalAdapter(JBTPBaseAdapter):
             'posted_date': posted_date,
             'deadline': deadline
         }
+
+    def get_organization(self, notice_data: dict, detail: dict) -> str:
+        """
+        사업공고의 발행 기관을 반환합니다.
+
+        사업공고는 항상 전북테크노파크가 발행하므로 고정값을 반환합니다.
+
+        Args:
+            notice_data: 테이블에서 파싱한 공고 데이터 (사용 안 함)
+            detail: 상세 페이지에서 추출한 데이터 (사용 안 함)
+
+        Returns:
+            "(재)전북테크노파크"
+        """
+        return self.DEFAULT_ORGANIZATION

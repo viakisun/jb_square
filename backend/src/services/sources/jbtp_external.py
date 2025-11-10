@@ -28,7 +28,7 @@ class JBTPExternalAdapter(JBTPBaseAdapter):
         0: 번호
         1: 제목 (with <a> tag)
         2: 파일
-        3: 작성자
+        3: 작성자 (각 공고의 발행 기관)
         4: 등록일 (YYYY-MM-DD)
         5: 조회수
         """
@@ -52,6 +52,9 @@ class JBTPExternalAdapter(JBTPBaseAdapter):
             else:
                 link = 'https://www.jbtp.or.kr/' + link
 
+        # Extract writer (발행 기관) from column 3
+        writer = cols[3].get_text(strip=True)
+
         # NO deadline column in this board!
         posted_date = cols[4].get_text(strip=True)
 
@@ -59,5 +62,23 @@ class JBTPExternalAdapter(JBTPBaseAdapter):
             'title': title,
             'link': link,
             'posted_date': posted_date,
-            'deadline': ''  # No deadline column
+            'deadline': '',  # No deadline column
+            'writer': writer  # 발행 기관 정보
         }
+
+    def get_organization(self, notice_data: dict, detail: dict) -> Optional[str]:
+        """
+        유관기관공고의 발행 기관을 반환합니다.
+
+        테이블의 작성자 컬럼 또는 상세 페이지에서 추출한 작성자 정보를 사용합니다.
+
+        Args:
+            notice_data: 테이블에서 파싱한 공고 데이터 (writer 포함)
+            detail: 상세 페이지에서 추출한 데이터 (writer 포함)
+
+        Returns:
+            발행 기관명 (예: "한국산업기술진흥원", "중소벤처기업부" 등)
+            또는 None (기관 정보 없음)
+        """
+        # 우선순위: 테이블의 writer > 상세 페이지의 writer
+        return notice_data.get('writer') or detail.get('writer')
