@@ -235,7 +235,7 @@ async def serve_pdf(pdf_key: str = Query(..., description="S3 key of the PDF fil
 
         # Download PDF from S3
         response = s3_client.get_object(
-            Bucket=os.getenv('AWS_S3_BUCKET_NAME', 'jb2-bucket'),
+            Bucket=os.getenv('AWS_S3_BUCKET_NAME', 'jb2_bucket'),
             Key=decoded_key
         )
         pdf_content = response['Body'].read()
@@ -355,7 +355,7 @@ async def convert_hwp_to_pdf(
             # Try to check if file exists
             try:
                 s3_boto_client.head_object(
-                    Bucket=os.getenv('AWS_S3_BUCKET_NAME', 'jb2-bucket'),
+                    Bucket=os.getenv('AWS_S3_BUCKET_NAME', 'jb2_bucket'),
                     Key=pdf_s3_key
                 )
                 # PDF already exists, return cached version
@@ -385,7 +385,7 @@ async def convert_hwp_to_pdf(
 
             # Download file from S3
             response = s3_boto_client.get_object(
-                Bucket=os.getenv('AWS_S3_BUCKET_NAME', 'jb2-bucket'),
+                Bucket=os.getenv('AWS_S3_BUCKET_NAME', 'jb2_bucket'),
                 Key=s3_key
             )
             hwp_content = response['Body'].read()
