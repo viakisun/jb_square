@@ -64,10 +64,26 @@
 
 	let activeItem = $derived(item || notice);
 
+	// Utility function to strip jsessionid from URLs (fixes Windows Chrome SYNAP viewer issue)
+	function stripJsessionid(url: string | null | undefined): string | null | undefined {
+		if (!url) return url;
+		return url.replace(/;jsessionid=[^?&#]*/gi, '');
+	}
+
+	// Utility function to strip jsessionid from HTML content
+	function stripJsessionidFromHtml(html: string | null | undefined): string | null | undefined {
+		if (!html) return html;
+		// Remove jsessionid from all URLs in HTML attributes
+		return html.replace(/(['"])(.*?);jsessionid=[^?&#'"]*(['"])/gi, '$1$2$3');
+	}
+
 	// Use direct fields from notice, fallback to raw_data for crawl queue preview
-	let detail = $derived(activeItem?.raw_data?.detail);
+	let detail = $derived({
+		...activeItem?.raw_data?.detail,
+		content_html: stripJsessionidFromHtml(activeItem?.raw_data?.detail?.content_html),
+	});
 	let contentType = $derived(activeItem?.content_type);
-	let contentViewerUrl = $derived(activeItem?.content_viewer_url);
+	let contentViewerUrl = $derived(stripJsessionid(activeItem?.content_viewer_url));
 	let content = $derived(activeItem?.content);
 	let attachments = $derived(activeItem?.attachment_links);
 
