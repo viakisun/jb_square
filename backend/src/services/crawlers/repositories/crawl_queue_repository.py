@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import List, Optional
 
 from src.core.database import SessionLocal
-from src.models.notice import CrawlQueue
+from src.models.notice import CrawlQueue, Notice
 from src.services.crawlers.services.keyword_service import KeywordService
 from src.services.utils.crawler_utils import parse_date
 
@@ -58,6 +58,28 @@ class CrawlQueueRepository:
         return item and item.rejection_status == 'rejected'
 
     @staticmethod
+    def is_already_registered(source_id: str, title: str) -> bool:
+        """
+        Notice 테이블에 이미 등록된 공고인지 확인
+
+        Args:
+            source_id: 크롤러 소스 ID
+            title: 공고 제목
+
+        Returns:
+            이미 등록되어 있으면 True
+        """
+        session = SessionLocal()
+        try:
+            existing = session.query(Notice).filter(
+                Notice.crawler_source_id == source_id,
+                Notice.title == title
+            ).first()
+            return existing is not None
+        finally:
+            session.close()
+
+    @staticmethod
     def save_results(
         notices: List[dict],
         keywords: List[str],
@@ -66,7 +88,7 @@ class CrawlQueueRepository:
         """
         크롤링 결과를 CrawlQueue에 저장합니다.
 
-        중복 및 거부된 항목은 스킵합니다.
+        이미 등록된 공고, 중복 및 거부된 항목은 스킵합니다.
         키워드 필터링: keywords가 있으면, 제목에 키워드가 포함된 공고만 저장합니다.
 
         Args:
@@ -82,7 +104,8 @@ class CrawlQueueRepository:
             'added': 0,
             'updated': 0,
             'skipped_rejected': 0,
-            'skipped_filtered': 0
+            'skipped_filtered': 0,
+            'skipped_registered': 0
         }
 
         try:
@@ -94,7 +117,13 @@ class CrawlQueueRepository:
                 title = notice['title']
                 print(f"\n  처리 중: {title[:50]}...")
 
-                # 1. 키워드 필터링
+                # 1. Notice 테이블에 이미 등록되어 있는지 확인
+                if CrawlQueueRepository.is_already_registered(source_id, title):
+                    print(f"    → 이미 등록됨 (Notice 테이블), 스킵")
+                    stats['skipped_registered'] += 1
+                    continue
+
+                # 2. 키워드 필터링
                 matched_keywords = []
                 if keywords:
                     matched_keywords = KeywordService.match_keywords(title, keywords)
@@ -104,23 +133,23 @@ class CrawlQueueRepository:
                         continue
                     print(f"    → 매칭된 키워드: {matched_keywords}")
 
-                # 2. 기존 항목 확인
+                # 3. 기존 CrawlQueue 항목 확인
                 existing = CrawlQueueRepository.find_existing(source_id, title)
-                print(f"    → 기존 항목 존재 여부: {existing is not None}")
+                print(f"    → 기존 큐 항목 존재 여부: {existing is not None}")
 
                 if existing:
-                    # 3. 거부된 항목이면 스킵
+                    # 4. 거부된 항목이면 스킵
                     if CrawlQueueRepository.is_rejected(existing):
                         print(f"    → 거부된 항목, 스킵")
                         stats['skipped_rejected'] += 1
                         continue
 
-                    # 4. 기존 항목 업데이트
+                    # 5. 기존 항목 업데이트
                     print(f"    → 기존 항목 업데이트 (ID: {existing.id})")
                     CrawlQueueRepository._update_item(existing, notice, matched_keywords)
                     stats['updated'] += 1
                 else:
-                    # 5. 새로운 항목 추가
+                    # 6. 새로운 항목 추가
                     try:
                         print(f"    → 신규 항목 추가 시도")
                         CrawlQueueRepository._create_item(
@@ -144,7 +173,7 @@ class CrawlQueueRepository:
 
             print(f"[{source_id}] 저장 완료: 신규={stats['added']}, "
                   f"업데이트={stats['updated']}, 키워드 필터={stats['skipped_filtered']}, "
-                  f"거부됨 스킵={stats['skipped_rejected']}")
+                  f"거부됨 스킵={stats['skipped_rejected']}, 이미 등록됨 스킵={stats['skipped_registered']}")
 
             return stats
 
