@@ -19,7 +19,17 @@ from src.services.rate_limiter import RateLimiter
 from src.core.database import SessionLocal, CrawlerConfig, CrawlResult
 from src.models.notice import CrawlQueue
 from src.models.crawler_config import JBTPConfig, BinetConfig, RSSConfig
-from src.services.sources import GovernmentBiCenterAdapter, GovernmentBizinfoAdapter, JBTPLocalAdapter, JBTPExternalAdapter, JBTPEventsAdapter, GovernmentNTISAdapter, GovernmentMFDSAdapter, GovernmentMOHWAdapter
+from src.services.sources import (
+    GovernmentBiCenterAdapter,
+    GovernmentBizinfoAdapter,
+    JBTPLocalAdapter,
+    JBTPExternalAdapter,
+    JBTPEventsAdapter,
+    GovernmentNTISAdapter,
+    GovernmentMFDSAdapter,
+    GovernmentMOHWAdapter,
+    JBTPBaseAdapter
+)
 from src.constants.sources import NoticeSource
 
 
@@ -38,71 +48,28 @@ class SourceManager:
     """
 
     def __init__(self):
-        self.crawlers_status: Dict[str, dict] = {
-            NoticeSource.JBTP_LOCAL: {
-                "status": CrawlerStatus.IDLE,
-                "progress": 0,
-                "total": 0,
-                "success": 0,
-                "failed": 0,
-                "last_run": None,
-                "error_message": None
-            },
-            NoticeSource.JBTP_EXTERNAL: {
-                "status": CrawlerStatus.IDLE,
-                "progress": 0,
-                "total": 0,
-                "success": 0,
-                "failed": 0,
-                "last_run": None,
-                "error_message": None
-            },
-            NoticeSource.JBTP_EVENTS: {
-                "status": CrawlerStatus.IDLE,
-                "progress": 0,
-                "total": 0,
-                "success": 0,
-                "failed": 0,
-                "last_run": None,
-                "error_message": None
-            },
-            NoticeSource.NTIS_RSS: {
-                "status": CrawlerStatus.IDLE,
-                "progress": 0,
-                "total": 0,
-                "success": 0,
-                "failed": 0,
-                "last_run": None,
-                "error_message": None
-            },
-            NoticeSource.BIZINFO_API: {
-                "status": CrawlerStatus.IDLE,
-                "progress": 0,
-                "total": 0,
-                "success": 0,
-                "failed": 0,
-                "last_run": None,
-                "error_message": None
-            },
-            NoticeSource.NEWS_MFDS: {
-                "status": CrawlerStatus.IDLE,
-                "progress": 0,
-                "total": 0,
-                "success": 0,
-                "failed": 0,
-                "last_run": None,
-                "error_message": None
-            },
-            NoticeSource.NEWS_MOHW: {
-                "status": CrawlerStatus.IDLE,
-                "progress": 0,
-                "total": 0,
-                "success": 0,
-                "failed": 0,
-                "last_run": None,
-                "error_message": None
-            },
-            "bi_center": {
+        self.crawlers_status: Dict[str, dict] = {}
+        self.stop_flags: Dict[str, bool] = {}
+
+        # Static adapter instances (for non-JBTP adapters)
+        self.crawlers = {
+            "bi_center": GovernmentBiCenterAdapter(),
+            NoticeSource.BIZINFO_API: GovernmentBizinfoAdapter(),
+            NoticeSource.JBTP_LOCAL: JBTPLocalAdapter(),
+            NoticeSource.JBTP_EXTERNAL: JBTPExternalAdapter(),
+            NoticeSource.JBTP_EVENTS: JBTPEventsAdapter(),
+            NoticeSource.NTIS_RSS: GovernmentNTISAdapter(),
+            NoticeSource.NEWS_MFDS: GovernmentMFDSAdapter(),
+            NoticeSource.NEWS_MOHW: GovernmentMOHWAdapter(),
+        }
+
+        # Initialize status for all known adapters
+        self._initialize_statuses()
+
+    def _initialize_statuses(self):
+        """Initialize status dicts for all adapters"""
+        for source_id in self.crawlers.keys():
+            self.crawlers_status[source_id] = {
                 "status": CrawlerStatus.IDLE,
                 "progress": 0,
                 "total": 0,
@@ -111,35 +78,52 @@ class SourceManager:
                 "last_run": None,
                 "error_message": None
             }
-        }
+            self.stop_flags[source_id] = False
 
-        self.stop_flags: Dict[str, bool] = {
-            NoticeSource.JBTP_LOCAL: False,
-            NoticeSource.JBTP_EXTERNAL: False,
-            NoticeSource.JBTP_EVENTS: False,
-            NoticeSource.NTIS_RSS: False,
-            NoticeSource.BIZINFO_API: False,
-            NoticeSource.NEWS_MFDS: False,
-            NoticeSource.NEWS_MOHW: False,
-            "bi_center": False
-        }
+    def _create_adapter(self, source_id: str):
+        """
+        동적으로 Adapter 인스턴스를 생성합니다.
 
-        # Refactored crawler instances
-        self.crawlers = {
-            "bi_center": GovernmentBiCenterAdapter(),
-            NoticeSource.BIZINFO_API: GovernmentBizinfoAdapter(),
-            NoticeSource.JBTP_LOCAL: JBTPLocalAdapter(),
-            NoticeSource.JBTP_EXTERNAL: JBTPExternalAdapter(),
-            NoticeSource.JBTP_EVENTS: JBTPEventsAdapter(),
-            NoticeSource.NTIS_RSS: GovernmentNTISAdapter(),
-        }
+        source_id 패턴:
+        - source:jbtp:* → JBTPBaseAdapter(source_id)
+        - 기타 → 정적 매핑에서 조회
+        """
+        # 이미 생성된 adapter가 있으면 재사용
+        if source_id in self.crawlers:
+            return self.crawlers[source_id]
+
+        # JBTP 패턴 감지: source:jbtp:*
+        if source_id.startswith("source:jbtp:"):
+            adapter = JBTPBaseAdapter(source_id)
+            self.crawlers[source_id] = adapter
+
+            # 상태 초기화
+            if source_id not in self.crawlers_status:
+                self.crawlers_status[source_id] = {
+                    "status": CrawlerStatus.IDLE,
+                    "progress": 0,
+                    "total": 0,
+                    "success": 0,
+                    "failed": 0,
+                    "last_run": None,
+                    "error_message": None
+                }
+                self.stop_flags[source_id] = False
+
+            return adapter
+
+        # 알 수 없는 source_id
+        raise ValueError(f"Unknown source_id: {source_id}")
 
     def get_status(self, source_id: str) -> dict:
         """특정 크롤러의 현재 상태를 반환합니다."""
-        # Use refactored crawler if available
-        if source_id in self.crawlers:
-            return self.crawlers[source_id].get_status()
-        return self.crawlers_status.get(source_id, {})
+        # Try to get or create adapter
+        try:
+            adapter = self._create_adapter(source_id)
+            return adapter.get_status()
+        except ValueError:
+            # Fallback to static status
+            return self.crawlers_status.get(source_id, {})
 
     def get_all_status(self) -> dict:
         """모든 크롤러의 상태를 반환합니다."""
@@ -151,11 +135,14 @@ class SourceManager:
 
     def stop_crawler(self, source_id: str):
         """크롤러 중단 플래그를 설정합니다."""
-        # Use refactored crawler if available
-        if source_id in self.crawlers:
-            self.crawlers[source_id].stop()
-        elif source_id in self.stop_flags:
-            self.stop_flags[source_id] = True
+        # Try to get or create adapter
+        try:
+            adapter = self._create_adapter(source_id)
+            adapter.stop()
+        except ValueError:
+            # Fallback to static stop flag
+            if source_id in self.stop_flags:
+                self.stop_flags[source_id] = True
 
     def _reset_status(self, source_id: str):
         """크롤러 상태를 초기화합니다."""
@@ -812,6 +799,30 @@ class SourceManager:
             }
         finally:
             db.close()
+
+    async def execute(self, source_id: str, callback: Optional[Callable] = None):
+        """
+        통합 실행 메서드 - 동적 Adapter 생성을 지원합니다.
+
+        Args:
+            source_id: 실행할 소스 ID (예: "source:jbtp:local", "source:jbtp:business", etc.)
+            callback: 실시간 업데이트를 전송할 콜백 함수 (WebSocket send)
+        """
+        try:
+            # 동적으로 Adapter 생성 또는 조회
+            adapter = self._create_adapter(source_id)
+
+            # Adapter 실행 (.execute() 메서드 호출)
+            await adapter.execute(callback)
+
+        except ValueError as e:
+            # 알 수 없는 source_id
+            if callback:
+                await self._send_event(callback, "error", {
+                    "source_id": source_id,
+                    "message": f"Unknown source: {str(e)}"
+                })
+            raise
 
 
 # Singleton instance
