@@ -139,13 +139,13 @@ export default function SampleBoardMainPage() {
 
           {/* ========== 4. 기업 맞춤형 지원 사업 섹션 ========== */}
           {/*
-            sourceId='source:bizinfo:api': 기업을 위한 맞춤형 지원 사업
+            sourceId='source:bizinfo:web': 기업을 위한 맞춤형 지원 사업
             스타트업 지원, 중소기업 지원, 벤처 육성 등
           */}
           <CategorySection
             title="기업 맞춤형 지원 사업"
             description="스타트업 및 중소기업을 위한 맞춤형 지원"
-            sourceId="source:bizinfo:api"
+            sourceId="source:bizinfo:web"
             viewAllLink="/sample-board/business"
             limit={3}
           />

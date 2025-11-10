@@ -12,7 +12,7 @@ export enum NoticeSource {
   NTIS_RSS = 'source:ntis:rss',           // 정부공고 - NTIS
   JBTP_LOCAL = 'source:jbtp:local',       // 지자체 공고 - (재)전북테크노파크
   JBTP_EXTERNAL = 'source:jbtp:external', // 유관기관 공고 - (재)전북테크노파크
-  BIZINFO_API = 'source:bizinfo:api',     // 기업마당 정보 - 기업마당
+  BIZINFO_API = 'source:bizinfo:web',     // 기업마당 정보 - 기업마당
 }
 
 /**
@@ -22,7 +22,6 @@ export interface SourceInfo {
   displayName: string;
   organization: string;
   organizationFull: string;
-  type: string;
   description: string;
 }
 
@@ -31,28 +30,24 @@ export const SOURCE_INFO: Record<NoticeSource, SourceInfo> = {
     displayName: '정부공고',
     organization: 'NTIS',
     organizationFull: '국가과학기술지식정보서비스',
-    type: 'RSS',
     description: '정부 R&D 지원 사업 공고',
   },
   [NoticeSource.JBTP_LOCAL]: {
     displayName: '지자체 공고',
     organization: '(재)전북테크노파크',
     organizationFull: '재단법인 전북테크노파크',
-    type: 'Crawling',
     description: '전북 지역 지자체 지원 사업 공고',
   },
   [NoticeSource.JBTP_EXTERNAL]: {
     displayName: '유관기관 공고',
     organization: '(재)전북테크노파크',
     organizationFull: '재단법인 전북테크노파크',
-    type: 'Crawling',
     description: '유관기관 지원 사업 공고',
   },
   [NoticeSource.BIZINFO_API]: {
     displayName: '기업마당 정보',
     organization: '기업마당',
     organizationFull: '중소기업 종합정보시스템',
-    type: 'API',
     description: '중소기업 지원 사업 정보',
   },
 };

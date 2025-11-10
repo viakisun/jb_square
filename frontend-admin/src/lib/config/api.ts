@@ -48,7 +48,7 @@ export const API = {
       jbtp: `${WS_BASE_URL}/api/notices/crawl/source:jbtp:local`,
       jbtpExternal: `${WS_BASE_URL}/api/notices/crawl/source:jbtp:external`,
       jbtpEvents: `${WS_BASE_URL}/api/notices/crawl/source:jbtp:events`,
-      bizinfo: `${WS_BASE_URL}/api/notices/crawl/source:bizinfo:api`,
+      bizinfo: `${WS_BASE_URL}/api/notices/crawl/source:bizinfo:web`,
       ntisRss: `${WS_BASE_URL}/api/notices/crawl/source:ntis:rss`,
       // Note: bi_center is NOT a notice source - it crawls directory information
       // and uses a separate WebSocket endpoint (if needed in the future)

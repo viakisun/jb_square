@@ -16,7 +16,7 @@ async def get_crawling_sources():
             {"id": "source:jbtp:external", "name": "JBTP 유관기관공고", "enabled": True, "last_run": "2025-10-24T14:30:00"},
             {"id": "source:jbtp:events", "name": "JBTP 바이오행사", "enabled": True, "last_run": "2025-10-24T14:30:00"},
             {"id": "source:ntis:rss", "name": "NTIS 국가R&D", "enabled": True, "last_run": "2025-10-24T14:28:00"},
-            {"id": "source:bizinfo:api", "name": "기업마당", "enabled": True, "last_run": "2025-10-24T14:25:00"},
+            {"id": "source:bizinfo:web", "name": "기업마당", "enabled": True, "last_run": "2025-10-24T14:25:00"},
             {"id": "source:news:mfds", "name": "식약처 뉴스", "enabled": True, "last_run": "2025-10-24T14:20:00"},
             {"id": "source:news:mohw", "name": "보건복지부 뉴스", "enabled": True, "last_run": "2025-10-24T14:20:00"},
             # Note: bi_center is NOT a notice source - it's a directory crawler (separate system)

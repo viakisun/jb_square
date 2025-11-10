@@ -20,7 +20,7 @@
 		| 'source:ntis:rss'
 		| 'source:jbtp:local'
 		| 'source:jbtp:external'
-		| 'source:bizinfo:api';
+		| 'source:bizinfo:web';
 
 	interface Props {
 		sourceId: SourceId; // NoticeSource enum values
