@@ -61,27 +61,8 @@ def get_db():
         db.close()
 
 
-class CrawlerConfig(Base):
-    """크롤러 설정 모델"""
-    __tablename__ = 'crawler_configs'
-
-    id = Column(Integer, primary_key=True)
-    source_id = Column(String(50), unique=True, nullable=False)  # jbtp, ntis, bizinfo, bi_center
-    keywords = Column(JSON, default=[])  # 키워드 배열
-    enabled = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.now)
-    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
-
-    def to_dict(self):
-        """딕셔너리로 변환"""
-        return {
-            'id': self.id,
-            'source_id': self.source_id,
-            'keywords': self.keywords or [],
-            'enabled': self.enabled,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
-        }
+# CrawlerConfig는 src/models/crawler_config.py에 정의되어 있습니다
+# 이곳의 레거시 정의는 제거되었습니다
 
 
 class CrawlResult(Base):

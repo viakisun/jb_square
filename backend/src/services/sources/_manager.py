@@ -16,9 +16,9 @@ import sys
 sys.path.append(str(Path(__file__).parent.parent.parent.parent / "crawler"))
 
 from src.services.rate_limiter import RateLimiter
-from src.core.database import SessionLocal, CrawlerConfig, CrawlResult
+from src.core.database import SessionLocal, CrawlResult
 from src.models.notice import CrawlQueue
-from src.models.crawler_config import JBTPConfig, BinetConfig, RSSConfig
+from src.models.crawler_config import CrawlerConfig
 from src.services.sources import (
     GovernmentBiCenterAdapter,
     GovernmentBizinfoAdapter,

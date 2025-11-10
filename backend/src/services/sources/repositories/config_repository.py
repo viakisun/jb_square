@@ -150,79 +150,13 @@ class ConfigRepository:
         return default
 
     # ========================================================================
-    # LEGACY: Old Config Methods (for backwards compatibility)
-    # These methods use old tables and will be deprecated after migration
+    # LEGACY: Special case for BI Center
+    # BI Center uses different data structure (region_name, region_code)
     # ========================================================================
-
-    @staticmethod
-    def load_jbtp_configs(config_type: str = 'notices') -> List[Tuple[str, str, List[str], int]]:
-        """
-        DEPRECATED: Use get_configs_by_type('jbtp') instead
-
-        JBTP 설정을 DB에서 로드합니다.
-
-        Args:
-            config_type: 설정 타입 ('notices', 'news_events')
-
-        Returns:
-            List[(게시판명, URL, 키워드, date_range_days)]
-        """
-        # Try new unified config first
-        session = SessionLocal()
-        try:
-            unified_configs = session.query(CrawlerConfig).filter(
-                CrawlerConfig.crawler_type == 'jbtp',
-                CrawlerConfig.enabled == True
-            ).all()
-
-            if unified_configs:
-                # Filter by config_type from config_data
-                result = []
-                for config in unified_configs:
-                    cfg_type = config.config_data.get('config_type') if config.config_data else None
-                    if cfg_type == config_type:
-                        result.append((
-                            config.name,
-                            config.url,
-                            config.keywords or [],
-                            config.date_range_days or 30
-                        ))
-                return result
-
-            # Fallback to old table
-            old_configs = session.query(JBTPConfig).filter(
-                JBTPConfig.config_type == config_type,
-                JBTPConfig.enabled == True
-            ).all()
-            return [
-                (
-                    config.name,
-                    config.board_url,
-                    config.keywords or [],
-                    config.date_range_days or 30
-                )
-                for config in old_configs
-            ]
-        finally:
-            session.close()
-
-    @staticmethod
-    def load_jbtp_external_configs() -> List[Tuple[str, str, List[str], int]]:
-        """
-        DEPRECATED: Use get_configs_by_type('jbtp') instead
-
-        JBTP 유관기관공고 설정을 DB에서 로드합니다.
-
-        Returns:
-            List[(게시판명, URL, 키워드, date_range_days)]
-        """
-        return ConfigRepository.load_jbtp_configs('external_notices')
 
     @staticmethod
     def load_binet_configs() -> List[Tuple[str, str]]:
         """
-        DEPRECATED: Use get_configs_by_type('binet') instead
-
         BI Center 설정을 DB에서 로드합니다.
 
         Returns:
@@ -230,104 +164,25 @@ class ConfigRepository:
         """
         session = SessionLocal()
         try:
-            # Try new unified config first
             unified_configs = session.query(CrawlerConfig).filter(
                 CrawlerConfig.crawler_type == 'binet',
                 CrawlerConfig.enabled == True
             ).all()
 
-            if unified_configs:
-                return [(
-                    config.config_data.get('region_name', ''),
-                    config.config_data.get('region_code', '')
-                ) for config in unified_configs]
-
-            # Fallback to old table
-            old_configs = session.query(BinetConfig).filter(
-                BinetConfig.enabled == True
-            ).all()
-            return [(config.region_name, config.region_code) for config in old_configs]
+            return [(
+                config.config_data.get('region_name', ''),
+                config.config_data.get('region_code', '')
+            ) for config in unified_configs]
         finally:
             session.close()
 
-    @staticmethod
-    def load_ntis_config() -> Optional[Dict]:
-        """
-        DEPRECATED: Use get_config_by_source_id('source:ntis:rss') instead
-
-        NTIS 설정을 DB에서 로드합니다.
-
-        Returns:
-            설정 딕셔너리 또는 None
-        """
-        session = SessionLocal()
-        try:
-            # Try new unified config first
-            unified = session.query(CrawlerConfig).filter(
-                CrawlerConfig.source_id == 'source:ntis:rss',
-                CrawlerConfig.enabled == True
-            ).first()
-
-            if unified:
-                return {
-                    'search_keywords': unified.keywords or [],
-                    'date_range_days': unified.date_range_days or 30,
-                    'enabled': unified.enabled
-                }
-
-            # Fallback to old table
-            old = session.query(NTISConfig).filter(
-                NTISConfig.enabled == True
-            ).first()
-
-            if old:
-                return {
-                    'search_keywords': old.search_keywords or [],
-                    'date_range_days': old.date_range_days or 30,
-                    'enabled': old.enabled
-                }
-
-            return None
-        finally:
-            session.close()
-
-    @staticmethod
-    def load_bizinfo_config() -> Optional[Dict]:
-        """
-        DEPRECATED: Use get_config_by_source_id('source:bizinfo:web') instead
-
-        Bizinfo 설정을 DB에서 로드합니다.
-
-        Returns:
-            설정 딕셔너리 또는 None
-        """
-        session = SessionLocal()
-        try:
-            # Try new unified config first
-            unified = session.query(CrawlerConfig).filter(
-                CrawlerConfig.source_id == 'source:bizinfo:web',
-                CrawlerConfig.enabled == True
-            ).first()
-
-            if unified:
-                return {
-                    'search_keywords': unified.keywords or [],
-                    'date_range_days': unified.date_range_days or 30,
-                    'enabled': unified.enabled
-                }
-
-            # Fallback to old table
-            old = session.query(BizinfoConfig).filter(
-                BizinfoConfig.enabled == True
-            ).first()
-
-            if old:
-                return {
-                    'search_keywords': old.search_keywords or [],
-                    'date_range_days': old.date_range_days or 30,
-                    'enabled': old.enabled
-                }
-
-            return None
-        finally:
-            session.close()
+    # ========================================================================
+    # REMOVED: Legacy methods
+    # The following methods have been removed after migration completion:
+    # - load_jbtp_configs()
+    # - load_jbtp_external_configs()
+    # - load_ntis_config()
+    # - load_bizinfo_config()
+    #
+    # Use get_config(source_id) instead for all adapters
+    # ========================================================================

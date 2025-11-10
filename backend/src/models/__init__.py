@@ -4,15 +4,13 @@ Models package
 
 from .notice import Notice, CrawlQueue
 from .bi_center import BICenter, BICompany
-from .crawler_config import JBTPConfig, BinetConfig, NTISConfig, BizinfoConfig
+from .crawler_config import CrawlerConfig, RSSConfig
 
 __all__ = [
     'Notice',
     'CrawlQueue',
     'BICenter',
     'BICompany',
-    'JBTPConfig',
-    'BinetConfig',
-    'NTISConfig',
-    'BizinfoConfig'
+    'CrawlerConfig',
+    'RSSConfig',  # Still used by rss_config.py router
 ]
