@@ -104,7 +104,7 @@
 			<span class="source-badge">{getSourceLabel(notice.crawler_source_id)}</span>
 		</div>
 		<div class="header-right">
-			{#if notice.crawler_source_id === 'jbtp_external'}
+			{#if notice.crawler_source_id === 'source:jbtp:external'}
 				<!-- 유관기관공고: 작성일 표시 -->
 				<div class="posted-info">
 					<span class="info-label">등록일</span>

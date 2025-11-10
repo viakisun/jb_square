@@ -3,7 +3,7 @@
 	import { Panel } from '$lib/components/layout';
 	import { Button } from '$lib/components/ui/buttons';
 	import CrawlQueueTable from '$lib/components/notices/CrawlQueueTable.svelte';
-	import { CrawlingStatus, BizinfoConfigInline } from '$lib/components/crawling';
+	import { CrawlingStatus, CrawlerConfigInline } from '$lib/components/crawling';
 	import {
 		PublishedNoticesList,
 		AddNoticeModal
@@ -116,7 +116,7 @@
 	</Panel>
 
 	<!-- Bizinfo Crawler Settings -->
-	<BizinfoConfigInline />
+	<CrawlerConfigInline crawlerType="bizinfo" />
 
 	{#if crawlWs.status !== 'idle'}
 		<Panel title="데이터 수집 진행 상황">

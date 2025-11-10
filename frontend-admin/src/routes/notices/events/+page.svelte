@@ -6,13 +6,12 @@
 	import { onMount } from 'svelte';
 	import { Panel } from '$lib/components/layout';
 	import { Button } from '$lib/components/ui/buttons';
-	import { CrawlingStatus } from '$lib/components/crawling';
+	import { CrawlingStatus, CrawlerConfigInline } from '$lib/components/crawling';
 	import {
 		CrawlQueueTable,
 		PublishedNoticesList,
 		AddNoticeModal
 	} from '$lib/components/notices';
-	import JBTPConfigInline from '$lib/components/crawling/JBTPConfigInline.svelte';
 	import { toast } from '$lib/stores/toast';
 	import { API_BASE_URL, WS_BASE_URL } from '$lib/config/api';
 
@@ -231,7 +230,7 @@
 	</Panel>
 
 	<!-- Crawling Configuration -->
-	<JBTPConfigInline configType="events" />
+	<CrawlerConfigInline crawlerType="jbtp" configType="events" />
 
 	<!-- Crawling Status -->
 	{#if crawlStatus !== 'idle'}
@@ -253,7 +252,7 @@
 			{/if}
 
 			<CrawlingStatus
-				sourceId="jbtp_events"
+				sourceId="source:jbtp:events"
 				sourceName="JBTP 바이오행사"
 				status={crawlStatus === 'collecting' || crawlStatus === 'processing' ? 'running' : crawlStatus}
 				progress={crawlProgress.progress}

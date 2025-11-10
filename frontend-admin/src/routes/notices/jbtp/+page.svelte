@@ -6,13 +6,12 @@
 	import { onMount } from 'svelte';
 	import { Panel } from '$lib/components/layout';
 	import { Button } from '$lib/components/ui/buttons';
-	import { CrawlingStatus } from '$lib/components/crawling';
+	import { CrawlingStatus, CrawlerConfigInline } from '$lib/components/crawling';
 	import {
 		CrawlQueueTable,
 		PublishedNoticesList,
 		AddNoticeModal
 	} from '$lib/components/notices';
-	import JBTPConfigInline from '$lib/components/crawling/JBTPConfigInline.svelte';
 	import { toast } from '$lib/stores/toast';
 	import { API_BASE_URL, WS_BASE_URL } from '$lib/config/api';
 
@@ -231,7 +230,7 @@
 	</Panel>
 
 	<!-- Crawling Configuration -->
-	<JBTPConfigInline configType="notices" />
+	<CrawlerConfigInline crawlerType="jbtp" configType="notices" />
 
 	<!-- Crawling Status -->
 	{#if crawlStatus !== 'idle'}

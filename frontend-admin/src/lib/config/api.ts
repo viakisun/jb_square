@@ -44,11 +44,14 @@ export const API = {
       `${API_BASE_URL}/crawling/keywords/${sourceId}`,
     report: (sourceId: string) => `${API_BASE_URL}/crawling/report/${sourceId}`,
     ws: {
-      ntis: `${WS_BASE_URL}/api/crawling/ws/ntis`,
-      biCenter: `${WS_BASE_URL}/api/crawling/ws/bi_center`,
-      jbtp: `${WS_BASE_URL}/api/notices/crawl/jbtp`,
-      jbtpExternal: `${WS_BASE_URL}/api/notices/crawl/jbtp_external`,
-      bizinfo: `${WS_BASE_URL}/api/notices/crawl/bizinfo`,
+      // Notice crawling endpoints (new format: source:org:type)
+      jbtp: `${WS_BASE_URL}/api/notices/crawl/source:jbtp:local`,
+      jbtpExternal: `${WS_BASE_URL}/api/notices/crawl/source:jbtp:external`,
+      jbtpEvents: `${WS_BASE_URL}/api/notices/crawl/source:jbtp:events`,
+      bizinfo: `${WS_BASE_URL}/api/notices/crawl/source:bizinfo:api`,
+      ntisRss: `${WS_BASE_URL}/api/notices/crawl/source:ntis:rss`,
+      // Note: bi_center is NOT a notice source - it crawls directory information
+      // and uses a separate WebSocket endpoint (if needed in the future)
     },
   },
 

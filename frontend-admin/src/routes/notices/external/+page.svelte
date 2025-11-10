@@ -6,13 +6,12 @@
 	import { onMount } from 'svelte';
 	import { Panel } from '$lib/components/layout';
 	import { Button } from '$lib/components/ui/buttons';
-	import { CrawlingStatus } from '$lib/components/crawling';
+	import { CrawlingStatus, CrawlerConfigInline } from '$lib/components/crawling';
 	import {
 		PublishedNoticesList,
 		AddNoticeModal
 	} from '$lib/components/notices';
 	import ExternalNoticeQueueTable from '$lib/components/notices/ExternalNoticeQueueTable.svelte';
-	import JBTPConfigInline from '$lib/components/crawling/JBTPConfigInline.svelte';
 	import { toast } from '$lib/stores/toast';
 	import { API_BASE_URL, WS_BASE_URL } from '$lib/config/api';
 
@@ -47,7 +46,7 @@
 	async function loadQueue() {
 		loading = true;
 		try {
-			const res = await fetch(`${API_BASE_URL}/notices/crawl-queue/list?source_id=jbtp_external`);
+			const res = await fetch(`${API_BASE_URL}/notices/crawl-queue/list?source_id=source:jbtp:external`);
 			const data = await res.json();
 			// Remove duplicates by ID
 			const uniqueItems = Array.from(
@@ -71,7 +70,7 @@
 		errorMessage = '';
 
 		try {
-			const ws = new WebSocket(`${WS_BASE_URL}/api/notices/crawl/jbtp_external`);
+			const ws = new WebSocket(`${WS_BASE_URL}/api/notices/crawl/source:jbtp:external`);
 
 			ws.onmessage = (event) => {
 				const data = JSON.parse(event.data);
@@ -229,7 +228,7 @@
 	</Panel>
 
 	<!-- Crawling Configuration -->
-	<JBTPConfigInline configType="external_notices" />
+	<CrawlerConfigInline crawlerType="jbtp" configType="external_notices" />
 
 	<!-- Crawling Status -->
 	{#if crawlStatus !== 'idle'}
@@ -251,7 +250,7 @@
 			{/if}
 
 			<CrawlingStatus
-				sourceId="jbtp_external"
+				sourceId="source:jbtp:external"
 				sourceName="JBTP 유관기관"
 				status={crawlStatus === 'collecting' || crawlStatus === 'processing' ? 'running' : crawlStatus}
 				progress={crawlProgress.progress}

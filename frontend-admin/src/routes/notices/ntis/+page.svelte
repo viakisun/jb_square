@@ -6,7 +6,7 @@
 	import { onMount } from 'svelte';
 	import { Panel } from '$lib/components/layout';
 	import { Button } from '$lib/components/ui/buttons';
-	import { CrawlingStatus, NTISConfigInline } from '$lib/components/crawling';
+	import { CrawlingStatus, CrawlerConfigInline } from '$lib/components/crawling';
 	import {
 		CrawlQueueTable,
 		PublishedNoticesList,
@@ -45,7 +45,7 @@
 	async function loadQueue() {
 		loading = true;
 		try {
-			const res = await fetch(`${API_BASE_URL}/notices/crawl-queue/list?source_id=ntis_rss`);
+			const res = await fetch(`${API_BASE_URL}/notices/crawl-queue/list?source_id=source:ntis:rss`);
 			const data = await res.json();
 			queueItems = data.items;
 		} catch (error) {
@@ -64,7 +64,7 @@
 		errorMessage = '';
 
 		try {
-			const ws = new WebSocket(`${WS_BASE_URL}/api/notices/crawl/ntis_rss`);
+			const ws = new WebSocket(`${WS_BASE_URL}/api/notices/crawl/source:ntis:rss`);
 
 			ws.onmessage = (event) => {
 				const data = JSON.parse(event.data);
@@ -196,7 +196,7 @@
 	</Panel>
 
 	<!-- Crawling Configuration -->
-	<NTISConfigInline />
+	<CrawlerConfigInline crawlerType="ntis" />
 
 	<!-- Crawling Status -->
 	{#if crawlStatus !== 'idle'}
