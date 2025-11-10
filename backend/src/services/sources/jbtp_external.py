@@ -3,6 +3,7 @@ JBTP External Adapter
 JBTP 유관기관공고 크롤러 (6-column table WITHOUT deadline)
 """
 
+import re
 from typing import Dict, Optional
 from .jbtp_base import JBTPBaseAdapter
 
@@ -52,9 +53,6 @@ class JBTPExternalAdapter(JBTPBaseAdapter):
             else:
                 link = 'https://www.jbtp.or.kr/' + link
 
-        # Extract writer (발행 기관) from column 3
-        writer = cols[3].get_text(strip=True)
-
         # NO deadline column in this board!
         posted_date = cols[4].get_text(strip=True)
 
@@ -62,23 +60,33 @@ class JBTPExternalAdapter(JBTPBaseAdapter):
             'title': title,
             'link': link,
             'posted_date': posted_date,
-            'deadline': '',  # No deadline column
-            'writer': writer  # 발행 기관 정보
+            'deadline': ''  # No deadline column
         }
 
     def get_organization(self, notice_data: dict, detail: dict) -> Optional[str]:
         """
         유관기관공고의 발행 기관을 반환합니다.
 
-        테이블의 작성자 컬럼 또는 상세 페이지에서 추출한 작성자 정보를 사용합니다.
+        제목에서 [기관명] 형식으로 된 발행 기관을 추출합니다.
+        예: "[한국산업기술진흥원] 2025년 사업 공고" -> "한국산업기술진흥원"
 
         Args:
-            notice_data: 테이블에서 파싱한 공고 데이터 (writer 포함)
-            detail: 상세 페이지에서 추출한 데이터 (writer 포함)
+            notice_data: 테이블에서 파싱한 공고 데이터 (title 포함)
+            detail: 상세 페이지에서 추출한 데이터 (full_title 포함)
 
         Returns:
             발행 기관명 (예: "한국산업기술진흥원", "중소벤처기업부" 등)
             또는 None (기관 정보 없음)
         """
-        # 우선순위: 테이블의 writer > 상세 페이지의 writer
-        return notice_data.get('writer') or detail.get('writer')
+        # 우선순위: 상세 페이지의 full_title > 테이블의 title
+        title = detail.get('full_title') or notice_data.get('title', '')
+
+        if not title:
+            return None
+
+        # 제목에서 [기관명] 패턴 추출
+        match = re.match(r'^\[([^\]]+)\]', title)
+        if match:
+            return match.group(1)
+
+        return None
