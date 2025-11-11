@@ -126,7 +126,6 @@ export default function BusinessNoticePage() {
       <NoticePageLayout
         pageTitle="기업마당공고"
         pageSubtitle="예비창업부터 중견기업까지 다양한 성장 단계의 기업을 위한 지원 사업 및 공고"
-        breadcrumbCurrent="기업마당공고"
       >
         {/* 검색바 */}
         <div className="mb-12">

@@ -119,7 +119,6 @@ export default function GovernmentNoticePage() {
       <NoticePageLayout
         pageTitle="정부공고"
         pageSubtitle="중앙 정부 각 부처에서 발표하는 바이오 산업 관련 지원 사업 및 공고"
-        breadcrumbCurrent="정부공고"
       >
         {/* 검색바 */}
         <div className="mb-12">

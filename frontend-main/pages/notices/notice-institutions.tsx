@@ -120,7 +120,6 @@ export default function InstitutionsNoticePage() {
       <NoticePageLayout
         pageTitle="유관기관공고"
         pageSubtitle="NTIS, K-STARTUP, 창업진흥원 등 바이오 산업 관련 유관기관의 지원 사업 및 공고"
-        breadcrumbCurrent="유관기관공고"
       >
         {/* 검색바 */}
         <div className="mb-12">

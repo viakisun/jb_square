@@ -119,7 +119,6 @@ export default function LocalGovernmentNoticePage() {
       <NoticePageLayout
         pageTitle="지자체공고"
         pageSubtitle="전라북도 및 산하 지방자치단체에서 발표하는 바이오 산업 관련 지원 사업 및 공고"
-        breadcrumbCurrent="지자체공고"
       >
         {/* 검색바 */}
         <div className="mb-12">

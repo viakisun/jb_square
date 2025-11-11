@@ -46,23 +46,8 @@ interface NoticePageLayoutProps {
   /** 페이지 서브타이틀 (설명) */
   pageSubtitle: string;
 
-  /** Breadcrumb의 현재 페이지 이름 */
-  breadcrumbCurrent: string;
-
   /** Category Label (예: "JB 지원사업 공고", "뉴스/행사") - 기본값: "JB 지원사업 공고" */
   categoryLabel?: string;
-
-  /** Breadcrumb 부모 카테고리 이름 - 기본값: "JB 지원사업 공고" */
-  breadcrumbParent?: string;
-
-  /** Breadcrumb 부모 카테고리 링크 - 기본값: "#" */
-  breadcrumbParentHref?: string;
-
-  /** SEO를 위한 페이지 타이틀 (선택적, 없으면 pageTitle 사용) */
-  metaTitle?: string;
-
-  /** SEO를 위한 페이지 설명 (선택적, 없으면 pageSubtitle 사용) */
-  metaDescription?: string;
 
   /** 자식 컴포넌트 (공고 목록, 페이지네이션 등) */
   children: React.ReactNode;
@@ -74,25 +59,9 @@ interface NoticePageLayoutProps {
 export const NoticePageLayout: React.FC<NoticePageLayoutProps> = ({
   pageTitle,
   pageSubtitle,
-  breadcrumbCurrent,
   categoryLabel = 'JB 지원사업 공고',
-  breadcrumbParent = 'JB 지원사업 공고',
-  breadcrumbParentHref = '#',
-  metaTitle,
-  metaDescription,
   children,
 }) => {
-  /**
-   * Breadcrumb 아이템 데이터
-   *
-   * "홈 > [부모 카테고리] > [현재 페이지]" 형태
-   * 부모 카테고리는 props로 커스터마이징 가능 (기본값: "JB 지원사업 공고")
-   */
-  const breadcrumbItems = [
-    { label: '홈', href: '/' },
-    { label: breadcrumbParent, href: breadcrumbParentHref },
-    { label: breadcrumbCurrent, href: '#', active: true }
-  ];
 
   return (
     <div className="min-h-screen bg-white">
@@ -103,33 +72,9 @@ export const NoticePageLayout: React.FC<NoticePageLayoutProps> = ({
       <main className="max-w-[1060px] mx-auto px-4 py-12">
 
         {/* ============================================
-            1. PAGE TITLE + BREADCRUMB
+            1. PAGE TITLE
             ============================================ */}
-        <section className="mb-20">
-          {/* Breadcrumb 네비게이션 */}
-          <nav className="flex items-center gap-2 mb-6 text-sm" aria-label="breadcrumb">
-            {breadcrumbItems.map((item, index) => (
-              <React.Fragment key={index}>
-                {/* 첫 번째 아이템이 아니면 화살표 추가 */}
-                {index > 0 && (
-                  <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                )}
-                {/* 활성 상태에 따라 다른 스타일 적용 */}
-                <span
-                  className={`px-3 py-1.5 rounded ${
-                    item.active
-                      ? 'bg-white border border-gray-200 text-gray-900 font-medium'
-                      : 'text-gray-600 hover:text-gray-900 cursor-pointer'
-                  }`}
-                >
-                  {item.label}
-                </span>
-              </React.Fragment>
-            ))}
-          </nav>
-
+        <section className="mb-16">
           {/* Category Label - 청록색(cyan) 강조 */}
           <div className="mb-4">
             <span className="text-[#00B8CC] font-semibold text-base tracking-tight">
