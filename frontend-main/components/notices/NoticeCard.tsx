@@ -1,25 +1,18 @@
 /**
- * 📢 공고 카드 컴포넌트 (정식 버전)
+ * 공고 카드 컴포넌트 (정식 버전)
  *
  * 공고 목록 페이지에서 사용하는 카드 컴포넌트입니다.
  * 사용자가 이미 특정 카테고리 페이지에 있으므로 카테고리 태그는 표시하지 않으며,
  * 마감일 정보를 강조하여 표시합니다.
  *
- * **주요 특징:**
- * - 카테고리 태그 제거 (이미 카테고리별 페이지에서 보고 있음)
- * - 마감일 D-day 강조 표시
- * - 반응형 디자인
- * - 단일 컬럼 레이아웃에 최적화
- *
- * **사용 예시:**
- * ```tsx
- * import { NoticeCard } from '@/components/notices/NoticeCard';
- *
- * <NoticeCard notice={notice} />
- * ```
+ * 주요 특징:
+ * - 미니멀한 디자인 (과도한 라운딩 제거)
+ * - 선명한 타이포그래피
+ * - 컬러 사용 최소화
+ * - 명확한 정보 계층
  *
  * @author JB SQUARE 개발팀
- * @version 2.0.0
+ * @version 3.0.0
  */
 
 import React from 'react';
@@ -27,176 +20,147 @@ import Link from 'next/link';
 import { Notice } from '@/lib/api/types';
 import { formatDateSimple, getDeadlineStatus, getDaysUntilDeadline } from '@/lib/utils/date';
 
-/**
- * NoticeCard 컴포넌트 Props 인터페이스
- */
 interface NoticeCardProps {
-  /** 표시할 공고 데이터 */
   notice: Notice;
-
-  /** 클릭 시 실행될 함수 (선택적) */
   onClick?: (notice: Notice) => void;
-
-  /** 새 탭에서 열기 여부 (기본값: false) */
   openInNewTab?: boolean;
 }
 
-/**
- * 공고 카드 컴포넌트
- *
- * @param props - NoticeCardProps
- * @returns 공고 카드 JSX
- */
 export const NoticeCard: React.FC<NoticeCardProps> = ({
   notice,
   onClick,
   openInNewTab = false
 }) => {
-  /**
-   * 카드 클릭 핸들러
-   */
   const handleClick = () => {
     if (onClick) {
       onClick(notice);
     }
   };
 
-  /**
-   * 마감일까지 남은 일수
-   */
   const daysLeft = getDaysUntilDeadline(notice.deadline);
-
-  /**
-   * 마감 상태 표시 (D-day, 오늘 마감, 마감 등)
-   */
   const deadlineStatus = getDeadlineStatus(notice.deadline);
-
-  /**
-   * 마감 임박 여부 (7일 이내)
-   */
   const isUrgent = daysLeft !== null && daysLeft >= 0 && daysLeft <= 7;
-
-  /**
-   * 마감된 공고 여부
-   */
   const isExpired = daysLeft !== null && daysLeft < 0;
-
-  /**
-   * 접수 중 여부 판단
-   * - 마감일이 없으면 일단 접수중으로 표시
-   * - 마감일이 지나지 않았으면 접수중
-   */
   const isOpen = !isExpired;
-
-  /**
-   * 공고 상세 페이지 URL
-   * notice-detail 페이지로 이동 (카테고리별로 분리하지 않음)
-   */
   const detailUrl = `/notices/${notice.id}`;
-
-  /**
-   * 공고일 표시 (announcement_date 우선, 없으면 published_at)
-   */
   const announcementDate = notice.announcement_date || notice.published_at;
 
   return (
     <Link
       href={detailUrl}
       target={openInNewTab ? '_blank' : undefined}
-      className="block"
+      className="block group"
     >
       <div
         onClick={handleClick}
         className={`
-          relative p-4 border rounded-lg hover:shadow-lg transition-all cursor-pointer
-          ${isExpired ? 'bg-gray-50 opacity-70 border-gray-300' : 'bg-white border-gray-200'}
+          relative bg-white border transition-all duration-150
+          ${isExpired
+            ? 'border-gray-200 opacity-50'
+            : 'border-gray-200 hover:border-gray-900 hover:shadow-sm'
+          }
         `}
       >
-        {/* ============================================
-            1. 상단: D-day 배지 + 공고일 + 마감일 (한 줄)
-            ============================================ */}
-        <div className="flex items-center gap-3 mb-3 text-sm">
-          {/* D-day 배지 또는 상시공고 배지 */}
-          {notice.deadline ? (
-            <span
-              className={`
-                inline-flex items-center justify-center
-                px-3 py-1 rounded-md text-xs font-bold
-                ${isExpired ? 'bg-gray-500 text-white' : ''}
-                ${isUrgent && !isExpired ? 'bg-red-500 text-white' : ''}
-                ${!isUrgent && !isExpired ? 'bg-blue-500 text-white' : ''}
-              `}
-            >
-              {deadlineStatus}
-            </span>
-          ) : (
-            <span className="inline-flex items-center justify-center px-3 py-1 rounded-md text-xs font-bold bg-green-500 text-white">
-              상시공고
-            </span>
-          )}
+        {/* 마감 임박 시 좌측 강조 라인 */}
+        {isUrgent && !isExpired && (
+          <div className="absolute left-0 top-0 bottom-0 w-1 bg-red-600"></div>
+        )}
 
-          {/* 공고일 */}
-          {announcementDate && (
-            <span className="text-gray-600">
-              공고: {formatDateSimple(announcementDate)}
-            </span>
-          )}
+        <div className={`p-6 ${isUrgent && !isExpired ? 'pl-7' : ''}`}>
+          {/* 상단: 상태 + 일자 정보 */}
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              {/* 상태 배지 - 미니멀 */}
+              {notice.deadline ? (
+                <span
+                  className={`
+                    text-xs font-bold tracking-wide uppercase
+                    ${isExpired
+                      ? 'text-gray-400'
+                      : isUrgent
+                      ? 'text-red-600'
+                      : 'text-gray-900'
+                    }
+                  `}
+                >
+                  {deadlineStatus}
+                </span>
+              ) : (
+                <span className="text-xs font-bold tracking-wide uppercase text-green-600">
+                  상시모집
+                </span>
+              )}
 
-          {/* 마감일 (마감일이 있는 경우만) */}
-          {notice.deadline && (
-            <>
-              <span className="text-gray-300">|</span>
-              <span className={`${isUrgent && !isExpired ? 'text-red-600 font-semibold' : 'text-gray-600'}`}>
-                마감: {formatDateSimple(notice.deadline)}
+              {/* 구분선 */}
+              <div className="w-px h-3 bg-gray-300"></div>
+
+              {/* 접수 상태 */}
+              <span
+                className={`
+                  text-xs font-semibold tracking-wide uppercase
+                  ${isOpen ? 'text-green-600' : 'text-gray-400'}
+                `}
+              >
+                {isOpen ? '접수중' : '마감'}
               </span>
-            </>
-          )}
-        </div>
+            </div>
 
-        {/* ============================================
-            2. 공고 제목
-            ============================================ */}
-        <h3 className="text-lg font-bold text-gray-900 mb-3 line-clamp-2 leading-snug">
-          {notice.title}
-        </h3>
-
-        {/* ============================================
-            3. 하단: 기관명 + 접수중/마감 버튼
-            ============================================ */}
-        <div className="flex items-center justify-between">
-          {/* 왼쪽: 기관명 */}
-          <div className="flex items-center gap-1.5 text-sm text-gray-600">
-            <svg
-              className="w-4 h-4 text-gray-400"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
-              />
-            </svg>
-            <span>{notice.organization || '미지정'}</span>
+            {/* 일자 정보 */}
+            <div className="flex items-center gap-3 text-xs text-gray-500">
+              {announcementDate && (
+                <span>공고 {formatDateSimple(announcementDate)}</span>
+              )}
+              {notice.deadline && (
+                <>
+                  <span>•</span>
+                  <span className={isUrgent && !isExpired ? 'text-red-600 font-semibold' : ''}>
+                    마감 {formatDateSimple(notice.deadline)}
+                  </span>
+                </>
+              )}
+            </div>
           </div>
 
-          {/* 오른쪽: 접수중/마감 버튼 */}
-          <div>
-            <button
-              type="button"
-              className={`
-                px-3 py-1.5 rounded-md text-xs font-semibold transition-colors
-                ${isOpen
-                  ? 'bg-green-500 text-white hover:bg-green-600'
-                  : 'bg-gray-400 text-white cursor-not-allowed'
-                }
-              `}
-              disabled={!isOpen}
-            >
-              {isOpen ? '접수중' : '마감'}
-            </button>
+          {/* 제목 */}
+          <h3 className="text-xl font-bold text-gray-900 mb-4 leading-tight group-hover:text-black transition-colors">
+            {notice.title}
+          </h3>
+
+          {/* 하단: 기관명 */}
+          <div className="flex items-center justify-between border-t border-gray-100 pt-4">
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <svg
+                className="w-4 h-4 text-gray-400"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+                />
+              </svg>
+              <span className="font-medium">{notice.organization || '미지정'}</span>
+            </div>
+
+            {/* 화살표 */}
+            <div className="text-gray-400 group-hover:text-gray-900 transition-colors">
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M13 7l5 5m0 0l-5 5m5-5H6"
+                />
+              </svg>
+            </div>
           </div>
         </div>
       </div>
