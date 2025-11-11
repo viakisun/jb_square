@@ -31,6 +31,15 @@ interface Benefit {
   title: string;
   /** 혜택 설명 */
   description: string;
+  /** 이미지 경로 */
+  imagePath: string;
+  /** 이미지 스타일 (Figma 정확한 위치) */
+  imageStyle: {
+    width: number;
+    height: number;
+    left: number;
+    top?: number;
+  };
 }
 
 /**
@@ -38,28 +47,56 @@ interface Benefit {
  */
 const BENEFITS: Benefit[] = [
   {
-    id: 'search',
-    icon: 'search',
-    title: '통합 정보 검색',
-    description: '전북 바이오 산업 관련 공고, 기업, 기관 정보를 한 곳에서 검색하고 확인할 수 있습니다.',
-  },
-  {
-    id: 'notification',
+    id: 'priority-notification',
     icon: 'notification',
-    title: '맞춤형 알림',
-    description: '관심 분야의 새로운 지원사업 공고와 중요 소식을 실시간으로 받아보세요.',
+    title: '지원사업 우선 알림 제공',
+    description: '신규·진행 중인 바이오 지원사업 정보를 회원에게 가장 빠르게 우선 안내',
+    imagePath: '/images/5f7932138f5cede6982f7d3246d54ed9928a622e.png',
+    imageStyle: {
+      width: 180,
+      height: 180,
+      left: 118,
+      top: 0
+    }
   },
   {
-    id: 'network',
+    id: 'custom-info',
+    icon: 'search',
+    title: '맞춤형 정보',
+    description: '기업 유형과 성장 단계에 적합한 정책·사업 등 맞춤 정보 제공',
+    imagePath: '/images/a77f8cd8431bb857fe1eefef15c966b63757205f.png',
+    imageStyle: {
+      width: 188,
+      height: 180,
+      left: 111,
+      top: 0
+    }
+  },
+  {
+    id: 'networking',
     icon: 'network',
     title: '네트워킹 기회',
-    description: '전북 바이오 산업 관계자들과의 네트워킹 이벤트 및 교류 프로그램에 참여하실 수 있습니다.',
+    description: '바이오 커뮤니티 행사 및 회원 대상 네트워킹 기회 우선 초청',
+    imagePath: '/images/bd2cffde3096d59a6dab7097dea33ec544142c7b.png',
+    imageStyle: {
+      width: 208,
+      height: 103,
+      left: 90,
+      top: 45
+    }
   },
   {
-    id: 'support',
+    id: 'expert-consulting',
     icon: 'support',
-    title: '전문 컨설팅',
-    description: '사업 운영, 기술 개발, 자금 조달 등 다양한 분야의 전문가 컨설팅을 받을 수 있습니다.',
+    title: '전문가 상담',
+    description: '창업·투자·인증 등 분야별 전문가와 1:1 실무 중심 전문 상담 제공',
+    imagePath: '/images/37eceff4089c34c12c0b104004a2a8ccc12234df.png',
+    imageStyle: {
+      width: 190,
+      height: 188,
+      left: 108,
+      top: 0
+    }
   },
 ];
 
@@ -119,91 +156,95 @@ const BenefitIcon: React.FC<{ type: Benefit['icon'] }> = ({ type }) => {
 
 export const BenefitSection: React.FC = () => {
   return (
-    <section className="py-16 bg-gradient-to-br from-primary-blue/5 via-primary-cyan/5 to-white">
-      <Container>
+    <section style={{ paddingTop: '80px', paddingBottom: '80px', backgroundColor: '#FFFFFF' }}>
+      <div style={{ maxWidth: '1520px', margin: '0 auto', padding: '0 20px' }}>
         {/* 섹션 헤더 */}
-        <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold text-gray-900 mb-3">
-            JB SQUARE 회원 혜택
+        <div className="mb-12">
+          <h2 className="font-bold mb-2" style={{ fontSize: '48px', letterSpacing: '-0.48px', lineHeight: '72px', color: '#121418' }}>
+            회원 혜택
           </h2>
-          <p className="text-gray-600">
-            회원가입 후 다양한 혜택을 누려보세요
+          <p style={{ fontSize: '20px', letterSpacing: '-0.2px', lineHeight: '26px', color: '#6C747E' }}>
+            회원에게만 제공되는 맞춤형 정보와 실질적인 성장 지원 혜택을 만나보세요.
           </p>
         </div>
 
-        {/* 혜택 그리드 */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
-          {BENEFITS.map((benefit, index) => (
+        {/* 혜택 카드 그리드 - 4개 카드 1열 */}
+        <div className="flex" style={{ gap: '24px', marginBottom: '60px' }}>
+          {BENEFITS.map((benefit) => (
             <div
               key={benefit.id}
-              className="group"
-              style={{ animationDelay: `${index * 100}ms` }}
+              className="flex flex-col"
+              style={{
+                flex: '1 1 0',
+                backgroundColor: '#F3F6FB',
+                padding: '32px',
+                borderRadius: '8px',
+                gap: '32px',
+                alignItems: 'flex-end'
+              }}
             >
-              <div className="bg-white rounded-xl p-8 shadow-sm hover:shadow-card transition-all h-full flex flex-col items-center text-center border border-gray-100 hover:border-primary-blue">
-                {/* 아이콘 영역 */}
-                <div className="w-16 h-16 mb-6 text-primary-blue group-hover:text-primary-cyan transition-colors">
-                  <BenefitIcon type={benefit.icon} />
-                </div>
-
+              {/* 텍스트 영역 */}
+              <div style={{ alignSelf: 'stretch', display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {/* 제목 */}
-                <h3 className="text-xl font-bold text-gray-900 mb-3 group-hover:text-primary-blue transition-colors">
+                <h3 style={{ fontSize: '24px', fontWeight: '700', lineHeight: '36px', color: '#121418', wordWrap: 'break-word' }}>
                   {benefit.title}
                 </h3>
 
                 {/* 설명 */}
-                <p className="text-gray-600 text-sm leading-relaxed">
+                <p style={{ fontSize: '18px', fontWeight: '400', lineHeight: '27px', color: '#3A3F49', wordWrap: 'break-word' }}>
                   {benefit.description}
                 </p>
+              </div>
+
+              {/* 이미지 영역 */}
+              <div
+                style={{
+                  alignSelf: 'stretch',
+                  height: '180px',
+                  position: 'relative'
+                }}
+              >
+                <img
+                  src={benefit.imagePath}
+                  alt={benefit.title}
+                  style={{
+                    width: `${benefit.imageStyle.width}px`,
+                    height: `${benefit.imageStyle.height}px`,
+                    left: `${benefit.imageStyle.left}px`,
+                    top: `${benefit.imageStyle.top || 0}px`,
+                    position: 'absolute'
+                  }}
+                />
               </div>
             </div>
           ))}
         </div>
 
         {/* CTA 버튼 */}
-        <div className="text-center">
+        <div className="flex justify-center">
           <Link
             href="/auth/signup"
-            className="inline-flex items-center gap-3 px-8 py-4 bg-primary-blue text-white font-bold rounded-xl hover:bg-primary-cyan transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+            className="transition-colors"
+            style={{
+              fontSize: '18px',
+              fontWeight: '500',
+              lineHeight: '27px',
+              paddingLeft: '24px',
+              paddingRight: '24px',
+              paddingTop: '16px',
+              paddingBottom: '16px',
+              backgroundColor: '#10409A',
+              color: 'white',
+              borderRadius: '8px',
+              display: 'inline-flex',
+              justifyContent: 'center',
+              alignItems: 'center'
+            }}
           >
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"
-              />
-            </svg>
-            <span>지금 무료로 가입하기</span>
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9 5l7 7-7 7"
-              />
-            </svg>
+            회원가입하고 혜택 받기
           </Link>
-          <p className="mt-4 text-sm text-gray-500">
-            이미 회원이신가요?{' '}
-            <Link
-              href="/auth/login"
-              className="text-primary-blue hover:text-primary-cyan font-medium underline"
-            >
-              로그인
-            </Link>
-          </p>
         </div>
-      </Container>
+      </div>
     </section>
   );
 };

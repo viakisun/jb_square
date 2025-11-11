@@ -1,10 +1,11 @@
 /**
- * 🤝 주요 기관 섹션 컴포넌트
+ * 🏢 주요 기업 섹션 컴포넌트
  *
- * 메인 페이지의 주요 협력 기관 섹션
- * - 주요 파트너 기관 로고 및 링크
- * - 4열 그리드 레이아웃 (반응형: 4→3→2)
- * - 호버 효과로 상호작용성 강화
+ * 메인 페이지의 주요 기업 섹션
+ * - 전북 바이오 산업의 핵심 기업 소개
+ * - 2열 그리드 레이아웃
+ * - 기업 로고 + 설명 카드 형태
+ * - API에서 실시간 기업 데이터 조회
  *
  * Figma 디자인 기반으로 구현
  *
@@ -12,173 +13,363 @@
  * <PartnerSection />
  *
  * @author JB SQUARE 개발팀
- * @version 1.0.0
+ * @version 2.0.0
  */
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Container } from '@/components/common/Container';
-
-/**
- * 주요 파트너 기관 정보
- */
-interface Partner {
-  /** 기관 ID */
-  id: string;
-  /** 기관명 */
-  name: string;
-  /** 기관 설명 */
-  description: string;
-  /** 웹사이트 URL */
-  website: string;
-  /** 로고 이미지 URL (추후 실제 로고로 교체) */
-  logo?: string;
-}
-
-/**
- * 주요 파트너 기관 목록
- * TODO: 추후 API에서 가져오도록 변경
- */
-const PARTNERS: Partner[] = [
-  {
-    id: 'jbtp',
-    name: '전북테크노파크',
-    description: '전북 산업 혁신의 중심',
-    website: 'https://www.jbtp.or.kr',
-  },
-  {
-    id: 'ntis',
-    name: '국가과학기술지식정보서비스',
-    description: 'NTIS',
-    website: 'https://www.ntis.go.kr',
-  },
-  {
-    id: 'bizinfo',
-    name: '중소기업 지원사업',
-    description: 'K-Startup',
-    website: 'https://www.bizinfo.go.kr',
-  },
-  {
-    id: 'jeonbuk',
-    name: '전라북도',
-    description: '전북특별자치도청',
-    website: 'https://www.jeonbuk.go.kr',
-  },
-  {
-    id: 'kotra',
-    name: '대한무역투자진흥공사',
-    description: 'KOTRA',
-    website: 'https://www.kotra.or.kr',
-  },
-  {
-    id: 'smba',
-    name: '중소벤처기업부',
-    description: '중소기업 정책 총괄',
-    website: 'https://www.mss.go.kr',
-  },
-  {
-    id: 'kised',
-    name: '중소기업유통센터',
-    description: 'KISED',
-    website: 'https://www.kised.or.kr',
-  },
-  {
-    id: 'kbiz',
-    name: '중소기업중앙회',
-    description: '중소기업 권익 대변',
-    website: 'http://www.kbiz.or.kr',
-  },
-];
+import { Organization } from '@/lib/api/types';
+import api from '@/lib/api/client';
 
 export const PartnerSection: React.FC = () => {
+  const [companies, setCompanies] = useState<Organization[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+
+  /**
+   * 기업 데이터 조회
+   */
+  const fetchCompanies = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const response = await api.organizations.getList({
+        limit: 6,
+        sort_by: 'created_at',
+        sort_order: 'desc'
+      });
+
+      setCompanies(response.items);
+    } catch (err) {
+      console.error('Failed to fetch companies:', err);
+      setError('기업 정보를 불러오는데 실패했습니다.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /**
+   * 컴포넌트 마운트 시 데이터 로딩
+   */
+  useEffect(() => {
+    fetchCompanies();
+  }, []);
+
+  /**
+   * 기업명 표시 (company_name 또는 name 사용)
+   */
+  const getCompanyName = (company: Organization): string => {
+    return company.company_name || company.name || '이름 없음';
+  };
+
+  /**
+   * 기업 설명 생성 (주요제품명 사용, 없으면 기본 문구)
+   */
+  const getCompanyDescription = (company: Organization): string => {
+    if (company.main_products_and_services) {
+      return company.main_products_and_services;
+    }
+    return '전북 바이오 산업의 핵심 기업입니다.';
+  };
+
+  /**
+   * 로고 컴포넌트 렌더링
+   */
+  const renderCompanyLogo = (company: Organization) => {
+    // TODO: 추후 실제 로고 URL 필드 추가 시 사용
+    const logoUrl = null; // company.logo_url
+
+    if (logoUrl) {
+      return <img src={logoUrl} alt={getCompanyName(company)} className="w-full h-full object-contain p-4" />;
+    }
+
+    // 로고가 없을 때: 기업명 첫 2글자를 그라디언트 배경과 함께 표시
+    const companyName = getCompanyName(company);
+
+    // 기업 ID 기반으로 색상 선택 (일관된 색상 유지)
+    const colors = [
+      { bg: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', text: '#FFFFFF' },
+      { bg: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)', text: '#FFFFFF' },
+      { bg: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)', text: '#FFFFFF' },
+      { bg: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)', text: '#FFFFFF' },
+      { bg: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)', text: '#FFFFFF' },
+      { bg: 'linear-gradient(135deg, #30cfd0 0%, #330867 100%)', text: '#FFFFFF' },
+    ];
+
+    const colorIndex = company.id % colors.length;
+    const color = colors[colorIndex];
+
+    if (companyName && companyName.length >= 2) {
+      return (
+        <div
+          style={{
+            width: '100%',
+            height: '100%',
+            background: color.bg,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '28px',
+            fontWeight: '700',
+            color: color.text,
+            letterSpacing: '-0.5px'
+          }}
+        >
+          {companyName.substring(0, 2)}
+        </div>
+      );
+    }
+
+    // 기본 빌딩 아이콘
+    return (
+      <svg className="w-12 h-12 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={1.5}
+          d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+        />
+      </svg>
+    );
+  };
+
   return (
-    <section className="py-16 bg-gray-50">
-      <Container>
+    <section style={{ paddingTop: '80px', paddingBottom: '80px', backgroundColor: '#FFFFFF' }}>
+      <div style={{ maxWidth: '1520px', margin: '0 auto', padding: '0 20px' }}>
         {/* 섹션 헤더 */}
-        <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold text-gray-900 mb-3">
-            주요 협력 기관
-          </h2>
-          <p className="text-gray-600">
-            JB SQUARE와 함께하는 주요 파트너 기관입니다
-          </p>
+        <div style={{ alignSelf: 'stretch', justifyContent: 'space-between', alignItems: 'flex-end', display: 'inline-flex', marginBottom: '40px' }}>
+          <div style={{ flexDirection: 'column', justifyContent: 'flex-start', alignItems: 'flex-start', gap: '4px', display: 'inline-flex' }}>
+            <h2 style={{ color: '#121418', fontSize: '48px', fontWeight: '700', lineHeight: '72px', wordWrap: 'break-word' }}>
+              주요 기업
+            </h2>
+            <p style={{ color: '#6C747E', fontSize: '20px', fontWeight: '400', lineHeight: '26px', wordWrap: 'break-word' }}>
+              바이오 산업의 미래 가치를 만들어가는 전북의 핵심 기업들을 소개합니다.
+            </p>
+          </div>
+          <Link
+            href="/companies/directory"
+            style={{
+              paddingLeft: '20px',
+              paddingRight: '20px',
+              paddingTop: '12px',
+              paddingBottom: '12px',
+              background: '#FFFFFF',
+              borderRadius: '8px',
+              outline: '1px #D6DBE1 solid',
+              outlineOffset: '-1px',
+              justifyContent: 'center',
+              alignItems: 'center',
+              gap: '4px',
+              display: 'flex'
+            }}
+          >
+            <span style={{ color: '#24272D', fontSize: '18px', fontWeight: '500', lineHeight: '27px', wordWrap: 'break-word' }}>
+              더보기
+            </span>
+            <div style={{ width: '24px', height: '24px', position: 'relative', overflow: 'hidden' }}>
+              <svg style={{ width: '10px', height: '5px', position: 'absolute', left: '9.5px', top: '17px', transform: 'rotate(-90deg)', transformOrigin: 'top left' }} fill="none" viewBox="0 0 10 5">
+                <path d="M0 0L5 5L10 0" stroke="#24272D" strokeWidth="1.5" />
+              </svg>
+            </div>
+          </Link>
         </div>
 
-        {/* 파트너 기관 그리드 */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-          {PARTNERS.map((partner) => (
-            <a
-              key={partner.id}
-              href={partner.website}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="block group"
-            >
-              <div className="bg-white rounded-lg p-8 shadow-sm hover:shadow-card transition-all h-full flex flex-col items-center justify-center border border-gray-100 hover:border-primary-blue">
-                {/* 로고 영역 (플레이스홀더) */}
-                <div className="w-full aspect-square mb-4 bg-gradient-to-br from-gray-100 to-gray-50 rounded-lg flex items-center justify-center group-hover:from-primary-blue/5 group-hover:to-primary-cyan/5 transition-all">
-                  {partner.logo ? (
-                    <img
-                      src={partner.logo}
-                      alt={partner.name}
-                      className="w-full h-full object-contain p-4"
-                    />
-                  ) : (
-                    // 로고 플레이스홀더 아이콘
-                    <svg
-                      className="w-16 h-16 text-gray-300 group-hover:text-primary-blue transition-colors"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={1.5}
-                        d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
-                      />
-                    </svg>
-                  )}
+      {/* 기업 목록 */}
+      {loading ? (
+        // 로딩 상태
+        <div className="flex flex-col" style={{ gap: '40px' }}>
+          {Array.from({ length: 3 }).map((_, rowIndex) => (
+            <div key={rowIndex} className="flex" style={{ gap: '60px' }}>
+              {Array.from({ length: 2 }).map((_, colIndex) => (
+                <div key={colIndex} className="flex items-center animate-pulse" style={{ flex: '1 1 0', gap: '24px' }}>
+                  <div className="rounded-full bg-gray-200" style={{ width: '100px', height: '100px', flexShrink: 0 }} />
+                  <div className="flex flex-col" style={{ flex: '1 1 0', gap: '8px' }}>
+                    <div className="h-6 bg-gray-200 rounded" style={{ width: '60%' }} />
+                    <div className="h-4 bg-gray-200 rounded" style={{ width: '100%' }} />
+                    <div className="h-4 bg-gray-200 rounded" style={{ width: '80%' }} />
+                  </div>
                 </div>
-
-                {/* 기관명 */}
-                <h3 className="text-center font-bold text-gray-900 mb-1 group-hover:text-primary-blue transition-colors text-sm">
-                  {partner.name}
-                </h3>
-
-                {/* 설명 */}
-                <p className="text-center text-xs text-gray-500 group-hover:text-gray-700 transition-colors">
-                  {partner.description}
-                </p>
-
-                {/* 외부 링크 아이콘 */}
-                <div className="mt-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <svg
-                    className="w-4 h-4 text-primary-blue"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-                    />
-                  </svg>
-                </div>
-              </div>
-            </a>
+              ))}
+            </div>
           ))}
         </div>
-
-        {/* 하단 안내 메시지 */}
-        <div className="mt-12 text-center">
-          <p className="text-sm text-gray-500">
-            더 많은 협력 기관과 함께 전북 바이오 산업의 발전을 도모하고 있습니다
-          </p>
+      ) : error ? (
+        // 에러 상태
+        <div className="text-center py-12">
+          <p className="text-gray-600 mb-4">{error}</p>
+          <button
+            onClick={fetchCompanies}
+            className="px-6 py-2 bg-gray-900 text-white hover:bg-black transition-colors rounded-lg"
+          >
+            다시 시도
+          </button>
         </div>
-      </Container>
+      ) : companies.length === 0 ? (
+        // 데이터 없음
+        <div className="text-center py-12">
+          <p className="text-gray-600">등록된 기업이 없습니다.</p>
+        </div>
+      ) : (
+        // 기업 목록
+        <div style={{ alignSelf: 'stretch', flexDirection: 'column', justifyContent: 'center', alignItems: 'flex-start', gap: '40px', display: 'flex' }}>
+          {/* Row 1 */}
+          <div style={{ alignSelf: 'stretch', justifyContent: 'flex-start', alignItems: 'flex-start', gap: '60px', display: 'inline-flex' }}>
+            {companies.slice(0, 2).map((company) => (
+              <div key={company.id} style={{ flex: '1 1 0', justifyContent: 'flex-start', alignItems: 'center', gap: '24px', display: 'flex' }}>
+                {/* 로고 */}
+                <div
+                  style={{
+                    width: '100px',
+                    height: '100px',
+                    position: 'relative',
+                    overflow: 'hidden',
+                    borderRadius: '50px',
+                    outline: '1px #D6DBE1 solid',
+                    outlineOffset: '-1px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: '#FFFFFF'
+                  }}
+                >
+                  {renderCompanyLogo(company)}
+                </div>
+
+                {/* 기업 정보 */}
+                <div style={{ flex: '1 1 0', overflow: 'hidden', flexDirection: 'column', justifyContent: 'flex-start', alignItems: 'flex-start', gap: '8px', display: 'inline-flex' }}>
+                  <h3 style={{ alignSelf: 'stretch', color: '#121418', fontSize: '20px', fontWeight: '600', lineHeight: '30px', wordWrap: 'break-word' }}>
+                    {getCompanyName(company)}
+                  </h3>
+                  <p
+                    style={{
+                      alignSelf: 'stretch',
+                      height: '54px',
+                      color: '#565B64',
+                      fontSize: '18px',
+                      fontWeight: '400',
+                      lineHeight: '27px',
+                      wordWrap: 'break-word',
+                      overflow: 'hidden',
+                      display: '-webkit-box',
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: 'vertical'
+                    }}
+                  >
+                    {getCompanyDescription(company)}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Row 2 */}
+          {companies.length > 2 && (
+            <div style={{ alignSelf: 'stretch', justifyContent: 'flex-start', alignItems: 'flex-start', gap: '60px', display: 'inline-flex' }}>
+              {companies.slice(2, 4).map((company) => (
+                <div key={company.id} style={{ flex: '1 1 0', justifyContent: 'flex-start', alignItems: 'center', gap: '24px', display: 'flex' }}>
+                  {/* 로고 */}
+                  <div
+                    style={{
+                      width: '100px',
+                      height: '100px',
+                      position: 'relative',
+                      overflow: 'hidden',
+                      borderRadius: '50px',
+                      outline: '1px #D6DBE1 solid',
+                      outlineOffset: '-1px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      backgroundColor: '#FFFFFF'
+                    }}
+                  >
+                    {renderCompanyLogo(company)}
+                  </div>
+
+                  {/* 기업 정보 */}
+                  <div style={{ flex: '1 1 0', flexDirection: 'column', justifyContent: 'flex-start', alignItems: 'flex-start', gap: '8px', display: 'inline-flex' }}>
+                    <h3 style={{ alignSelf: 'stretch', color: '#121418', fontSize: '20px', fontWeight: '600', lineHeight: '30px', wordWrap: 'break-word' }}>
+                      {getCompanyName(company)}
+                    </h3>
+                    <p
+                      style={{
+                        alignSelf: 'stretch',
+                        height: '54px',
+                        color: '#565B64',
+                        fontSize: '18px',
+                        fontWeight: '400',
+                        lineHeight: '27px',
+                        wordWrap: 'break-word',
+                        overflow: 'hidden',
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical'
+                      }}
+                    >
+                      {getCompanyDescription(company)}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Row 3 */}
+          {companies.length > 4 && (
+            <div style={{ alignSelf: 'stretch', justifyContent: 'flex-start', alignItems: 'flex-start', gap: '60px', display: 'inline-flex' }}>
+              {companies.slice(4, 6).map((company) => (
+                <div key={company.id} style={{ flex: '1 1 0', justifyContent: 'flex-start', alignItems: 'center', gap: '24px', display: 'flex' }}>
+                  {/* 로고 */}
+                  <div
+                    style={{
+                      width: '100px',
+                      height: '100px',
+                      position: 'relative',
+                      overflow: 'hidden',
+                      borderRadius: '50px',
+                      outline: '1px #D6DBE1 solid',
+                      outlineOffset: '-1px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      backgroundColor: '#FFFFFF'
+                    }}
+                  >
+                    {renderCompanyLogo(company)}
+                  </div>
+
+                  {/* 기업 정보 */}
+                  <div style={{ flex: '1 1 0', flexDirection: 'column', justifyContent: 'flex-start', alignItems: 'flex-start', gap: '8px', display: 'inline-flex' }}>
+                    <h3 style={{ alignSelf: 'stretch', color: '#121418', fontSize: '20px', fontWeight: '600', lineHeight: '30px', wordWrap: 'break-word' }}>
+                      {getCompanyName(company)}
+                    </h3>
+                    <p
+                      style={{
+                        alignSelf: 'stretch',
+                        height: '54px',
+                        color: '#565B64',
+                        fontSize: '18px',
+                        fontWeight: '400',
+                        lineHeight: '27px',
+                        wordWrap: 'break-word',
+                        overflow: 'hidden',
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical'
+                      }}
+                    >
+                      {getCompanyDescription(company)}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+      </div>
     </section>
   );
 };

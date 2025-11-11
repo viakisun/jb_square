@@ -2,9 +2,9 @@
  * 📰 NEWS & EVENT 섹션 컴포넌트
  *
  * 메인 페이지의 뉴스 & 이벤트 섹션
- * - 최신 뉴스/이벤트 6개 표시
- * - 3열 그리드 레이아웃 (반응형: 3→2→1)
- * - 카드 형태의 이미지 + 제목 + 요약 레이아웃
+ * - 좌측: 메인 이벤트 (511px)
+ * - 우측: 최신 뉴스 3개
+ * - 가로 간격: 80px
  *
  * Figma 디자인 기반으로 구현
  *
@@ -12,219 +12,235 @@
  * <NewsEventSection />
  *
  * @author JB SQUARE 개발팀
- * @version 1.0.0
+ * @version 2.0.0
  */
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Container } from '@/components/common/Container';
-import { SkeletonCard } from '@/components/common/SkeletonCard';
 import { useLatestNotices } from '@/hooks/useNotices';
 import { formatDate } from '@/lib/utils/date';
 
 export const NewsEventSection: React.FC = () => {
   /**
-   * 최신 뉴스형 공고 조회
-   * - 'business' 카테고리를 뉴스로 활용
-   * - 최신 6개 항목
+   * 최신 뉴스/이벤트 조회
+   * - 4개 항목 (1개 이벤트 + 3개 뉴스)
    */
-  const { notices, loading, error } = useLatestNotices(6);
+  const { notices, loading, error } = useLatestNotices(4);
+
+  /**
+   * 이벤트와 뉴스 분리
+   * 첫 번째 항목을 이벤트로, 나머지를 뉴스로 사용
+   */
+  const featuredEvent = notices[0];
+  const newsItems = notices.slice(1, 4);
+
+  /**
+   * 날짜 범위 계산 (이벤트용)
+   */
+  const getEventDateRange = (notice: any): string => {
+    if (!notice) return '';
+    const startDate = notice.application_start_date || notice.published_at || notice.created_at;
+    const endDate = notice.application_end_date;
+
+    if (startDate && endDate) {
+      return `${formatDate(startDate)} ~ ${formatDate(endDate)}`;
+    }
+    return formatDate(startDate);
+  };
+
+  /**
+   * 진행률 계산 (이벤트용)
+   */
+  const calculateProgress = (notice: any): number => {
+    if (!notice?.application_start_date || !notice?.application_end_date) return 0;
+
+    const now = new Date().getTime();
+    const start = new Date(notice.application_start_date).getTime();
+    const end = new Date(notice.application_end_date).getTime();
+
+    if (now < start) return 0;
+    if (now > end) return 100;
+
+    const progress = ((now - start) / (end - start)) * 100;
+    return Math.round(progress);
+  };
 
   return (
-    <section className="py-16 bg-white">
-      <Container>
+    <section style={{ paddingTop: '80px', paddingBottom: '100px', backgroundColor: '#FFFFFF' }}>
+      <div style={{ maxWidth: '1520px', margin: '0 auto', padding: '0 20px' }}>
         {/* 섹션 헤더 */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h2 className="text-3xl font-bold text-gray-900 mb-2">
+        <div style={{ alignSelf: 'stretch', justifyContent: 'space-between', alignItems: 'flex-end', display: 'flex', marginBottom: '40px' }}>
+          <div style={{ flexDirection: 'column', justifyContent: 'flex-start', alignItems: 'flex-start', gap: '4px', display: 'inline-flex' }}>
+            <h2 style={{ color: '#121418', fontSize: '48px', fontWeight: '700', lineHeight: '72px', wordWrap: 'break-word' }}>
               NEWS & EVENT
             </h2>
-            <p className="text-gray-600">
-              전북 바이오 산업의 최신 소식을 확인하세요
+            <p style={{ color: '#6C747E', fontSize: '20px', fontWeight: '400', lineHeight: '26px', wordWrap: 'break-word' }}>
+              전북 바이오 산업의 최신 뉴스와 이벤트를 확인하세요.
             </p>
           </div>
-
-          {/* 더보기 링크 */}
           <Link
             href="/news-events/news"
-            className="text-primary-blue hover:text-primary-cyan font-medium flex items-center gap-2 transition-colors"
+            style={{
+              paddingLeft: '20px',
+              paddingRight: '20px',
+              paddingTop: '12px',
+              paddingBottom: '12px',
+              background: '#FFFFFF',
+              borderRadius: '8px',
+              outline: '1px #D6DBE1 solid',
+              outlineOffset: '-1px',
+              justifyContent: 'center',
+              alignItems: 'center',
+              gap: '4px',
+              display: 'flex',
+              flexShrink: 0
+            }}
           >
-            더보기
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9 5l7 7-7 7"
-              />
-            </svg>
+            <span style={{ color: '#24272D', fontSize: '18px', fontWeight: '500', lineHeight: '27px', wordWrap: 'break-word' }}>
+              더보기
+            </span>
+            <div style={{ width: '24px', height: '24px', position: 'relative', overflow: 'hidden' }}>
+              <svg style={{ width: '10px', height: '5px', position: 'absolute', left: '9.5px', top: '17px', transform: 'rotate(-90deg)', transformOrigin: 'top left' }} fill="none" viewBox="0 0 10 5">
+                <path d="M0 0L5 5L10 0" stroke="#24272D" strokeWidth="1.5" />
+              </svg>
+            </div>
           </Link>
         </div>
 
-        {/* 뉴스 목록 */}
+        {/* 콘텐츠 영역 */}
         {loading ? (
           // 로딩 스켈레톤
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {Array.from({ length: 6 }).map((_, index) => (
-              <SkeletonCard key={index} variant="tall" />
-            ))}
+          <div className="flex" style={{ gap: '80px' }}>
+            <div className="animate-pulse" style={{ width: '511px', height: '527px', backgroundColor: '#E1E6EC', borderRadius: '8px' }} />
+            <div className="flex flex-col flex-1" style={{ gap: '32px' }}>
+              {Array.from({ length: 3 }).map((_, index) => (
+                <div key={index} className="flex animate-pulse" style={{ gap: '24px', height: '150px' }}>
+                  <div style={{ flex: 1, backgroundColor: '#E1E6EC', borderRadius: '4px' }} />
+                  <div style={{ width: '239px', height: '150px', backgroundColor: '#E1E6EC', borderRadius: '4px' }} />
+                </div>
+              ))}
+            </div>
           </div>
         ) : error ? (
           // 에러 메시지
-          <div className="text-center py-16">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-red-100 rounded-full mb-4">
-              <svg
-                className="w-8 h-8 text-red-600"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-            </div>
+          <div className="text-center py-12">
             <p className="text-gray-600 mb-4">{error}</p>
             <button
               onClick={() => window.location.reload()}
-              className="px-6 py-2 bg-primary-blue text-white rounded-lg hover:bg-primary-cyan transition-colors"
+              className="px-6 py-2 bg-gray-900 text-white hover:bg-black transition-colors rounded-lg"
             >
               다시 시도
             </button>
           </div>
         ) : notices.length === 0 ? (
-          // 뉴스 없음
-          <div className="text-center py-16">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-gray-100 rounded-full mb-4">
-              <svg
-                className="w-8 h-8 text-gray-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"
-                />
-              </svg>
-            </div>
-            <p className="text-gray-600">
-              최신 뉴스가 없습니다.
-            </p>
+          // 콘텐츠 없음
+          <div className="text-center py-12">
+            <p className="text-gray-600">등록된 뉴스 및 이벤트가 없습니다.</p>
           </div>
         ) : (
-          // 뉴스 카드 그리드
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {notices.map((notice) => (
-              <Link
-                key={notice.id}
-                href={`/sample-board/${notice.id}`}
-                className="block group"
-              >
-                <article className="bg-white rounded-lg overflow-hidden shadow-card hover:shadow-card-hover transition-shadow h-full flex flex-col">
-                  {/* 이미지 영역 (플레이스홀더) */}
-                  <div className="aspect-video bg-gradient-to-br from-primary-blue/20 to-primary-cyan/20 relative overflow-hidden">
-                    {/* 배경 패턴 */}
-                    <div className="absolute inset-0 opacity-10">
-                      <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-                        <defs>
-                          <pattern id="news-pattern" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
-                            <circle cx="10" cy="10" r="1.5" fill="currentColor" className="text-primary-blue" />
-                          </pattern>
-                        </defs>
-                        <rect x="0" y="0" width="100" height="100" fill="url(#news-pattern)" />
-                      </svg>
-                    </div>
+          // 메인 콘텐츠
+          <div className="flex" style={{ gap: '80px', alignItems: 'flex-start' }}>
+            {/* 좌측: 메인 이벤트 */}
+            {featuredEvent && (
+              <div style={{ width: '511px', flexShrink: 0, flexDirection: 'column', justifyContent: 'flex-start', alignItems: 'flex-start', gap: '24px', display: 'inline-flex' }}>
+                {/* 이벤트 이미지 */}
+                <div style={{ alignSelf: 'stretch', height: '321px', position: 'relative', borderRadius: '8px', overflow: 'hidden', backgroundColor: '#F3F6FB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <svg className="w-20 h-20 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                </div>
 
-                    {/* 아이콘 */}
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <svg
-                        className="w-16 h-16 text-primary-blue/30"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={1.5}
-                          d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"
-                        />
-                      </svg>
-                    </div>
-
-                    {/* 호버 오버레이 */}
-                    <div className="absolute inset-0 bg-primary-blue/0 group-hover:bg-primary-blue/10 transition-colors" />
+                {/* 이벤트 정보 */}
+                <div style={{ alignSelf: 'stretch', flexDirection: 'column', justifyContent: 'flex-start', alignItems: 'flex-start', gap: '12px', display: 'flex' }}>
+                  {/* EVENT 태그 */}
+                  <div style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '4px', paddingBottom: '4px', background: '#FFF1E6', borderRadius: '4px', display: 'inline-flex', justifyContent: 'center', alignItems: 'center' }}>
+                    <span style={{ color: '#F27633', fontSize: '15px', fontWeight: '600', lineHeight: '22.50px', wordWrap: 'break-word' }}>
+                      EVENT
+                    </span>
                   </div>
 
-                  {/* 콘텐츠 영역 */}
-                  <div className="p-5 flex-1 flex flex-col">
-                    {/* 날짜 */}
-                    <time className="text-sm text-gray-500 mb-2">
-                      {formatDate(notice.published_at || notice.created_at)}
-                    </time>
+                  {/* 제목 */}
+                  <Link href={`/notices/${featuredEvent.id}`}>
+                    <h3 style={{ alignSelf: 'stretch', color: '#121418', fontSize: '24px', fontWeight: '700', lineHeight: '36px', wordWrap: 'break-word', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+                      {featuredEvent.title}
+                    </h3>
+                  </Link>
+
+                  {/* 설명 */}
+                  <p style={{ alignSelf: 'stretch', color: '#6C747E', fontSize: '18px', fontWeight: '400', lineHeight: '27px', wordWrap: 'break-word', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+                    {featuredEvent.content?.replace(/<[^>]*>/g, '').substring(0, 100) || '전북 바이오 산업의 주요 이벤트입니다.'}
+                  </p>
+
+                  {/* 날짜 */}
+                  <div style={{ alignSelf: 'stretch', paddingTop: '16px', paddingBottom: '16px', borderTop: '1px #E1E6EC solid', borderBottom: '1px #E1E6EC solid', justifyContent: 'space-between', alignItems: 'center', display: 'inline-flex' }}>
+                    <span style={{ color: '#6C747E', fontSize: '18px', fontWeight: '400', lineHeight: '27px', wordWrap: 'break-word' }}>
+                      {getEventDateRange(featuredEvent)}
+                    </span>
+                  </div>
+
+                  {/* 프로그레스 바 */}
+                  <div style={{ alignSelf: 'stretch', height: '36px', flexDirection: 'column', justifyContent: 'flex-start', alignItems: 'flex-start', gap: '8px', display: 'flex' }}>
+                    <div style={{ alignSelf: 'stretch', justifyContent: 'space-between', alignItems: 'center', display: 'inline-flex' }}>
+                      <span style={{ color: '#6C747E', fontSize: '16px', fontWeight: '500', lineHeight: '24px', wordWrap: 'break-word' }}>
+                        진행률
+                      </span>
+                      <span style={{ color: '#565B64', fontSize: '16px', fontWeight: '500', lineHeight: '24px', wordWrap: 'break-word', fontFamily: 'Geist Mono, monospace' }}>
+                        {calculateProgress(featuredEvent)}%
+                      </span>
+                    </div>
+                    {/* 프로그레스 바 */}
+                    <div style={{ width: '100%', height: '4px', position: 'relative', borderRadius: '2px' }}>
+                      <div style={{ width: '100%', height: '4px', backgroundColor: '#E1E6EC', borderRadius: '2px', position: 'absolute' }} />
+                      <div style={{ width: `${calculateProgress(featuredEvent)}%`, height: '4px', backgroundColor: '#F27633', borderRadius: '2px', position: 'absolute' }} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 우측: 뉴스 목록 */}
+            <div style={{ flex: '1 1 0', flexDirection: 'column', justifyContent: 'flex-start', alignItems: 'flex-start', gap: '32px', display: 'inline-flex' }}>
+              {newsItems.map((news) => (
+                <div key={news.id} style={{ alignSelf: 'stretch', justifyContent: 'flex-start', alignItems: 'flex-start', gap: '24px', display: 'inline-flex' }}>
+                  {/* 좌측: 텍스트 */}
+                  <div style={{ flex: '1 1 0', flexDirection: 'column', justifyContent: 'flex-start', alignItems: 'flex-start', gap: '12px', display: 'inline-flex' }}>
+                    {/* NEWS 태그 */}
+                    <div style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '4px', paddingBottom: '4px', background: '#E6F9FB', borderRadius: '4px', display: 'inline-flex', justifyContent: 'center', alignItems: 'center' }}>
+                      <span style={{ color: '#00B8CD', fontSize: '15px', fontWeight: '600', lineHeight: '22.50px', wordWrap: 'break-word' }}>
+                        NEWS
+                      </span>
+                    </div>
 
                     {/* 제목 */}
-                    <h3 className="text-lg font-bold text-gray-900 mb-3 line-clamp-2 group-hover:text-primary-blue transition-colors">
-                      {notice.title}
-                    </h3>
+                    <Link href={`/notices/${news.id}`}>
+                      <h3 style={{ alignSelf: 'stretch', color: '#121418', fontSize: '20px', fontWeight: '700', lineHeight: '30px', wordWrap: 'break-word', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+                        {news.title}
+                      </h3>
+                    </Link>
 
-                    {/* 요약 (content에서 추출) */}
-                    {notice.content && (
-                      <p className="text-sm text-gray-600 line-clamp-3 mb-4 flex-1">
-                        {notice.content.replace(/<[^>]*>/g, '').substring(0, 120)}
-                        {notice.content.length > 120 ? '...' : ''}
-                      </p>
-                    )}
+                    {/* 설명 */}
+                    <p style={{ alignSelf: 'stretch', color: '#6C747E', fontSize: '18px', fontWeight: '400', lineHeight: '27px', wordWrap: 'break-word', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+                      {news.content?.replace(/<[^>]*>/g, '').substring(0, 80) || '전북 바이오 산업의 최신 소식입니다.'}
+                    </p>
 
-                    {/* 푸터 */}
-                    <div className="flex items-center justify-between pt-3 border-t border-gray-100">
-                      <span className="text-xs text-gray-500 flex items-center">
-                        <svg className="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
-                          />
-                        </svg>
-                        {notice.organization || 'JB SQUARE'}
-                      </span>
-
-                      <span className="text-primary-blue text-sm font-medium flex items-center group-hover:gap-2 transition-all">
-                        자세히 보기
-                        <svg
-                          className="w-4 h-4 transform group-hover:translate-x-1 transition-transform"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M9 5l7 7-7 7"
-                          />
-                        </svg>
-                      </span>
-                    </div>
+                    {/* 날짜 */}
+                    <span style={{ color: '#6C747E', fontSize: '18px', fontWeight: '400', lineHeight: '27px', wordWrap: 'break-word' }}>
+                      {formatDate(news.published_at || news.created_at)}
+                    </span>
                   </div>
-                </article>
-              </Link>
-            ))}
+
+                  {/* 우측: 이미지 */}
+                  <div style={{ width: '239px', height: '150px', position: 'relative', borderRadius: '8px', overflow: 'hidden', backgroundColor: '#F3F6FB', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <svg className="w-16 h-16 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
+                    </svg>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
-      </Container>
+      </div>
     </section>
   );
 };

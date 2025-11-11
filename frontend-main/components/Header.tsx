@@ -63,21 +63,32 @@ const Header: React.FC = () => {
   }, []);
 
   /**
-   * 메뉴 구조 - 5개 메뉴로 재구성
+   * 메뉴 구조 - Figma 디자인 기준
    *
-   * 1. JB BIO 클러스터 - 단일 링크 (서브메뉴 없음)
-   * 2. JB 지원사업 공고 - 일반 서브메뉴 (4개 항목)
-   * 3. JB 창업보육센터 - 단일 링크 (서브메뉴 없음)
-   * 4. 뉴스/행사 - 2개 서브메뉴 (최신뉴스/바이오행사)
-   * 5. JB 기업정보 - 단일 링크 (서브메뉴 없음)
+   * 1. JB BIO 클러스터 - 첫 번째 메뉴 (fontWeight: 600)
+   * 2. 지원기관 - 일반 메뉴
+   * 3. 바이오 지원 정책 - 일반 메뉴
+   * 4. 지원사업 공고 - 서브메뉴 포함
+   * 5. 창업보육센터 - 일반 메뉴
+   * 6. 뉴스/행사 - 서브메뉴 포함
+   * 7. 기업 정보 - 일반 메뉴
    */
   const menuItems = [
     {
       title: 'JB BIO 클러스터',
       href: '/bio-cluster/cluster',
+      isBold: true, // 첫 번째 메뉴는 600
     },
     {
-      title: 'JB 지원사업 공고',
+      title: '지원기관',
+      href: '/support-organizations',
+    },
+    {
+      title: '바이오 지원 정책',
+      href: '/bio-policies',
+    },
+    {
+      title: '지원사업 공고',
       subItems: [
         { name: '정부공고', href: '/notices/notice-government' },
         { name: '지자체공고', href: '/notices/notice-local' },
@@ -86,7 +97,7 @@ const Header: React.FC = () => {
       ],
     },
     {
-      title: 'JB 창업보육센터',
+      title: '창업보육센터',
       href: '/incubator/centers',
     },
     {
@@ -97,7 +108,7 @@ const Header: React.FC = () => {
       ],
     },
     {
-      title: 'JB 기업정보',
+      title: '기업 정보',
       href: '/companies/directory',
     },
   ];
@@ -118,22 +129,35 @@ const Header: React.FC = () => {
         ? 'bg-transparent'
         : 'bg-white/95 backdrop-blur-md shadow-md border-b border-gray-100'
     }`}>
-      <div className="max-w-7xl mx-auto">
-        <div className="flex justify-between items-center px-4 lg:px-6 h-20">
+      <div style={{ maxWidth: '1520px', margin: '0 auto', padding: '0 20px' }}>
+        <div className="flex justify-between items-center h-20">
           {/* 로고 */}
-          <Link href="/" className="flex items-center space-x-3 hover:opacity-80 transition-opacity">
+          <Link
+            href="/"
+            style={{
+              justifyContent: 'flex-start',
+              alignItems: 'center',
+              gap: '8px',
+              display: 'flex'
+            }}
+            className="hover:opacity-80 transition-opacity"
+          >
             {/* 로고 아이콘 */}
-            <img
-              src="/images/JB2_logo.png"
-              alt="JB SQUARE"
-              className="h-12 w-auto"
-            />
+            <div style={{ width: '26px', height: '26px', position: 'relative' }}>
+              <img
+                src="/images/JB2_logo.png"
+                alt="JB SQUARE"
+                style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+              />
+            </div>
             {/* 텍스트 로고 */}
-            <img
-              src={isHomePage && !isScrolled ? "/images/JB2_textlogo_white.png" : "/images/JB2_textlogo.png"}
-              alt="JB SQUARE"
-              className="h-6 w-auto"
-            />
+            <div style={{ width: '132px', height: '26px', position: 'relative' }}>
+              <img
+                src={isHomePage && !isScrolled ? "/images/JB2_textlogo_white.png" : "/images/JB2_textlogo.png"}
+                alt="JB SQUARE"
+                style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+              />
+            </div>
           </Link>
 
           {/* 데스크톱 네비게이션 */}
@@ -152,26 +176,40 @@ const Header: React.FC = () => {
                 {/* 서브메뉴가 있으면 버튼, 없으면 링크 */}
                 {menu.subItems ? (
                   <button
-                    className={`px-6 py-6 text-lg font-medium relative transition-all duration-200 ${
+                    className={`px-4 py-6 relative transition-all duration-200 ${
                       isHomePage && !isScrolled ? 'text-white' : 'text-[#121418]'
                     } ${
                       activeDropdown === index ? 'after:absolute after:bottom-0 after:left-0 after:right-0 after:h-1 after:bg-[#00268F]' : 'hover:after:absolute hover:after:bottom-0 hover:after:left-0 hover:after:right-0 hover:after:h-1 hover:after:bg-[#00B8CC]'
                     }`}
-                    style={{ letterSpacing: '-0.18px' }}
+                    style={{
+                      color: isHomePage && !isScrolled ? 'white' : '#121418',
+                      fontSize: '16px',
+                      fontFamily: 'Pretendard GOV',
+                      fontWeight: menu.isBold ? '600' : '500',
+                      lineHeight: '24px',
+                      wordWrap: 'break-word'
+                    }}
                   >
                     {menu.title}
                   </button>
                 ) : (
                   <Link
                     href={menu.href!}
-                    className={`px-6 py-6 text-lg font-medium relative transition-all duration-200 block ${
+                    className={`px-4 py-6 relative transition-all duration-200 block ${
                       isHomePage && !isScrolled ? 'text-white' : 'text-[#121418]'
                     } ${
                       router.pathname === menu.href
                         ? 'after:absolute after:bottom-0 after:left-0 after:right-0 after:h-1 after:bg-[#00268F]'
                         : 'hover:after:absolute hover:after:bottom-0 hover:after:left-0 hover:after:right-0 hover:after:h-1 hover:after:bg-[#00B8CC]'
                     }`}
-                    style={{ letterSpacing: '-0.18px' }}
+                    style={{
+                      color: isHomePage && !isScrolled ? 'white' : '#121418',
+                      fontSize: '16px',
+                      fontFamily: 'Pretendard GOV',
+                      fontWeight: menu.isBold ? '600' : '500',
+                      lineHeight: '24px',
+                      wordWrap: 'break-word'
+                    }}
                   >
                     {menu.title}
                   </Link>
@@ -231,14 +269,25 @@ const Header: React.FC = () => {
             </button>
 
             {/* 언어 선택 */}
-            <button className={`hidden md:flex items-center space-x-1 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
-              isHomePage && !isScrolled
-                ? 'text-white hover:bg-white/10'
-                : 'text-[#121418] hover:bg-[#EBEFF5]'
-            }`}>
+            <button
+              className={`hidden md:flex items-center gap-0.5 w-10 h-10 justify-center rounded-lg transition-all duration-200 ${
+                isHomePage && !isScrolled
+                  ? 'text-white hover:bg-white/10'
+                  : 'text-[#121418] hover:bg-[#EBEFF5]'
+              }`}
+              style={{
+                color: isHomePage && !isScrolled ? 'white' : '#121418',
+                fontSize: '14px',
+                fontFamily: 'Pretendard GOV',
+                fontWeight: '400',
+                lineHeight: '21px',
+                letterSpacing: '0.14px',
+                wordWrap: 'break-word'
+              }}
+            >
               <span>KR</span>
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              <svg style={{ width: '12px', height: '12px' }} fill="none" viewBox="0 0 12 12">
+                <path d="M2.5 4.5L6 8L9.5 4.5" stroke="currentColor" strokeWidth="1.5" />
               </svg>
             </button>
 
@@ -278,7 +327,15 @@ const Header: React.FC = () => {
                         onClick={() => toggleMobileSubMenu(index)}
                         className="w-full flex justify-between items-center py-3 text-left text-[#121418] hover:bg-[#EBEFF5] px-3 rounded-lg transition-all duration-200"
                       >
-                        <span className="font-medium text-lg" style={{ letterSpacing: '-0.18px' }}>
+                        <span
+                          style={{
+                            fontSize: '16px',
+                            fontFamily: 'Pretendard GOV',
+                            fontWeight: menu.isBold ? '600' : '500',
+                            lineHeight: '24px',
+                            wordWrap: 'break-word'
+                          }}
+                        >
                           {menu.title}
                         </span>
                         <svg
@@ -314,12 +371,18 @@ const Header: React.FC = () => {
                   ) : (
                     <Link
                       href={menu.href!}
-                      className={`block py-3 px-3 font-medium text-lg rounded-lg transition-all duration-200 ${
+                      className={`block py-3 px-3 rounded-lg transition-all duration-200 ${
                         router.pathname === menu.href
                           ? 'bg-[#00268F] text-white font-semibold'
                           : 'text-[#121418] hover:bg-[#EBEFF5]'
                       }`}
-                      style={{ letterSpacing: '-0.18px' }}
+                      style={{
+                        fontSize: '16px',
+                        fontFamily: 'Pretendard GOV',
+                        fontWeight: menu.isBold ? '600' : '500',
+                        lineHeight: '24px',
+                        wordWrap: 'break-word'
+                      }}
                       onClick={() => setMobileMenuOpen(false)}
                     >
                       {menu.title}
