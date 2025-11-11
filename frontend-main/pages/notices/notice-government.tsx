@@ -122,7 +122,7 @@ export default function GovernmentNoticePage() {
         breadcrumbCurrent="정부공고"
       >
         {/* 검색바 */}
-        <div className="mb-8">
+        <div className="mb-12">
           <SearchBar
             value={searchQuery}
             onChange={handleSearchChange}
@@ -135,10 +135,10 @@ export default function GovernmentNoticePage() {
 
         {/* 검색 결과 안내 */}
         {isSearchMode && hasSearched && !searchLoading && (
-          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <p className="text-sm text-blue-800">
-              <span className="font-semibold">"{searchQuery}"</span> 검색 결과:
-              <span className="ml-2 font-semibold">{totalResults}개</span> 공고
+          <div className="mb-8 pb-4 border-b border-gray-200">
+            <p className="text-sm text-gray-600">
+              <span className="font-semibold text-gray-900">"{searchQuery}"</span> 검색 결과
+              <span className="ml-2 font-semibold text-gray-900">{totalResults}개</span>
             </p>
           </div>
         )}
