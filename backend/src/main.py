@@ -8,6 +8,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from src.routers import dashboard, contents, organizations, analytics, settings, notices, bi_centers, crawling_config, tags, ksic_codes, system_monitor, unified_config
 from src.core.database import init_db
 
+# Import models to ensure they're registered with SQLAlchemy
+from src.models.color_scheme import ColorScheme
+from src.models.tag import ContentTag
+
 app = FastAPI(
     title="전북 바이오 플랫폼 API",
     description="전북 지역 바이오 산업 공고 및 기업 정보 관리 API",

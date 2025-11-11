@@ -19,6 +19,7 @@ import React from 'react';
 import Link from 'next/link';
 import { Notice } from '@/lib/api/types';
 import { formatDateSimple, getDeadlineStatus, getDaysUntilDeadline } from '@/lib/utils/date';
+import { getTagColorClasses } from '@/lib/utils/tagColors';
 
 interface NoticeCardProps {
   notice: Notice;
@@ -67,19 +68,19 @@ export const NoticeCard: React.FC<NoticeCardProps> = ({
         )}
 
         <div className={`p-6 ${isUrgent && !isExpired ? 'pl-7' : ''}`}>
-          {/* 상단: 상태 + 일자 정보 */}
+          {/* 상단: 상태 + 태그 + 일자 정보 */}
           <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              {/* 상태 배지 - 미니멀 */}
+            <div className="flex items-center gap-3 flex-wrap">
+              {/* D-day 상태 - 강조 (D-7 이하는 검은 배경) */}
               {notice.deadline ? (
                 <span
                   className={`
-                    text-xs font-bold tracking-wide uppercase
+                    text-xs font-bold tracking-wide uppercase px-2 py-0.5
                     ${isExpired
                       ? 'text-gray-400'
                       : isUrgent
-                      ? 'text-red-600'
-                      : 'text-gray-900'
+                      ? 'bg-black text-white font-extrabold'
+                      : 'text-gray-900 font-bold'
                     }
                   `}
                 >
@@ -103,17 +104,32 @@ export const NoticeCard: React.FC<NoticeCardProps> = ({
               >
                 {isOpen ? '접수중' : '마감'}
               </span>
+
+              {/* 태그 표시 (최대 4개) - Bio 태그 색상 적용 */}
+              {notice.tags && notice.tags.length > 0 && (
+                <>
+                  <div className="w-px h-3 bg-gray-300"></div>
+                  {notice.tags.slice(0, 4).map((tag, index) => (
+                    <span
+                      key={index}
+                      className={`text-xs px-2 py-0.5 ${getTagColorClasses(tag)}`}
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </>
+              )}
             </div>
 
             {/* 일자 정보 */}
-            <div className="flex items-center gap-3 text-xs text-gray-500">
+            <div className="flex items-center gap-3 text-xs text-gray-500 flex-shrink-0">
               {announcementDate && (
                 <span>공고 {formatDateSimple(announcementDate)}</span>
               )}
               {notice.deadline && (
                 <>
                   <span>•</span>
-                  <span className={isUrgent && !isExpired ? 'text-red-600 font-semibold' : ''}>
+                  <span>
                     마감 {formatDateSimple(notice.deadline)}
                   </span>
                 </>

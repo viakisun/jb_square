@@ -54,7 +54,7 @@ export const BICenterStatCard: React.FC<BICenterStatCardProps> = ({
   unit = '',
 }) => {
   return (
-    <div className="bg-white rounded-lg shadow-md p-4 md:p-6 hover:shadow-lg transition-shadow duration-200">
+    <div className="bg-white border border-gray-200 p-4 md:p-6 hover:shadow-sm hover:border-gray-900 transition-all">
       {/* 제목 */}
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm md:text-base font-medium text-gray-600">{title}</h3>

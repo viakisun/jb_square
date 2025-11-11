@@ -40,16 +40,16 @@ export const SkeletonCard: React.FC<SkeletonCardProps> = ({
   return (
     <div className="animate-pulse">
       {/* 이미지 영역 */}
-      <div className={`bg-gray-200 rounded-lg mb-4 ${imageHeights[variant]}`}></div>
+      <div className={`bg-gray-200 border border-gray-300 mb-4 ${imageHeights[variant]}`}></div>
 
       {/* 제목 (긴 줄) */}
-      <div className="bg-gray-200 h-4 rounded mb-3"></div>
+      <div className="bg-gray-200 h-4 mb-3"></div>
 
       {/* 서브 텍스트 (짧은 줄) */}
-      <div className="bg-gray-200 h-4 rounded w-2/3 mb-2"></div>
+      <div className="bg-gray-200 h-4 w-2/3 mb-2"></div>
 
       {/* 날짜 또는 추가 정보 (더 짧은 줄) */}
-      <div className="bg-gray-200 h-3 rounded w-1/3"></div>
+      <div className="bg-gray-200 h-3 w-1/3"></div>
     </div>
   );
 };

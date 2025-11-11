@@ -150,7 +150,7 @@ class GovernmentMOHWAdapter(BaseAdapter):
                 title = entry.get('title', '').strip()
                 link = entry.get('link', '').strip()
                 pub_date = self._parse_date(entry)
-                organization = entry.get('author', '')
+                organization = '보건복지부'  # Fixed organization name
 
                 if not link or not title:
                     continue

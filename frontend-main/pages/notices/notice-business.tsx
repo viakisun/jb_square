@@ -54,7 +54,7 @@ export default function BusinessNoticePage() {
   /**
    * useNotices 훅 - 기업마당공고 데이터 가져오기
    *
-   * source_id: 'source:bizinfo:api' - 기업마당 공고만 필터링
+   * source_id: 'source:bizinfo:web' - 기업마당 공고만 필터링
    * limit: 20 - 한 페이지에 20개씩 표시
    * sort_order: 'desc' - 최신순 정렬
    */
@@ -66,7 +66,7 @@ export default function BusinessNoticePage() {
     setPage,              // 페이지 변경 함수
     fetchNotices          // 데이터 새로고침 함수
   } = useNotices({
-    source_id: 'source:bizinfo:api',
+    source_id: 'source:bizinfo:web',
     limit: 20,
     sort_order: 'desc'
   });
@@ -74,7 +74,7 @@ export default function BusinessNoticePage() {
   /**
    * useNoticeSearch 훅 - 검색 기능
    *
-   * additionalFilters: source_id를 'source:bizinfo:api'로 고정하여
+   * additionalFilters: source_id를 'source:bizinfo:web'로 고정하여
    * 기업마당공고 내에서만 검색하도록 제한
    */
   const {
@@ -87,7 +87,7 @@ export default function BusinessNoticePage() {
     hasSearched           // 검색을 실행했는지 여부
   } = useNoticeSearch({
     additionalFilters: {
-      source_id: 'source:bizinfo:api'
+      source_id: 'source:bizinfo:web'
     },
     debounceDelay: 500,   // 검색어 입력 후 500ms 대기
     minLength: 2          // 최소 2글자 이상 입력해야 검색

@@ -4,7 +4,8 @@ SQLAlchemy ORM model for JB SQUARE tag management
 """
 
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime
+from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, ForeignKey
+from sqlalchemy.orm import relationship
 from src.core.database import Base
 
 
@@ -30,6 +31,10 @@ class ContentTag(Base):
     # Categorization
     category = Column(String(30))  # 'bio', 'region', 'support_type', etc.
 
+    # Color Scheme Reference
+    color_scheme_id = Column(Integer, ForeignKey('color_schemes.id'), nullable=True)
+    color_scheme = relationship("ColorScheme", lazy='joined')
+
     # Status & Ordering
     is_active = Column(Boolean, default=True)
     display_order = Column(Integer, default=0)
@@ -43,7 +48,7 @@ class ContentTag(Base):
 
     def to_dict(self) -> dict:
         """Convert to dictionary for JSON serialization"""
-        return {
+        result = {
             'id': self.id,
             'name': self.name,
             'slug': self.slug,
@@ -57,3 +62,9 @@ class ContentTag(Base):
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
         }
+
+        # Include color_scheme if available
+        if self.color_scheme:
+            result['color_scheme'] = self.color_scheme.to_dict()
+
+        return result

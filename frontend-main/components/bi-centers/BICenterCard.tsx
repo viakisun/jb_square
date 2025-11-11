@@ -56,11 +56,11 @@ export const BICenterCard: React.FC<BICenterCardProps> = ({
 }) => {
 
   return (
-    <div className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200 overflow-hidden">
+    <div className="bg-white border border-gray-200 hover:shadow-sm hover:border-gray-900 transition-all overflow-hidden">
       {/* 카드 헤더 (항상 표시) */}
       <button
         onClick={onClick}
-        className="w-full p-4 md:p-6 text-left focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-inset"
+        className="w-full p-4 md:p-6 text-left focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-inset"
         aria-expanded={isExpanded}
       >
         <div className="flex items-start justify-between">
@@ -71,7 +71,7 @@ export const BICenterCard: React.FC<BICenterCardProps> = ({
               <h3 className="text-lg md:text-xl font-bold text-gray-900 truncate">
                 {center.center_name}
               </h3>
-              <span className="flex-shrink-0 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-cyan-100 text-cyan-800">
+              <span className="flex-shrink-0 inline-flex items-center px-2.5 py-0.5 border border-gray-300 text-xs font-semibold text-gray-700">
                 {center.city || center.region || '전북'}
               </span>
             </div>
@@ -183,7 +183,7 @@ export const BICenterCard: React.FC<BICenterCardProps> = ({
               </div>
             )}
             {center.center_url && (
-              <div className="flex items-center text-cyan-600 hover:text-cyan-700">
+              <div className="flex items-center text-gray-900 hover:text-black">
                 <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
                     strokeLinecap="round"

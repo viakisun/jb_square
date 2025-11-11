@@ -8,6 +8,24 @@ module.exports = {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        sans: [
+          'Pretendard',
+          '-apple-system',
+          'BlinkMacSystemFont',
+          'system-ui',
+          'Roboto',
+          'Helvetica Neue',
+          'Segoe UI',
+          'Apple SD Gothic Neo',
+          'Noto Sans KR',
+          'Malgun Gothic',
+          'Apple Color Emoji',
+          'Segoe UI Emoji',
+          'Segoe UI Symbol',
+          'sans-serif',
+        ],
+      },
       colors: {
         // 회색 톤
         gray: {
@@ -35,6 +53,12 @@ module.exports = {
           startup: '#10B981',     // 창업 - 녹색
           business: '#F59E0B',    // 기업 - 주황색
         },
+        // Bio 태그 색상
+        bio: {
+          red: '#DC2626',         // RED BIO - 빨간색
+          green: '#047857',       // GREEN BIO - 녹색
+          white: '#F3F4F6',       // WHITE BIO - 밝은 회색
+        },
       },
       boxShadow: {
         'card': '0 4px 16px rgba(0, 0, 0, 0.15)',
@@ -46,5 +70,15 @@ module.exports = {
       },
     },
   },
+  safelist: [
+    // Bio tag colors (동적으로 사용되므로 빌드 시 포함)
+    'bg-bio-red',
+    'bg-bio-green',
+    'bg-bio-white',
+    'bg-gray-200',
+    'text-white',
+    'text-black',
+    'text-gray-900',
+  ],
   plugins: [],
 };

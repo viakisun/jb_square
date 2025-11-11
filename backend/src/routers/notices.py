@@ -78,6 +78,12 @@ class BulkDeleteRequest(BaseModel):
     notice_ids: List[int]
 
 
+class BulkUpdateTagsRequest(BaseModel):
+    """Schema for bulk updating tags on notices"""
+    notice_ids: List[int]
+    tags: List[str]
+
+
 # ============================================
 # 1. GET /api/notices - List notices with filters
 # ============================================
@@ -723,6 +729,47 @@ async def bulk_delete_notices(
         "archived": len(archived_ids),
         "not_found": len(not_found_ids),
         "archived_ids": archived_ids,
+        "not_found_ids": not_found_ids
+    }
+
+
+# ============================================
+# 5-3. POST /api/notices/bulk-update-tags - Bulk update tags
+# ============================================
+
+@router.post("/bulk-update-tags")
+async def bulk_update_tags(
+    data: BulkUpdateTagsRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Bulk update tags on multiple notices
+
+    - **notice_ids**: List of notice IDs to update
+    - **tags**: List of tag names to assign (replaces existing tags)
+    """
+
+    updated_ids = []
+    not_found_ids = []
+
+    for notice_id in data.notice_ids:
+        notice = db.query(Notice).filter(Notice.id == notice_id).first()
+
+        if not notice:
+            not_found_ids.append(notice_id)
+            continue
+
+        # Update tags (replaces existing tags)
+        notice.tags = data.tags
+        notice.updated_at = datetime.now()
+        updated_ids.append(notice_id)
+
+    db.commit()
+
+    return {
+        "updated": len(updated_ids),
+        "not_found": len(not_found_ids),
+        "updated_ids": updated_ids,
         "not_found_ids": not_found_ids
     }
 
