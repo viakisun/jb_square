@@ -109,7 +109,7 @@ export default function NoticeDetailPage() {
       <div className="min-h-screen bg-white flex flex-col">
         <Header />
         <div className="flex-1 bg-gray-50">
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
             <div className="bg-white border-2 border-red-600 p-8">
               <h2 className="text-2xl font-bold text-gray-900 mb-2">
                 오류가 발생했습니다
@@ -156,7 +156,7 @@ export default function NoticeDetailPage() {
         <div className="flex-1 bg-gray-50">
           {/* 상단 네비게이션 */}
           <div className="bg-white border-b">
-            <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
               <button
                 onClick={() => router.back()}
                 className="inline-flex items-center text-sm text-gray-600 hover:text-gray-900 transition-colors font-medium"
@@ -180,7 +180,7 @@ export default function NoticeDetailPage() {
           </div>
 
           {/* 메인 컨텐츠 */}
-          <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             {/* 공고 상세 카드 */}
             <div className="bg-white border border-gray-200">
               {/* 헤더 */}
