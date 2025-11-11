@@ -13,10 +13,8 @@ class JBTPEventsAdapter(JBTPBaseAdapter):
 
     전북테크노파크의 교육/행사 정보를 수집합니다.
 
-    테이블 구조 (6 columns, assumed - similar to external):
-    [번호] [제목] [파일] [작성자] [등록일] [조회수]
-
-    TODO: Verify actual HTML structure if events board behaves differently
+    테이블 구조 (9 columns):
+    [번호] [사업구분] [제목] [마감일] [파일] [작성자] [작성일] [조회수] [공백]
     """
 
     # 교육/행사는 항상 전북테크노파크가 발행 기관
@@ -29,68 +27,48 @@ class JBTPEventsAdapter(JBTPBaseAdapter):
         """
         교육/행사 테이블 행 파싱
 
-        ASSUMED Column structure (similar to external board):
+        Column structure (9 columns):
         0: 번호
-        1: 제목 (with <a> tag)
-        2: 파일
-        3: 작성자
-        4: 등록일 (YYYY-MM-DD)
-        5: 조회수
-
-        TODO: Manually verify if the actual structure differs
+        1: 사업구분 (교육/행사/기타)
+        2: 제목 (with <a> tag)
+        3: 마감일
+        4: 파일
+        5: 비어있음
+        6: 작성자
+        7: 작성일 (YYYY-MM-DD)
+        8: 조회수
         """
         cols = row.find_all('td')
 
-        # Try 6-column structure first (similar to external)
-        if len(cols) >= 6:
-            # Find title column (has <a> tag)
-            title_tag = cols[1].find('a')
-            if not title_tag:
-                return None
+        # Events board has 9 columns
+        if len(cols) < 8:
+            return None
 
-            title = title_tag.get_text(strip=True)
-            link = title_tag.get('href', '')
+        # Find title column (index 2, has <a> tag)
+        title_tag = cols[2].find('a')
+        if not title_tag:
+            return None
 
-            # Convert to absolute URL
-            if link and not link.startswith('http'):
-                if link.startswith('/'):
-                    link = 'https://www.jbtp.or.kr' + link
-                else:
-                    link = 'https://www.jbtp.or.kr/' + link
+        title = title_tag.get_text(strip=True)
+        link = title_tag.get('href', '')
 
-            # Assume no deadline column (similar to external)
-            posted_date = cols[4].get_text(strip=True)
+        # Convert to absolute URL
+        if link and not link.startswith('http'):
+            if link.startswith('/'):
+                link = 'https://www.jbtp.or.kr' + link
+            else:
+                link = 'https://www.jbtp.or.kr/' + link
 
-            return {
-                'title': title,
-                'link': link,
-                'posted_date': posted_date,
-                'deadline': ''  # Assumed no deadline
-            }
+        # Extract deadline (index 3) and posted date (index 7)
+        deadline = cols[3].get_text(strip=True)
+        posted_date = cols[7].get_text(strip=True)
 
-        # Fallback: Try 7-column structure with deadline (if events have deadlines)
-        elif len(cols) >= 7:
-            title_tag = cols[1].find('a')
-            if not title_tag:
-                return None
-
-            title = title_tag.get_text(strip=True)
-            link = title_tag.get('href', '')
-
-            if link and not link.startswith('http'):
-                if link.startswith('/'):
-                    link = 'https://www.jbtp.or.kr' + link
-                else:
-                    link = 'https://www.jbtp.or.kr/' + link
-
-            return {
-                'title': title,
-                'link': link,
-                'posted_date': cols[5].get_text(strip=True),
-                'deadline': cols[2].get_text(strip=True)
-            }
-
-        return None
+        return {
+            'title': title,
+            'link': link,
+            'posted_date': posted_date,
+            'deadline': deadline
+        }
 
     def get_organization(self, notice_data: dict, detail: dict) -> str:
         """
