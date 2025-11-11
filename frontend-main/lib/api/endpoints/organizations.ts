@@ -59,6 +59,9 @@ export interface OrganizationFilterParams {
   /** 연도별 데이터 구조화 여부 */
   include_yearly?: boolean;
 
+  /** 정렬 기준 */
+  sort_by?: string;
+
   /** 정렬 순서 ('asc': 오름차순, 'desc': 내림차순, 기본값: 'desc') */
   sort_order?: 'asc' | 'desc';
 }

@@ -212,6 +212,9 @@ export interface Organization {
   /** 업체명 */
   company_name: string;
 
+  /** 업체명 (별칭, company_name과 동일) */
+  name?: string;
+
   /** 업체명 (형태 포함) */
   company_name_with_type?: string | null;
 
@@ -226,6 +229,9 @@ export interface Organization {
 
   /** 대표자명 */
   ceo_name: string | null;
+
+  /** 대표자명 (별칭, ceo_name과 동일) */
+  ceo?: string | null;
 
   /** 이메일 */
   email: string | null;
@@ -256,6 +262,18 @@ export interface Organization {
 
   /** 바이오 산업 분류 (BIO_CORE/BIO_RELATED/NON_BIO) */
   industry_type: string;
+
+  /** 산업 분야 (별칭, industry_type과 동일) */
+  industry?: string;
+
+  /** 기업 설명 */
+  description?: string | null;
+
+  /** 주소 정보 */
+  address?: string | null;
+
+  /** 웹사이트 URL */
+  website?: string | null;
 
   /** 주요 제품명 */
   main_products: string | null;
@@ -417,6 +435,9 @@ export interface OrganizationFilterParams {
 
   /** 연도별 데이터 구조화 여부 */
   include_yearly?: boolean;
+
+  /** 정렬 기준 */
+  sort_by?: string;
 
   /** 정렬 순서 */
   sort_order?: 'asc' | 'desc';
