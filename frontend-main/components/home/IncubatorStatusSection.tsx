@@ -19,6 +19,7 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { BICenter, BICenterListResponse } from '@/lib/api/types';
 import api from '@/lib/api/client';
+import { RESPONSIVE, FONT_SIZES, SPACING } from '@/lib/utils/responsive';
 
 type FilterType = 'all' | 'accepting' | 'upcoming';
 
@@ -98,16 +99,16 @@ export const IncubatorStatusSection: React.FC = () => {
   }, []);
 
   return (
-    <section style={{ paddingTop: '80px', paddingBottom: '80px', backgroundColor: '#F3F6FB', position: 'relative', overflow: 'hidden' }}>
-      <div style={{ maxWidth: '1520px', margin: '0 auto', padding: '0 20px' }}>
+    <section style={{ paddingTop: SPACING.SECTION, paddingBottom: SPACING.SECTION, backgroundColor: '#F3F6FB', position: 'relative', overflow: 'hidden' }}>
+      <div style={{ maxWidth: RESPONSIVE.CONTAINER_WIDTH, margin: '0 auto', padding: '0 20px' }}>
         {/* 섹션 헤더 */}
-        <div style={{ alignSelf: 'stretch', flexDirection: 'column', justifyContent: 'flex-start', alignItems: 'flex-start', gap: '24px', display: 'flex', marginBottom: '50px' }}>
+        <div style={{ alignSelf: 'stretch', flexDirection: 'column', justifyContent: 'flex-start', alignItems: 'flex-start', gap: SPACING.MD, display: 'flex', marginBottom: SPACING.XL }}>
           <div style={{ alignSelf: 'stretch', justifyContent: 'space-between', alignItems: 'flex-end', display: 'inline-flex' }}>
             <div style={{ flexDirection: 'column', justifyContent: 'flex-start', alignItems: 'flex-start', gap: '4px', display: 'inline-flex' }}>
-              <h2 style={{ color: '#121418', fontSize: '48px', fontWeight: '700', lineHeight: '72px', wordWrap: 'break-word' }}>
+              <h2 style={{ color: '#121418', fontSize: FONT_SIZES.HEADING_XL, fontWeight: '700', lineHeight: '1.5', wordWrap: 'break-word' }}>
                 창업 보육센터 현황
               </h2>
-              <p style={{ color: '#6C747E', fontSize: '20px', fontWeight: '400', lineHeight: '26px', wordWrap: 'break-word' }}>
+              <p style={{ color: '#6C747E', fontSize: FONT_SIZES.BODY_LG, fontWeight: '400', lineHeight: '1.3', wordWrap: 'break-word' }}>
                 전북 지역 바이오 창업보육센터의 입주 가능 현황과 상세 정보를 확인할 수 있습니다.
               </p>
             </div>
@@ -128,7 +129,7 @@ export const IncubatorStatusSection: React.FC = () => {
                 display: 'flex'
               }}
             >
-              <span style={{ color: '#24272D', fontSize: '18px', fontWeight: '500', lineHeight: '27px', wordWrap: 'break-word' }}>
+              <span style={{ color: '#24272D', fontSize: FONT_SIZES.BODY_MD, fontWeight: '500', lineHeight: '1.5', wordWrap: 'break-word' }}>
                 더보기
               </span>
               <div style={{ width: '24px', height: '24px', position: 'relative', overflow: 'hidden' }}>
@@ -161,7 +162,7 @@ export const IncubatorStatusSection: React.FC = () => {
                 transition: 'all 0.2s'
               }}
             >
-              <span style={{ color: activeFilter === 'all' ? '#FFFFFF' : '#565B64', fontSize: '20px', fontWeight: '500', lineHeight: '30px', wordWrap: 'break-word' }}>
+              <span style={{ color: activeFilter === 'all' ? '#FFFFFF' : '#565B64', fontSize: FONT_SIZES.BODY_LG, fontWeight: '500', lineHeight: '1.5', wordWrap: 'break-word' }}>
                 전체
               </span>
             </button>
@@ -185,7 +186,7 @@ export const IncubatorStatusSection: React.FC = () => {
                 transition: 'all 0.2s'
               }}
             >
-              <span style={{ color: activeFilter === 'accepting' ? '#FFFFFF' : '#565B64', fontSize: '20px', fontWeight: '500', lineHeight: '30px', wordWrap: 'break-word' }}>
+              <span style={{ color: activeFilter === 'accepting' ? '#FFFFFF' : '#565B64', fontSize: FONT_SIZES.BODY_LG, fontWeight: '500', lineHeight: '1.5', wordWrap: 'break-word' }}>
                 접수중
               </span>
             </button>
@@ -209,7 +210,7 @@ export const IncubatorStatusSection: React.FC = () => {
                 transition: 'all 0.2s'
               }}
             >
-              <span style={{ color: activeFilter === 'upcoming' ? '#FFFFFF' : '#565B64', fontSize: '20px', fontWeight: '500', lineHeight: '30px', wordWrap: 'break-word' }}>
+              <span style={{ color: activeFilter === 'upcoming' ? '#FFFFFF' : '#565B64', fontSize: FONT_SIZES.BODY_LG, fontWeight: '500', lineHeight: '1.5', wordWrap: 'break-word' }}>
                 접수예정
               </span>
             </button>
@@ -283,14 +284,14 @@ export const IncubatorStatusSection: React.FC = () => {
                     {/* 좌측: 공실 정보 (파란 점 + 숫자) */}
                     <div className="flex items-center gap-3" style={{ width: '120px', flexShrink: 0 }}>
                       <div className="rounded-full" style={{ width: '10px', height: '10px', backgroundColor: '#00B8CD' }}></div>
-                      <span className="font-medium" style={{ fontSize: '20px', letterSpacing: '-0.2px', lineHeight: '30px', color: '#1B1E23', width: '100px' }}>
+                      <span className="font-medium" style={{ fontSize: FONT_SIZES.BODY_LG, letterSpacing: '-0.2px', lineHeight: '1.5', color: '#1B1E23', width: '100px' }}>
                         {vacant}실 / {total}실
                       </span>
                     </div>
 
                     {/* 센터명 */}
                     <div style={{ flex: 1, minWidth: '200px', marginLeft: '32px' }}>
-                      <h3 className="font-semibold" style={{ fontSize: '20px', letterSpacing: '-0.6px', lineHeight: '30px', color: isFirst ? '#00B8CD' : '#24272D' }}>
+                      <h3 className="font-semibold" style={{ fontSize: FONT_SIZES.BODY_LG, letterSpacing: '-0.6px', lineHeight: '1.5', color: isFirst ? '#00B8CD' : '#24272D' }}>
                         {center.center_name}
                       </h3>
                     </div>
@@ -300,10 +301,10 @@ export const IncubatorStatusSection: React.FC = () => {
                       {/* 입주율 섹션 */}
                       <div className="flex-col" style={{ width: '318px', gap: '6px', display: 'inline-flex' }}>
                         <div className="flex items-center justify-between">
-                          <span className="font-medium" style={{ fontSize: '18px', letterSpacing: '-0.18px', lineHeight: '27px', color: '#6C747E' }}>
+                          <span className="font-medium" style={{ fontSize: FONT_SIZES.BODY_MD, letterSpacing: '-0.18px', lineHeight: '1.5', color: '#6C747E' }}>
                             입주율
                           </span>
-                          <span className="font-medium" style={{ fontSize: '18px', letterSpacing: '-0.18px', lineHeight: '27px', color: '#565B64', fontFamily: 'Geist Mono, monospace' }}>
+                          <span className="font-medium" style={{ fontSize: FONT_SIZES.BODY_MD, letterSpacing: '-0.18px', lineHeight: '1.5', color: '#565B64', fontFamily: 'Geist Mono, monospace' }}>
                             {occupancyRate}%
                           </span>
                         </div>

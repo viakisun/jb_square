@@ -16,6 +16,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
+import { RESPONSIVE } from '@/lib/utils/responsive';
 
 const Header: React.FC = () => {
   const router = useRouter();
@@ -129,7 +130,7 @@ const Header: React.FC = () => {
         ? 'bg-transparent'
         : 'bg-white/95 backdrop-blur-md shadow-md border-b border-gray-100'
     }`}>
-      <div style={{ maxWidth: '1520px', margin: '0 auto', padding: '0 20px' }}>
+      <div style={{ maxWidth: RESPONSIVE.CONTAINER_WIDTH, margin: '0 auto', padding: '0 20px' }}>
         <div className="flex justify-between items-center h-20">
           {/* 로고 */}
           <Link

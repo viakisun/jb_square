@@ -17,6 +17,12 @@
  */
 
 import React, { useState } from 'react';
+import {
+  FONT_SIZES,
+  RESPONSIVE,
+  getResponsiveSpacing,
+  getResponsiveFontSize,
+} from '@/lib/utils/responsive';
 
 interface HeroSectionProps {
   /** 검색 제출 핸들러 */
@@ -25,6 +31,18 @@ interface HeroSectionProps {
 
 export const HeroSection: React.FC<HeroSectionProps> = ({ onSearch }) => {
   const [searchQuery, setSearchQuery] = useState('');
+
+  const HERO_MIN_HEIGHT = 'clamp(520px, 85vh, 900px)';
+  const HERO_PADDING_VERTICAL = getResponsiveSpacing(120, 12, 220);
+  const HERO_PADDING_HORIZONTAL = getResponsiveSpacing(20, 6, 64);
+  const CONTENT_WIDTH = 'clamp(320px, 52vw, 680px)';
+  const CONTENT_GAP = getResponsiveSpacing(32, 3.5, 56);
+  const TITLE_GAP = getResponsiveSpacing(16, 1.8, 24);
+  const SEARCH_HEIGHT = getResponsiveSpacing(52, 4, 72);
+  const SEARCH_GAP = getResponsiveSpacing(12, 1.2, 20);
+  const SEARCH_BUTTON_SIZE = getResponsiveSpacing(48, 3.6, 60);
+  const SCROLL_OFFSET = getResponsiveSpacing(32, 4, 56);
+  const SCROLL_FONT_SIZE = getResponsiveFontSize(16, 1.2, 18);
 
   /**
    * 검색 실행 핸들러
@@ -45,257 +63,208 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onSearch }) => {
   };
 
   return (
-    <div style={{ width: '100%', height: '900px', position: 'relative', background: 'black', overflow: 'hidden', marginTop: '-80px', paddingTop: '80px' }}>
-      {/* 배경 이미지 */}
+    <section
+      style={{
+        position: 'relative',
+        width: '100%',
+        minHeight: HERO_MIN_HEIGHT,
+        display: 'flex',
+        alignItems: 'center',
+        paddingTop: HERO_PADDING_VERTICAL,
+        paddingBottom: HERO_PADDING_VERTICAL,
+      }}
+    >
       <div
         style={{
-          width: 2223,
-          height: 1250,
-          left: -254,
-          top: -150,
-          position: 'absolute'
+          width: '100%',
         }}
       >
-        <img
-          style={{
-            width: '100%',
-            height: '100%',
-            opacity: 0.50
-          }}
-          src="/images/fbe49440deeef8a3b9c073ee3447a3912ffa3cf7.jpg"
-          alt="Hero Background"
-        />
-      </div>
-
-      {/* 그라데이션 블러 효과 */}
-      <div
-        style={{
-          width: 993,
-          height: 512,
-          left: 146,
-          top: 247,
-          position: 'absolute',
-          opacity: 0.50,
-          background: 'linear-gradient(90deg, #354D60 0%, rgba(53, 77, 96, 0) 100%)',
-          boxShadow: '150px 150px 150px',
-          borderRadius: 9999,
-          filter: 'blur(75px)'
-        }}
-      />
-
-      {/* 상단 그라데이션 */}
-      <div
-        style={{
-          width: 1920,
-          height: 303,
-          left: 0,
-          top: -18,
-          position: 'absolute',
-          background: 'linear-gradient(180deg, black 0%, rgba(0, 0, 0, 0) 100%)'
-        }}
-      />
-
-      {/* 메인 컨텐츠 */}
-      <div
-        style={{
-          width: 857,
-          left: 200,
-          top: 328,
-          position: 'absolute',
-          flexDirection: 'column',
-          justifyContent: 'flex-start',
-          alignItems: 'flex-start',
-          gap: 56,
-          display: 'inline-flex'
-        }}
-      >
-        {/* 타이틀 섹션 */}
         <div
           style={{
-            alignSelf: 'stretch',
-            position: 'relative',
-            flexDirection: 'column',
+            maxWidth: RESPONSIVE.CONTAINER_WIDTH,
+            margin: '0 auto',
+            paddingLeft: HERO_PADDING_HORIZONTAL,
+            paddingRight: HERO_PADDING_HORIZONTAL,
+            display: 'flex',
             justifyContent: 'flex-start',
-            alignItems: 'flex-start',
-            gap: 16,
-            display: 'flex'
           }}
         >
-          {/* 메인 타이틀 */}
           <div
             style={{
-              alignSelf: 'stretch',
-              justifyContent: 'center',
+              width: CONTENT_WIDTH,
               display: 'flex',
               flexDirection: 'column',
-              color: 'white',
-              fontSize: 64,
-              fontFamily: 'Pretendard GOV',
-              fontWeight: '700',
-              lineHeight: '83.2px',
-              wordWrap: 'break-word'
+              alignItems: 'flex-start',
+              gap: CONTENT_GAP,
+              color: '#FFFFFF',
             }}
           >
-            전북 바이오 기술 산업의<br />Knowledge Hub,
-          </div>
-
-          {/* 서브 타이틀 */}
-          <div
-            style={{
-              alignSelf: 'stretch',
-              justifyContent: 'center',
-              display: 'flex',
-              flexDirection: 'column',
-              color: '#F3F6FB',
-              fontSize: 20,
-              fontFamily: 'Pretendard GOV',
-              fontWeight: '500',
-              lineHeight: '26px',
-              wordWrap: 'break-word'
-            }}
-          >
-            전북 바이오산업의 지속 성장을 위한 이정표를 제시합니다.
-          </div>
-
-          {/* 하이라이트 박스 (디자인용) */}
-          <div
-            style={{
-              width: 331,
-              height: 56,
-              left: 506,
-              top: 101,
-              position: 'absolute',
-              background: 'white',
-              opacity: 0
-            }}
-          />
-        </div>
-
-        {/* 검색창 */}
-        <div
-          style={{
-            width: 600,
-            paddingTop: 8,
-            paddingBottom: 8,
-            paddingLeft: 20,
-            paddingRight: 8,
-            background: 'white',
-            borderRadius: 12,
-            justifyContent: 'center',
-            alignItems: 'center',
-            gap: 10,
-            display: 'inline-flex'
-          }}
-        >
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onKeyPress={handleKeyPress}
-            placeholder="공고, 뉴스, 기업 정보를 검색하세요."
-            style={{
-              flex: '1 1 0',
-              color: '#808892',
-              fontSize: 18,
-              fontFamily: 'Pretendard GOV',
-              fontWeight: '500',
-              lineHeight: '23.4px',
-              wordWrap: 'break-word',
-              border: 'none',
-              outline: 'none',
-              background: 'transparent'
-            }}
-          />
-          <button
-            onClick={handleSearch}
-            style={{
-              width: 48,
-              height: 48,
-              background: '#10409A',
-              borderRadius: 8,
-              justifyContent: 'center',
-              alignItems: 'center',
-              gap: 10,
-              display: 'flex',
-              border: 'none',
-              cursor: 'pointer'
-            }}
-          >
-            <div style={{ width: 24, height: 24, position: 'relative', overflow: 'hidden' }}>
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: TITLE_GAP,
+                width: '100%',
+              }}
+            >
               <div
                 style={{
-                  width: 16,
-                  height: 16,
-                  left: 4,
-                  top: 4,
-                  position: 'absolute',
-                  outline: '1.50px #F8F9FC solid',
-                  outlineOffset: '-0.75px',
-                  borderRadius: '50%'
+                  fontSize: FONT_SIZES.HERO,
+                  fontFamily: 'Pretendard GOV',
+                  fontWeight: 700,
+                  lineHeight: 1.3,
+                  letterSpacing: '-0.02em',
+                }}
+              >
+                전북 바이오 기술 산업의<br />Knowledge Hub,
+              </div>
+              <div
+                style={{
+                  fontSize: FONT_SIZES.BODY_LG,
+                  fontFamily: 'Pretendard GOV',
+                  fontWeight: 500,
+                  lineHeight: 1.4,
+                  color: '#F3F6FB',
+                }}
+              >
+                전북 바이오산업의 지속 성장을 위한 이정표를 제시합니다.
+              </div>
+            </div>
+
+            <div
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                gap: SEARCH_GAP,
+                backgroundColor: '#FFFFFF',
+                borderRadius: 16,
+                paddingLeft: getResponsiveSpacing(16, 1.5, 20),
+                paddingRight: getResponsiveSpacing(12, 1.1, 16),
+                height: SEARCH_HEIGHT,
+              }}
+            >
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyPress={handleKeyPress}
+                placeholder="공고, 뉴스, 기업 정보를 검색하세요."
+                style={{
+                  flex: '1 1 auto',
+                  color: '#3A3F49',
+                  fontSize: FONT_SIZES.BODY_MD,
+                  fontFamily: 'Pretendard GOV',
+                  fontWeight: 500,
+                  lineHeight: 1.3,
+                  border: 'none',
+                  outline: 'none',
+                  background: 'transparent',
+                  minWidth: 0,
+                }}
+              />
+              <button
+                type="button"
+                onClick={handleSearch}
+                style={{
+                  width: SEARCH_BUTTON_SIZE,
+                  height: SEARCH_BUTTON_SIZE,
+                  background: '#10409A',
+                  borderRadius: 12,
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  border: 'none',
+                  cursor: 'pointer',
+                  transition: 'background 0.2s ease',
+                }}
+              >
+                <div style={{ width: '1.5rem', height: '1.5rem', position: 'relative' }}>
+                  <div
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      borderRadius: '50%',
+                      border: '2px solid #F8F9FC',
+                      position: 'absolute',
+                      inset: 0,
+                    }}
+                  />
+                  <div
+                    style={{
+                      position: 'absolute',
+                      bottom: -6,
+                      right: -2,
+                      width: 10,
+                      height: 2,
+                      backgroundColor: '#F8F9FC',
+                      transform: 'rotate(-45deg)',
+                      borderRadius: 4,
+                    }}
+                  />
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'center',
+            marginTop: SCROLL_OFFSET,
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: getResponsiveSpacing(8, 0.8, 12),
+              color: '#EBEFF5',
+            }}
+          >
+            <span
+              style={{
+                fontSize: SCROLL_FONT_SIZE,
+                fontFamily: 'Pretendard GOV',
+                fontWeight: 500,
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+              }}
+            >
+              Scroll
+            </span>
+            <div
+              style={{
+                width: 4,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 4,
+              }}
+            >
+              <div
+                style={{
+                  width: '100%',
+                  height: getResponsiveSpacing(16, 1.2, 24),
+                  backgroundColor: '#00BDDD',
+                  borderRadius: 999,
+                }}
+              />
+              <div
+                style={{
+                  width: '100%',
+                  height: getResponsiveSpacing(56, 5, 72),
+                  background: 'linear-gradient(360deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0) 100%)',
+                  borderRadius: 4,
                 }}
               />
             </div>
-          </button>
+          </div>
         </div>
       </div>
-
-      {/* Scroll 인디케이터 */}
-      <div
-        style={{
-          left: 936,
-          top: 832,
-          position: 'absolute',
-          flexDirection: 'column',
-          justifyContent: 'flex-start',
-          alignItems: 'center',
-          gap: 8,
-          display: 'inline-flex'
-        }}
-      >
-        <div
-          style={{
-            justifyContent: 'center',
-            display: 'flex',
-            flexDirection: 'column',
-            color: '#EBEFF5',
-            fontSize: 18,
-            fontFamily: 'Pretendard GOV',
-            fontWeight: '500',
-            lineHeight: '23.40px',
-            wordWrap: 'break-word'
-          }}
-        >
-          Scroll
-        </div>
-        <div
-          style={{
-            width: 4,
-            flexDirection: 'column',
-            justifyContent: 'flex-start',
-            alignItems: 'center',
-            gap: 1,
-            display: 'flex'
-          }}
-        >
-          <div
-            style={{
-              alignSelf: 'stretch',
-              height: 4,
-              background: '#00BDDD',
-              borderRadius: 50
-            }}
-          />
-          <div
-            style={{
-              width: 4,
-              height: 72,
-              background: 'linear-gradient(360deg, white 0%, rgba(255, 255, 255, 0) 100%)',
-              borderRadius: 1
-            }}
-          />
-        </div>
-      </div>
-    </div>
+    </section>
   );
 };
 

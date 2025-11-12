@@ -19,6 +19,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useLatestNotices } from '@/hooks/useNotices';
 import { formatDate } from '@/lib/utils/date';
+import { RESPONSIVE, FONT_SIZES, SPACING } from '@/lib/utils/responsive';
 
 export const NewsEventSection: React.FC = () => {
   /**
@@ -66,15 +67,15 @@ export const NewsEventSection: React.FC = () => {
   };
 
   return (
-    <section style={{ paddingTop: '80px', paddingBottom: '100px', backgroundColor: '#FFFFFF' }}>
-      <div style={{ maxWidth: '1520px', margin: '0 auto', padding: '0 20px' }}>
+    <section style={{ paddingTop: SPACING.SECTION, paddingBottom: SPACING.SECTION, backgroundColor: '#FFFFFF' }}>
+      <div style={{ maxWidth: RESPONSIVE.CONTAINER_WIDTH, margin: '0 auto', padding: '0 20px' }}>
         {/* 섹션 헤더 */}
-        <div style={{ alignSelf: 'stretch', justifyContent: 'space-between', alignItems: 'flex-end', display: 'flex', marginBottom: '40px' }}>
+        <div style={{ alignSelf: 'stretch', justifyContent: 'space-between', alignItems: 'flex-end', display: 'flex', marginBottom: SPACING.LG }}>
           <div style={{ flexDirection: 'column', justifyContent: 'flex-start', alignItems: 'flex-start', gap: '4px', display: 'inline-flex' }}>
-            <h2 style={{ color: '#121418', fontSize: '48px', fontWeight: '700', lineHeight: '72px', wordWrap: 'break-word' }}>
+            <h2 style={{ color: '#121418', fontSize: FONT_SIZES.HEADING_XL, fontWeight: '700', lineHeight: '1.5', wordWrap: 'break-word' }}>
               NEWS & EVENT
             </h2>
-            <p style={{ color: '#6C747E', fontSize: '20px', fontWeight: '400', lineHeight: '26px', wordWrap: 'break-word' }}>
+            <p style={{ color: '#6C747E', fontSize: FONT_SIZES.BODY_LG, fontWeight: '400', lineHeight: '1.3', wordWrap: 'break-word' }}>
               전북 바이오 산업의 최신 뉴스와 이벤트를 확인하세요.
             </p>
           </div>
@@ -96,7 +97,7 @@ export const NewsEventSection: React.FC = () => {
               flexShrink: 0
             }}
           >
-            <span style={{ color: '#24272D', fontSize: '18px', fontWeight: '500', lineHeight: '27px', wordWrap: 'break-word' }}>
+            <span style={{ color: '#24272D', fontSize: FONT_SIZES.BODY_MD, fontWeight: '500', lineHeight: '1.5', wordWrap: 'break-word' }}>
               더보기
             </span>
             <div style={{ width: '24px', height: '24px', position: 'relative', overflow: 'hidden' }}>

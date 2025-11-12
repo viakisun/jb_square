@@ -20,6 +20,7 @@ import { NoticeCard } from '@/components/sample-board/NoticeCard';
 import { SkeletonCard } from '@/components/common/SkeletonCard';
 import { useNotices } from '@/hooks/useNotices';
 import DebugErrorMessage from '@/components/ui/DebugErrorMessage';
+import { RESPONSIVE, FONT_SIZES, SPACING } from '@/lib/utils/responsive';
 
 /**
  * 개별 공고 섹션 컴포넌트
@@ -46,14 +47,14 @@ const NoticeSubSection: React.FC<NoticeSectionProps> = ({
   });
 
   return (
-    <div style={{ marginBottom: '80px' }}>
+    <div style={{ marginBottom: SPACING.SECTION }}>
       {/* 섹션 헤더 */}
-      <div style={{ alignSelf: 'stretch', justifyContent: 'space-between', alignItems: 'flex-end', display: 'flex', marginBottom: '40px' }}>
+      <div style={{ alignSelf: 'stretch', justifyContent: 'space-between', alignItems: 'flex-end', display: 'flex', marginBottom: SPACING.LG }}>
         <div style={{ flexDirection: 'column', justifyContent: 'flex-start', alignItems: 'flex-start', gap: '4px', display: 'inline-flex' }}>
-          <h3 style={{ color: '#121418', fontSize: '32px', fontWeight: '700', lineHeight: '48px', wordWrap: 'break-word' }}>
+          <h3 style={{ color: '#121418', fontSize: FONT_SIZES.HEADING_LG, fontWeight: '700', lineHeight: '1.5', wordWrap: 'break-word' }}>
             {title}
           </h3>
-          <p style={{ color: '#6C747E', fontSize: '18px', fontWeight: '400', lineHeight: '24px', wordWrap: 'break-word' }}>
+          <p style={{ color: '#6C747E', fontSize: FONT_SIZES.BODY_MD, fontWeight: '400', lineHeight: '1.33', wordWrap: 'break-word' }}>
             {description}
           </p>
         </div>
@@ -75,7 +76,7 @@ const NoticeSubSection: React.FC<NoticeSectionProps> = ({
             flexShrink: 0
           }}
         >
-          <span style={{ color: '#24272D', fontSize: '18px', fontWeight: '500', lineHeight: '27px', wordWrap: 'break-word' }}>
+          <span style={{ color: '#24272D', fontSize: FONT_SIZES.BODY_MD, fontWeight: '500', lineHeight: '1.5', wordWrap: 'break-word' }}>
             더보기
           </span>
           <div style={{ width: '24px', height: '24px', position: 'relative', overflow: 'hidden' }}>
@@ -125,14 +126,14 @@ const NoticeSubSection: React.FC<NoticeSectionProps> = ({
 
 export const AnnouncementSection: React.FC = () => {
   return (
-    <section style={{ paddingTop: '80px', paddingBottom: '80px', backgroundColor: '#FFFFFF' }}>
-      <div style={{ maxWidth: '1520px', margin: '0 auto', padding: '0 20px' }}>
+    <section style={{ paddingTop: SPACING.SECTION, paddingBottom: SPACING.SECTION, backgroundColor: '#FFFFFF' }}>
+      <div style={{ maxWidth: RESPONSIVE.CONTAINER_WIDTH, margin: '0 auto', padding: '0 20px' }}>
         {/* 메인 섹션 헤더 */}
-        <div style={{ marginBottom: '60px' }}>
-          <h2 style={{ color: '#121418', fontSize: '48px', fontWeight: '700', lineHeight: '72px', wordWrap: 'break-word', marginBottom: '8px' }}>
+        <div style={{ marginBottom: SPACING.XL }}>
+          <h2 style={{ color: '#121418', fontSize: FONT_SIZES.HEADING_XL, fontWeight: '700', lineHeight: '1.5', wordWrap: 'break-word', marginBottom: '8px' }}>
             지원사업 공고
           </h2>
-          <p style={{ color: '#6C747E', fontSize: '20px', fontWeight: '400', lineHeight: '26px', wordWrap: 'break-word' }}>
+          <p style={{ color: '#6C747E', fontSize: FONT_SIZES.BODY_LG, fontWeight: '400', lineHeight: '1.3', wordWrap: 'break-word' }}>
             전북 바이오 산업을 위한 다양한 지원사업을 확인하세요
           </p>
         </div>

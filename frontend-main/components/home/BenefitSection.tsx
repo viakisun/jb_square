@@ -18,6 +18,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { Container } from '@/components/common/Container';
+import { RESPONSIVE, FONT_SIZES, SPACING } from '@/lib/utils/responsive';
 
 /**
  * 혜택 정보 인터페이스
@@ -156,20 +157,20 @@ const BenefitIcon: React.FC<{ type: Benefit['icon'] }> = ({ type }) => {
 
 export const BenefitSection: React.FC = () => {
   return (
-    <section style={{ paddingTop: '80px', paddingBottom: '80px', backgroundColor: '#FFFFFF' }}>
-      <div style={{ maxWidth: '1520px', margin: '0 auto', padding: '0 20px' }}>
+    <section style={{ paddingTop: SPACING.SECTION, paddingBottom: SPACING.SECTION, backgroundColor: '#FFFFFF' }}>
+      <div style={{ maxWidth: RESPONSIVE.CONTAINER_WIDTH, margin: '0 auto', padding: '0 20px' }}>
         {/* 섹션 헤더 */}
-        <div className="mb-12">
-          <h2 className="font-bold mb-2" style={{ fontSize: '48px', letterSpacing: '-0.48px', lineHeight: '72px', color: '#121418' }}>
+        <div style={{ marginBottom: SPACING.XL }}>
+          <h2 className="font-bold mb-2" style={{ fontSize: FONT_SIZES.HEADING_XL, letterSpacing: '-0.48px', lineHeight: '1.5', color: '#121418' }}>
             회원 혜택
           </h2>
-          <p style={{ fontSize: '20px', letterSpacing: '-0.2px', lineHeight: '26px', color: '#6C747E' }}>
+          <p style={{ fontSize: FONT_SIZES.BODY_LG, letterSpacing: '-0.2px', lineHeight: '1.3', color: '#6C747E' }}>
             회원에게만 제공되는 맞춤형 정보와 실질적인 성장 지원 혜택을 만나보세요.
           </p>
         </div>
 
         {/* 혜택 카드 그리드 - 4개 카드 1열 */}
-        <div className="flex" style={{ gap: '24px', marginBottom: '60px' }}>
+        <div className="flex" style={{ gap: SPACING.MD, marginBottom: SPACING.XL }}>
           {BENEFITS.map((benefit) => (
             <div
               key={benefit.id}
@@ -186,12 +187,12 @@ export const BenefitSection: React.FC = () => {
               {/* 텍스트 영역 */}
               <div style={{ alignSelf: 'stretch', display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {/* 제목 */}
-                <h3 style={{ fontSize: '24px', fontWeight: '700', lineHeight: '36px', color: '#121418', wordWrap: 'break-word' }}>
+                <h3 style={{ fontSize: FONT_SIZES.HEADING_MD, fontWeight: '700', lineHeight: '1.5', color: '#121418', wordWrap: 'break-word' }}>
                   {benefit.title}
                 </h3>
 
                 {/* 설명 */}
-                <p style={{ fontSize: '18px', fontWeight: '400', lineHeight: '27px', color: '#3A3F49', wordWrap: 'break-word' }}>
+                <p style={{ fontSize: FONT_SIZES.BODY_MD, fontWeight: '400', lineHeight: '1.5', color: '#3A3F49', wordWrap: 'break-word' }}>
                   {benefit.description}
                 </p>
               </div>
@@ -226,9 +227,9 @@ export const BenefitSection: React.FC = () => {
             href="/auth/signup"
             className="transition-colors"
             style={{
-              fontSize: '18px',
+              fontSize: FONT_SIZES.BODY_MD,
               fontWeight: '500',
-              lineHeight: '27px',
+              lineHeight: '1.5',
               paddingLeft: '24px',
               paddingRight: '24px',
               paddingTop: '16px',

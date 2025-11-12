@@ -21,6 +21,7 @@ import Link from 'next/link';
 import { Container } from '@/components/common/Container';
 import { Organization } from '@/lib/api/types';
 import api from '@/lib/api/client';
+import { RESPONSIVE, FONT_SIZES, SPACING } from '@/lib/utils/responsive';
 
 export const PartnerSection: React.FC = () => {
   const [companies, setCompanies] = useState<Organization[]>([]);
@@ -136,15 +137,15 @@ export const PartnerSection: React.FC = () => {
   };
 
   return (
-    <section style={{ paddingTop: '80px', paddingBottom: '80px', backgroundColor: '#FFFFFF' }}>
-      <div style={{ maxWidth: '1520px', margin: '0 auto', padding: '0 20px' }}>
+    <section style={{ paddingTop: SPACING.SECTION, paddingBottom: SPACING.SECTION, backgroundColor: '#FFFFFF' }}>
+      <div style={{ maxWidth: RESPONSIVE.CONTAINER_WIDTH, margin: '0 auto', padding: '0 20px' }}>
         {/* 섹션 헤더 */}
-        <div style={{ alignSelf: 'stretch', justifyContent: 'space-between', alignItems: 'flex-end', display: 'inline-flex', marginBottom: '40px' }}>
+        <div style={{ alignSelf: 'stretch', justifyContent: 'space-between', alignItems: 'flex-end', display: 'inline-flex', marginBottom: SPACING.LG }}>
           <div style={{ flexDirection: 'column', justifyContent: 'flex-start', alignItems: 'flex-start', gap: '4px', display: 'inline-flex' }}>
-            <h2 style={{ color: '#121418', fontSize: '48px', fontWeight: '700', lineHeight: '72px', wordWrap: 'break-word' }}>
+            <h2 style={{ color: '#121418', fontSize: FONT_SIZES.HEADING_XL, fontWeight: '700', lineHeight: '1.5', wordWrap: 'break-word' }}>
               주요 기업
             </h2>
-            <p style={{ color: '#6C747E', fontSize: '20px', fontWeight: '400', lineHeight: '26px', wordWrap: 'break-word' }}>
+            <p style={{ color: '#6C747E', fontSize: FONT_SIZES.BODY_LG, fontWeight: '400', lineHeight: '1.3', wordWrap: 'break-word' }}>
               바이오 산업의 미래 가치를 만들어가는 전북의 핵심 기업들을 소개합니다.
             </p>
           </div>
@@ -165,7 +166,7 @@ export const PartnerSection: React.FC = () => {
               display: 'flex'
             }}
           >
-            <span style={{ color: '#24272D', fontSize: '18px', fontWeight: '500', lineHeight: '27px', wordWrap: 'break-word' }}>
+            <span style={{ color: '#24272D', fontSize: FONT_SIZES.BODY_MD, fontWeight: '500', lineHeight: '1.5', wordWrap: 'break-word' }}>
               더보기
             </span>
             <div style={{ width: '24px', height: '24px', position: 'relative', overflow: 'hidden' }}>
@@ -239,7 +240,7 @@ export const PartnerSection: React.FC = () => {
 
                 {/* 기업 정보 */}
                 <div style={{ flex: '1 1 0', overflow: 'hidden', flexDirection: 'column', justifyContent: 'flex-start', alignItems: 'flex-start', gap: '8px', display: 'inline-flex' }}>
-                  <h3 style={{ alignSelf: 'stretch', color: '#121418', fontSize: '20px', fontWeight: '600', lineHeight: '30px', wordWrap: 'break-word' }}>
+                  <h3 style={{ alignSelf: 'stretch', color: '#121418', fontSize: FONT_SIZES.HEADING_MD, fontWeight: '600', lineHeight: '1.5', wordWrap: 'break-word' }}>
                     {getCompanyName(company)}
                   </h3>
                   <p
@@ -247,9 +248,9 @@ export const PartnerSection: React.FC = () => {
                       alignSelf: 'stretch',
                       height: '54px',
                       color: '#565B64',
-                      fontSize: '18px',
+                      fontSize: FONT_SIZES.BODY_MD,
                       fontWeight: '400',
-                      lineHeight: '27px',
+                      lineHeight: '1.5',
                       wordWrap: 'break-word',
                       overflow: 'hidden',
                       display: '-webkit-box',
@@ -290,7 +291,7 @@ export const PartnerSection: React.FC = () => {
 
                   {/* 기업 정보 */}
                   <div style={{ flex: '1 1 0', flexDirection: 'column', justifyContent: 'flex-start', alignItems: 'flex-start', gap: '8px', display: 'inline-flex' }}>
-                    <h3 style={{ alignSelf: 'stretch', color: '#121418', fontSize: '20px', fontWeight: '600', lineHeight: '30px', wordWrap: 'break-word' }}>
+                    <h3 style={{ alignSelf: 'stretch', color: '#121418', fontSize: FONT_SIZES.HEADING_MD, fontWeight: '600', lineHeight: '1.5', wordWrap: 'break-word' }}>
                       {getCompanyName(company)}
                     </h3>
                     <p
@@ -298,9 +299,9 @@ export const PartnerSection: React.FC = () => {
                         alignSelf: 'stretch',
                         height: '54px',
                         color: '#565B64',
-                        fontSize: '18px',
+                        fontSize: FONT_SIZES.BODY_MD,
                         fontWeight: '400',
-                        lineHeight: '27px',
+                        lineHeight: '1.5',
                         wordWrap: 'break-word',
                         overflow: 'hidden',
                         display: '-webkit-box',
@@ -342,7 +343,7 @@ export const PartnerSection: React.FC = () => {
 
                   {/* 기업 정보 */}
                   <div style={{ flex: '1 1 0', flexDirection: 'column', justifyContent: 'flex-start', alignItems: 'flex-start', gap: '8px', display: 'inline-flex' }}>
-                    <h3 style={{ alignSelf: 'stretch', color: '#121418', fontSize: '20px', fontWeight: '600', lineHeight: '30px', wordWrap: 'break-word' }}>
+                    <h3 style={{ alignSelf: 'stretch', color: '#121418', fontSize: FONT_SIZES.HEADING_MD, fontWeight: '600', lineHeight: '1.5', wordWrap: 'break-word' }}>
                       {getCompanyName(company)}
                     </h3>
                     <p
@@ -350,9 +351,9 @@ export const PartnerSection: React.FC = () => {
                         alignSelf: 'stretch',
                         height: '54px',
                         color: '#565B64',
-                        fontSize: '18px',
+                        fontSize: FONT_SIZES.BODY_MD,
                         fontWeight: '400',
-                        lineHeight: '27px',
+                        lineHeight: '1.5',
                         wordWrap: 'break-word',
                         overflow: 'hidden',
                         display: '-webkit-box',
