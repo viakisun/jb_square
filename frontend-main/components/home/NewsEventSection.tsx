@@ -20,6 +20,7 @@ import Link from 'next/link';
 import { useLatestNotices } from '@/hooks/useNotices';
 import { formatDate } from '@/lib/utils/date';
 import { RESPONSIVE, FONT_SIZES, SPACING } from '@/lib/utils/responsive';
+import { Notice } from '@/lib/api/types';
 
 export const NewsEventSection: React.FC = () => {
   /**
@@ -38,10 +39,10 @@ export const NewsEventSection: React.FC = () => {
   /**
    * 날짜 범위 계산 (이벤트용)
    */
-  const getEventDateRange = (notice: any): string => {
+  const getEventDateRange = (notice: Notice): string => {
     if (!notice) return '';
-    const startDate = notice.application_start_date || notice.published_at || notice.created_at;
-    const endDate = notice.application_end_date;
+    const startDate = notice.application_start || notice.published_at || notice.created_at;
+    const endDate = notice.application_end || notice.deadline;
 
     if (startDate && endDate) {
       return `${formatDate(startDate)} ~ ${formatDate(endDate)}`;
@@ -52,12 +53,12 @@ export const NewsEventSection: React.FC = () => {
   /**
    * 진행률 계산 (이벤트용)
    */
-  const calculateProgress = (notice: any): number => {
-    if (!notice?.application_start_date || !notice?.application_end_date) return 0;
+  const calculateProgress = (notice: Notice): number => {
+    if (!notice?.application_start || !notice?.application_end) return 0;
 
     const now = new Date().getTime();
-    const start = new Date(notice.application_start_date).getTime();
-    const end = new Date(notice.application_end_date).getTime();
+    const start = new Date(notice.application_start).getTime();
+    const end = new Date(notice.application_end).getTime();
 
     if (now < start) return 0;
     if (now > end) return 100;
@@ -201,42 +202,42 @@ export const NewsEventSection: React.FC = () => {
 
             {/* 우측: 뉴스 목록 */}
             <div style={{ flex: '1 1 0', flexDirection: 'column', justifyContent: 'flex-start', alignItems: 'flex-start', gap: '32px', display: 'inline-flex' }}>
-              {newsItems.map((news) => (
-                <div key={news.id} style={{ alignSelf: 'stretch', justifyContent: 'flex-start', alignItems: 'flex-start', gap: '24px', display: 'inline-flex' }}>
-                  {/* 좌측: 텍스트 */}
-                  <div style={{ flex: '1 1 0', flexDirection: 'column', justifyContent: 'flex-start', alignItems: 'flex-start', gap: '12px', display: 'inline-flex' }}>
-                    {/* NEWS 태그 */}
-                    <div style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '4px', paddingBottom: '4px', background: '#E6F9FB', borderRadius: '4px', display: 'inline-flex', justifyContent: 'center', alignItems: 'center' }}>
-                      <span style={{ color: '#00B8CD', fontSize: '15px', fontWeight: '600', lineHeight: '22.50px', wordWrap: 'break-word' }}>
-                        NEWS
+              {newsItems.map((item) => (
+                <Link key={item.id} href={`/notices/${item.id}`}>
+                  <div style={{ alignSelf: 'stretch', justifyContent: 'flex-start', alignItems: 'flex-start', gap: '24px', display: 'inline-flex' }}>
+                    {/* 좌측: 텍스트 */}
+                    <div style={{ flex: '1 1 0', flexDirection: 'column', justifyContent: 'flex-start', alignItems: 'flex-start', gap: '12px', display: 'inline-flex' }}>
+                      {/* NEWS 태그 */}
+                      <div style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '4px', paddingBottom: '4px', background: '#E6F9FB', borderRadius: '4px', display: 'inline-flex', justifyContent: 'center', alignItems: 'center' }}>
+                        <span style={{ color: '#00B8CD', fontSize: '15px', fontWeight: '600', lineHeight: '22.50px', wordWrap: 'break-word' }}>
+                          NEWS
+                        </span>
+                      </div>
+
+                      {/* 제목 */}
+                      <h3 style={{ alignSelf: 'stretch', color: '#121418', fontSize: '20px', fontWeight: '700', lineHeight: '30px', wordWrap: 'break-word', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+                        {item.title}
+                      </h3>
+
+                      {/* 설명 */}
+                      <p style={{ alignSelf: 'stretch', color: '#6C747E', fontSize: '18px', fontWeight: '400', lineHeight: '27px', wordWrap: 'break-word', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+                        {item.content?.replace(/<[^>]*>/g, '').substring(0, 80) || '전북 바이오 산업의 최신 소식입니다.'}
+                      </p>
+
+                      {/* 날짜 */}
+                      <span style={{ color: '#6C747E', fontSize: '18px', fontWeight: '400', lineHeight: '27px', wordWrap: 'break-word' }}>
+                        {formatDate(item.published_at || item.created_at)}
                       </span>
                     </div>
 
-                    {/* 제목 */}
-                    <Link href={`/notices/${news.id}`}>
-                      <h3 style={{ alignSelf: 'stretch', color: '#121418', fontSize: '20px', fontWeight: '700', lineHeight: '30px', wordWrap: 'break-word', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
-                        {news.title}
-                      </h3>
-                    </Link>
-
-                    {/* 설명 */}
-                    <p style={{ alignSelf: 'stretch', color: '#6C747E', fontSize: '18px', fontWeight: '400', lineHeight: '27px', wordWrap: 'break-word', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
-                      {news.content?.replace(/<[^>]*>/g, '').substring(0, 80) || '전북 바이오 산업의 최신 소식입니다.'}
-                    </p>
-
-                    {/* 날짜 */}
-                    <span style={{ color: '#6C747E', fontSize: '18px', fontWeight: '400', lineHeight: '27px', wordWrap: 'break-word' }}>
-                      {formatDate(news.published_at || news.created_at)}
-                    </span>
+                    {/* 우측: 이미지 */}
+                    <div style={{ width: '239px', height: '150px', position: 'relative', borderRadius: '8px', overflow: 'hidden', backgroundColor: '#F3F6FB', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <svg className="w-16 h-16 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
+                      </svg>
+                    </div>
                   </div>
-
-                  {/* 우측: 이미지 */}
-                  <div style={{ width: '239px', height: '150px', position: 'relative', borderRadius: '8px', overflow: 'hidden', backgroundColor: '#F3F6FB', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <svg className="w-16 h-16 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
-                    </svg>
-                  </div>
-                </div>
+                </Link>
               ))}
             </div>
           </div>

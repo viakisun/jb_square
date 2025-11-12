@@ -328,20 +328,28 @@ export const NoticeCard: React.FC<NoticeCardProps> = ({
           </div>
 
           {/* 신청 기간 */}
-          {(notice.application_start_date || notice.deadline) && (
+          {(notice.application_start || notice.application_end || notice.deadline) && (
             <div>
               <span style={{ color: '#24272D', fontSize: '16px', fontFamily: 'Pretendard GOV', fontWeight: '600', lineHeight: '22.4px', wordWrap: 'break-word' }}>
                 신청 기간
               </span>
               <span style={{ color: '#24272D', fontSize: '16px', fontFamily: 'Pretendard GOV', fontWeight: '400', lineHeight: '22.4px', wordWrap: 'break-word' }}>
                 {' '}
-                {notice.application_start_date && notice.deadline
-                  ? `${formatDateSimple(notice.application_start_date)}-${formatDateSimple(notice.deadline)}`
-                  : notice.deadline
-                  ? `~ ${formatDateSimple(notice.deadline)}`
-                  : notice.application_start_date
-                  ? `${formatDateSimple(notice.application_start_date)} ~`
-                  : '상시접수'}
+                {(() => {
+                  const start = notice.application_start;
+                  const end = notice.application_end || notice.deadline;
+
+                  if (start && end) {
+                    return `${formatDateSimple(start)}-${formatDateSimple(end)}`;
+                  }
+                  if (end) {
+                    return `~ ${formatDateSimple(end)}`;
+                  }
+                  if (start) {
+                    return `${formatDateSimple(start)} ~`;
+                  }
+                  return '상시접수';
+                })()}
               </span>
             </div>
           )}

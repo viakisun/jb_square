@@ -69,8 +69,8 @@ export const PartnerSection: React.FC = () => {
    * 기업 설명 생성 (주요제품명 사용, 없으면 기본 문구)
    */
   const getCompanyDescription = (company: Organization): string => {
-    if (company.main_products_and_services) {
-      return company.main_products_and_services;
+    if (company.main_products) {
+      return company.main_products;
     }
     return '전북 바이오 산업의 핵심 기업입니다.';
   };

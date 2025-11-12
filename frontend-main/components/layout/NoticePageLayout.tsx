@@ -33,6 +33,7 @@
 
 import React from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 
@@ -49,6 +50,15 @@ interface NoticePageLayoutProps {
   /** Category Label (예: "JB 지원사업 공고", "뉴스/행사") - 기본값: "JB 지원사업 공고" */
   categoryLabel?: string;
 
+  /** Breadcrumb 부모 단계 라벨 (기본값: categoryLabel) */
+  breadcrumbParent?: string;
+
+  /** Breadcrumb 부모 단계 링크 (기본값: undefined) */
+  breadcrumbParentHref?: string;
+
+  /** Breadcrumb 마지막 단계 라벨 (기본값: pageTitle) */
+  breadcrumbCurrent?: string;
+
   /** 자식 컴포넌트 (공고 목록, 페이지네이션 등) */
   children: React.ReactNode;
 }
@@ -60,8 +70,51 @@ export const NoticePageLayout: React.FC<NoticePageLayoutProps> = ({
   pageTitle,
   pageSubtitle,
   categoryLabel = 'JB 지원사업 공고',
+  breadcrumbCurrent,
+  breadcrumbParent,
+  breadcrumbParentHref,
   children,
 }) => {
+  const currentBreadcrumb = breadcrumbCurrent ?? pageTitle;
+  const parentBreadcrumb = breadcrumbParent ?? categoryLabel;
+
+  const renderBreadcrumbPill = (text: string, href?: string) => {
+    const content = (
+      <div
+        style={{
+          padding: '2px 4px',
+          background: '#FFFFFF',
+          borderRadius: '4px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <div
+          style={{
+            color: '#24272D',
+            fontSize: '16px',
+            fontFamily: 'Pretendard GOV',
+            fontWeight: 500,
+            lineHeight: '22.4px',
+            wordWrap: 'break-word',
+          }}
+        >
+          {text}
+        </div>
+      </div>
+    );
+
+    if (href) {
+      return (
+        <Link href={href} style={{ display: 'flex', alignItems: 'center' }}>
+          {content}
+        </Link>
+      );
+    }
+
+    return content;
+  };
 
   return (
     <div className="min-h-screen bg-white">
@@ -70,6 +123,36 @@ export const NoticePageLayout: React.FC<NoticePageLayoutProps> = ({
 
       {/* Main Content Container - cluster.tsx와 동일한 1060px 너비 */}
       <main className="max-w-[1060px] mx-auto px-4 py-12">
+        {/* Breadcrumb */}
+        <section className="mb-8">
+          <div
+            style={{
+              width: '100%',
+              height: '100%',
+              display: 'inline-flex',
+              justifyContent: 'flex-start',
+              alignItems: 'center',
+              gap: '4px',
+            }}
+          >
+            <Link
+              href="/"
+              style={{
+                width: '24px',
+                height: '24px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Image src="/images/home-03.svg" alt="홈" width={16} height={16} />
+            </Link>
+            <Image src="/images/icon16.svg" alt="" width={16} height={16} />
+            {renderBreadcrumbPill(parentBreadcrumb, breadcrumbParentHref)}
+            <Image src="/images/icon16.svg" alt="" width={16} height={16} />
+            {renderBreadcrumbPill(currentBreadcrumb)}
+          </div>
+        </section>
 
         {/* ============================================
             1. PAGE TITLE
