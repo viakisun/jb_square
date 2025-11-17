@@ -81,14 +81,6 @@ const Header: React.FC = () => {
       isBold: true, // 첫 번째 메뉴는 600
     },
     {
-      title: '지원기관',
-      href: '/support-organizations',
-    },
-    {
-      title: '바이오 지원 정책',
-      href: '/bio-policies',
-    },
-    {
       title: '지원사업 공고',
       subItems: [
         { name: '정부공고', href: '/notices/notice-government' },

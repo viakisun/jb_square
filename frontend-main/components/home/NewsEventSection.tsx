@@ -72,7 +72,7 @@ export const NewsEventSection: React.FC = () => {
       <div style={{ maxWidth: RESPONSIVE.CONTAINER_WIDTH, margin: '0 auto', padding: '0 20px' }}>
         {/* 섹션 헤더 */}
         <div style={{ alignSelf: 'stretch', justifyContent: 'space-between', alignItems: 'flex-end', display: 'flex', marginBottom: SPACING.LG }}>
-          <div style={{ flexDirection: 'column', justifyContent: 'flex-start', alignItems: 'flex-start', gap: '4px', display: 'inline-flex' }}>
+          <div style={{ flexDirection: 'column', justifyContent: 'flex-start', alignItems: 'flex-start', gap: '4px', display: 'flex' }}>
             <h2 style={{ color: '#121418', fontSize: FONT_SIZES.HEADING_XL, fontWeight: '700', lineHeight: '1.5', wordWrap: 'break-word' }}>
               NEWS & EVENT
             </h2>
@@ -144,7 +144,7 @@ export const NewsEventSection: React.FC = () => {
           <div className="flex" style={{ gap: '80px', alignItems: 'flex-start' }}>
             {/* 좌측: 메인 이벤트 */}
             {featuredEvent && (
-              <div style={{ width: '511px', flexShrink: 0, flexDirection: 'column', justifyContent: 'flex-start', alignItems: 'flex-start', gap: '24px', display: 'inline-flex' }}>
+              <div style={{ width: '511px', flexShrink: 0, flexDirection: 'column', justifyContent: 'flex-start', alignItems: 'flex-start', gap: '24px', display: 'flex' }}>
                 {/* 이벤트 이미지 */}
                 <div style={{ alignSelf: 'stretch', height: '321px', position: 'relative', borderRadius: '8px', overflow: 'hidden', backgroundColor: '#F3F6FB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <svg className="w-20 h-20 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -201,12 +201,12 @@ export const NewsEventSection: React.FC = () => {
             )}
 
             {/* 우측: 뉴스 목록 */}
-            <div style={{ flex: '1 1 0', flexDirection: 'column', justifyContent: 'flex-start', alignItems: 'flex-start', gap: '32px', display: 'inline-flex' }}>
+            <div style={{ flex: '1 1 0', flexDirection: 'column', justifyContent: 'flex-start', alignItems: 'flex-start', gap: '32px', display: 'flex' }}>
               {newsItems.map((item) => (
-                <Link key={item.id} href={`/notices/${item.id}`}>
-                  <div style={{ alignSelf: 'stretch', justifyContent: 'flex-start', alignItems: 'flex-start', gap: '24px', display: 'inline-flex' }}>
+                <Link key={item.id} href={`/notices/${item.id}`} style={{ display: 'block', width: '100%' }}>
+                  <div style={{ width: '100%', justifyContent: 'flex-start', alignItems: 'flex-start', gap: '24px', display: 'flex' }}>
                     {/* 좌측: 텍스트 */}
-                    <div style={{ flex: '1 1 0', flexDirection: 'column', justifyContent: 'flex-start', alignItems: 'flex-start', gap: '12px', display: 'inline-flex' }}>
+                    <div style={{ flex: '1 1 0', flexDirection: 'column', justifyContent: 'flex-start', alignItems: 'flex-start', gap: '12px', display: 'flex' }}>
                       {/* NEWS 태그 */}
                       <div style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '4px', paddingBottom: '4px', background: '#E6F9FB', borderRadius: '4px', display: 'inline-flex', justifyContent: 'center', alignItems: 'center' }}>
                         <span style={{ color: '#00B8CD', fontSize: '15px', fontWeight: '600', lineHeight: '22.50px', wordWrap: 'break-word' }}>

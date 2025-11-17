@@ -22,6 +22,11 @@ import { Container } from '@/components/common/Container';
 import { Organization } from '@/lib/api/types';
 import api from '@/lib/api/client';
 import { RESPONSIVE, FONT_SIZES, SPACING } from '@/lib/utils/responsive';
+import {
+  BIO_CATEGORY_CONFIG,
+  determineBioCategory,
+  type BioCategory,
+} from '@/lib/utils/bioCategory';
 
 export const PartnerSection: React.FC = () => {
   const [companies, setCompanies] = useState<Organization[]>([]);
@@ -78,61 +83,41 @@ export const PartnerSection: React.FC = () => {
   /**
    * 로고 컴포넌트 렌더링
    */
-  const renderCompanyLogo = (company: Organization) => {
-    // TODO: 추후 실제 로고 URL 필드 추가 시 사용
-    const logoUrl = null; // company.logo_url
+  const renderCompanyLogo = (company: Organization, categoryOverride?: BioCategory) => {
+    const category = categoryOverride ?? determineBioCategory(company);
+    const config = BIO_CATEGORY_CONFIG[category];
 
-    if (logoUrl) {
-      return <img src={logoUrl} alt={getCompanyName(company)} className="w-full h-full object-contain p-4" />;
-    }
-
-    // 로고가 없을 때: 기업명 첫 2글자를 그라디언트 배경과 함께 표시
-    const companyName = getCompanyName(company);
-
-    // 기업 ID 기반으로 색상 선택 (일관된 색상 유지)
-    const colors = [
-      { bg: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', text: '#FFFFFF' },
-      { bg: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)', text: '#FFFFFF' },
-      { bg: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)', text: '#FFFFFF' },
-      { bg: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)', text: '#FFFFFF' },
-      { bg: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)', text: '#FFFFFF' },
-      { bg: 'linear-gradient(135deg, #30cfd0 0%, #330867 100%)', text: '#FFFFFF' },
-    ];
-
-    const colorIndex = company.id % colors.length;
-    const color = colors[colorIndex];
-
-    if (companyName && companyName.length >= 2) {
+    if (!config?.icon) {
+      const companyName = getCompanyName(company) || '기업';
+      const initials = companyName.substring(0, 2);
       return (
         <div
           style={{
             width: '100%',
             height: '100%',
-            background: color.bg,
+            background: '#1F2937',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             fontSize: '28px',
             fontWeight: '700',
-            color: color.text,
-            letterSpacing: '-0.5px'
+            color: '#FFFFFF',
+            letterSpacing: '-0.5px',
           }}
         >
-          {companyName.substring(0, 2)}
+          {initials}
         </div>
       );
     }
 
-    // 기본 빌딩 아이콘
     return (
-      <svg className="w-12 h-12 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={1.5}
-          d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
-        />
-      </svg>
+      <img
+        src={config.icon}
+        alt={`${config.label} 아이콘`}
+        title={config.label}
+        loading="lazy"
+        style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+      />
     );
   };
 
@@ -140,8 +125,8 @@ export const PartnerSection: React.FC = () => {
     <section style={{ paddingTop: SPACING.SECTION, paddingBottom: SPACING.SECTION, backgroundColor: '#FFFFFF' }}>
       <div style={{ maxWidth: RESPONSIVE.CONTAINER_WIDTH, margin: '0 auto', padding: '0 20px' }}>
         {/* 섹션 헤더 */}
-        <div style={{ alignSelf: 'stretch', justifyContent: 'space-between', alignItems: 'flex-end', display: 'inline-flex', marginBottom: SPACING.LG }}>
-          <div style={{ flexDirection: 'column', justifyContent: 'flex-start', alignItems: 'flex-start', gap: '4px', display: 'inline-flex' }}>
+        <div style={{ alignSelf: 'stretch', justifyContent: 'space-between', alignItems: 'flex-end', display: 'flex', marginBottom: SPACING.LG }}>
+          <div style={{ flexDirection: 'column', justifyContent: 'flex-start', alignItems: 'flex-start', gap: '4px', display: 'flex' }}>
             <h2 style={{ color: '#121418', fontSize: FONT_SIZES.HEADING_XL, fontWeight: '700', lineHeight: '1.5', wordWrap: 'break-word' }}>
               주요 기업
             </h2>
@@ -216,9 +201,12 @@ export const PartnerSection: React.FC = () => {
         // 기업 목록
         <div style={{ alignSelf: 'stretch', flexDirection: 'column', justifyContent: 'center', alignItems: 'flex-start', gap: '40px', display: 'flex' }}>
           {/* Row 1 */}
-          <div style={{ alignSelf: 'stretch', justifyContent: 'flex-start', alignItems: 'flex-start', gap: '60px', display: 'inline-flex' }}>
-            {companies.slice(0, 2).map((company) => (
-              <div key={company.id} style={{ flex: '1 1 0', justifyContent: 'flex-start', alignItems: 'center', gap: '24px', display: 'flex' }}>
+          <div style={{ alignSelf: 'stretch', justifyContent: 'flex-start', alignItems: 'flex-start', gap: '60px', display: 'flex' }}>
+            {companies.slice(0, 2).map((company) => {
+              const category = determineBioCategory(company);
+              const categoryConfig = BIO_CATEGORY_CONFIG[category];
+              return (
+                <div key={company.id} style={{ flex: '1 1 0', justifyContent: 'flex-start', alignItems: 'center', gap: '24px', display: 'flex' }}>
                 {/* 로고 */}
                 <div
                   style={{
@@ -232,14 +220,30 @@ export const PartnerSection: React.FC = () => {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    backgroundColor: '#FFFFFF'
+                    backgroundColor: '#FFFFFF',
+                    padding: '6px',
                   }}
                 >
-                  {renderCompanyLogo(company)}
+                  {renderCompanyLogo(company, category)}
                 </div>
 
                 {/* 기업 정보 */}
-                <div style={{ flex: '1 1 0', overflow: 'hidden', flexDirection: 'column', justifyContent: 'flex-start', alignItems: 'flex-start', gap: '8px', display: 'inline-flex' }}>
+                <div style={{ flex: '1 1 0', overflow: 'hidden', flexDirection: 'column', justifyContent: 'flex-start', alignItems: 'flex-start', gap: '8px', display: 'flex' }}>
+                  <span
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      padding: '4px 10px',
+                      borderRadius: '9999px',
+                      backgroundColor: categoryConfig.tagBackground,
+                      color: categoryConfig.tagColor,
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      lineHeight: '18px',
+                    }}
+                  >
+                    {categoryConfig.label}
+                  </span>
                   <h3 style={{ alignSelf: 'stretch', color: '#121418', fontSize: FONT_SIZES.HEADING_MD, fontWeight: '600', lineHeight: '1.5', wordWrap: 'break-word' }}>
                     {getCompanyName(company)}
                   </h3>
@@ -262,14 +266,18 @@ export const PartnerSection: React.FC = () => {
                   </p>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
 
           {/* Row 2 */}
           {companies.length > 2 && (
-            <div style={{ alignSelf: 'stretch', justifyContent: 'flex-start', alignItems: 'flex-start', gap: '60px', display: 'inline-flex' }}>
-              {companies.slice(2, 4).map((company) => (
-                <div key={company.id} style={{ flex: '1 1 0', justifyContent: 'flex-start', alignItems: 'center', gap: '24px', display: 'flex' }}>
+            <div style={{ alignSelf: 'stretch', justifyContent: 'flex-start', alignItems: 'flex-start', gap: '60px', display: 'flex' }}>
+              {companies.slice(2, 4).map((company) => {
+                const category = determineBioCategory(company);
+                const categoryConfig = BIO_CATEGORY_CONFIG[category];
+                return (
+                  <div key={company.id} style={{ flex: '1 1 0', justifyContent: 'flex-start', alignItems: 'center', gap: '24px', display: 'flex' }}>
                   {/* 로고 */}
                   <div
                     style={{
@@ -283,14 +291,30 @@ export const PartnerSection: React.FC = () => {
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      backgroundColor: '#FFFFFF'
+                      backgroundColor: '#FFFFFF',
+                      padding: '6px',
                     }}
                   >
-                    {renderCompanyLogo(company)}
+                    {renderCompanyLogo(company, category)}
                   </div>
 
                   {/* 기업 정보 */}
-                  <div style={{ flex: '1 1 0', flexDirection: 'column', justifyContent: 'flex-start', alignItems: 'flex-start', gap: '8px', display: 'inline-flex' }}>
+                  <div style={{ flex: '1 1 0', flexDirection: 'column', justifyContent: 'flex-start', alignItems: 'flex-start', gap: '8px', display: 'flex' }}>
+                    <span
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        padding: '4px 10px',
+                        borderRadius: '9999px',
+                      backgroundColor: categoryConfig.tagBackground,
+                      color: categoryConfig.tagColor,
+                        fontSize: '13px',
+                        fontWeight: 600,
+                        lineHeight: '18px',
+                      }}
+                    >
+                      {categoryConfig.label}
+                    </span>
                     <h3 style={{ alignSelf: 'stretch', color: '#121418', fontSize: FONT_SIZES.HEADING_MD, fontWeight: '600', lineHeight: '1.5', wordWrap: 'break-word' }}>
                       {getCompanyName(company)}
                     </h3>
@@ -313,15 +337,19 @@ export const PartnerSection: React.FC = () => {
                     </p>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
 
           {/* Row 3 */}
           {companies.length > 4 && (
-            <div style={{ alignSelf: 'stretch', justifyContent: 'flex-start', alignItems: 'flex-start', gap: '60px', display: 'inline-flex' }}>
-              {companies.slice(4, 6).map((company) => (
-                <div key={company.id} style={{ flex: '1 1 0', justifyContent: 'flex-start', alignItems: 'center', gap: '24px', display: 'flex' }}>
+            <div style={{ alignSelf: 'stretch', justifyContent: 'flex-start', alignItems: 'flex-start', gap: '60px', display: 'flex' }}>
+              {companies.slice(4, 6).map((company) => {
+                const category = determineBioCategory(company);
+                const categoryConfig = BIO_CATEGORY_CONFIG[category];
+                return (
+                  <div key={company.id} style={{ flex: '1 1 0', justifyContent: 'flex-start', alignItems: 'center', gap: '24px', display: 'flex' }}>
                   {/* 로고 */}
                   <div
                     style={{
@@ -335,14 +363,30 @@ export const PartnerSection: React.FC = () => {
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      backgroundColor: '#FFFFFF'
+                      backgroundColor: '#FFFFFF',
+                      padding: '6px',
                     }}
                   >
-                    {renderCompanyLogo(company)}
+                    {renderCompanyLogo(company, category)}
                   </div>
 
                   {/* 기업 정보 */}
-                  <div style={{ flex: '1 1 0', flexDirection: 'column', justifyContent: 'flex-start', alignItems: 'flex-start', gap: '8px', display: 'inline-flex' }}>
+                  <div style={{ flex: '1 1 0', flexDirection: 'column', justifyContent: 'flex-start', alignItems: 'flex-start', gap: '8px', display: 'flex' }}>
+                    <span
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        padding: '4px 10px',
+                        borderRadius: '9999px',
+                      backgroundColor: categoryConfig.tagBackground,
+                      color: categoryConfig.tagColor,
+                        fontSize: '13px',
+                        fontWeight: 600,
+                        lineHeight: '18px',
+                      }}
+                    >
+                      {categoryConfig.label}
+                    </span>
                     <h3 style={{ alignSelf: 'stretch', color: '#121418', fontSize: FONT_SIZES.HEADING_MD, fontWeight: '600', lineHeight: '1.5', wordWrap: 'break-word' }}>
                       {getCompanyName(company)}
                     </h3>
@@ -365,7 +409,8 @@ export const PartnerSection: React.FC = () => {
                     </p>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
