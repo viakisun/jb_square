@@ -53,7 +53,11 @@
 			wsUrl,
 			// onItemAdded callback
 			(item) => {
-				queueItems = [item, ...queueItems];
+				// Add item and remove duplicates by ID
+				const newItems = [item, ...queueItems];
+				queueItems = Array.from(
+					new Map(newItems.map((item: any) => [item.id, item])).values()
+				);
 			},
 			// onComplete callback
 			() => {
