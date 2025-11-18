@@ -94,7 +94,11 @@
 
 					case 'item_added':
 						if (data.item) {
-							queueItems = [data.item, ...queueItems];
+							// Add item and remove duplicates by ID
+							const newItems = [data.item, ...queueItems];
+							queueItems = Array.from(
+								new Map(newItems.map((item: any) => [item.id, item])).values()
+							);
 						}
 						break;
 
