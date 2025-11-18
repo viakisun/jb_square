@@ -18,7 +18,8 @@
 		BarChart3,
 		Activity,
 		Calendar,
-		Newspaper
+		Newspaper,
+		BookOpen
 	} from 'lucide-svelte';
 
 	let { children } = $props();
@@ -50,7 +51,8 @@
 		{ path: '/organizations', label: '기업·기관', icon: Building },
 		{ path: '/ksic', label: 'KSIC 코드', icon: Tag },
 		{ path: '/analytics', label: '통계', icon: BarChart3 },
-		{ path: '/system-monitor', label: '시스템 모니터링', icon: Activity }
+		{ path: '/system-monitor', label: '시스템 모니터링', icon: Activity },
+		{ path: '/docs', label: '사용자 가이드', icon: BookOpen }
 	];
 
 	function toggleSidebar() {
