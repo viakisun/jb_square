@@ -797,7 +797,7 @@ const CompanyDirectoryPage: React.FC = () => {
 
             {(() => {
               const currentPage = pagination?.page || 1;
-              const totalPages = pagination?.total_pages || Math.ceil(totalCount / itemsPerPage);
+              const totalPages = pagination?.totalPages || Math.ceil(totalCount / itemsPerPage);
               const pageNumbers = [];
               const maxPagesToShow = 5; // 최대 표시할 페이지 수
 
@@ -854,7 +854,7 @@ const CompanyDirectoryPage: React.FC = () => {
 
             <button
               onClick={() => handlePageChange((pagination?.page || 1) + 1)}
-              disabled={(pagination?.page || 1) >= (pagination?.total_pages || Math.ceil(totalCount / itemsPerPage))}
+              disabled={(pagination?.page || 1) >= (pagination?.totalPages || Math.ceil(totalCount / itemsPerPage))}
               style={{
                 height: '40px',
                 paddingTop: '6px',
@@ -867,8 +867,8 @@ const CompanyDirectoryPage: React.FC = () => {
                 display: 'flex',
                 border: 'none',
                 background: 'transparent',
-                cursor: (pagination?.page || 1) >= (pagination?.total_pages || Math.ceil(totalCount / itemsPerPage)) ? 'not-allowed' : 'pointer',
-                opacity: (pagination?.page || 1) >= (pagination?.total_pages || Math.ceil(totalCount / itemsPerPage)) ? 0.5 : 1
+                cursor: (pagination?.page || 1) >= (pagination?.totalPages || Math.ceil(totalCount / itemsPerPage)) ? 'not-allowed' : 'pointer',
+                opacity: (pagination?.page || 1) >= (pagination?.totalPages || Math.ceil(totalCount / itemsPerPage)) ? 0.5 : 1
               }}
             >
               <div style={{
