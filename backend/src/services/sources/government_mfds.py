@@ -293,6 +293,91 @@ class GovernmentMFDSAdapter(BaseAdapter):
 
         return ''
 
+    async def get_notices_preview(
+        self,
+        count: int = 100,
+        apply_keyword_filter: bool = False,
+        date_range_days: int = 30
+    ) -> List[Dict]:
+        """
+        키워드 필터 적용 여부를 선택하여 공고 미리보기 (DB 저장 없음)
+
+        Args:
+            count: 수집할 최대 공고 개수
+            apply_keyword_filter: 키워드 필터 적용 여부
+            date_range_days: 검색 기간 (일)
+
+        Returns:
+            [{
+                'title': str,
+                'published_date': str,
+                'source': str,
+                'board': str,
+                'link': str,
+                'matched_keywords': List[str]
+            }]
+        """
+        try:
+            keywords = self.get_keywords() if apply_keyword_filter else []
+
+            # RSS 피드 다운로드
+            feed = feedparser.parse(self.feed_url)
+            if feed.bozo:
+                return []
+
+            # 날짜 필터 설정
+            from datetime import timezone
+            cutoff_date = datetime.now(timezone.utc) - timedelta(days=date_range_days)
+
+            notices_preview = []
+            for entry in feed.entries:
+                if len(notices_preview) >= count:
+                    break
+
+                # 날짜 필터링
+                pub_date = self._parse_date(entry)
+                if pub_date:
+                    if pub_date.tzinfo is None:
+                        pub_date = pub_date.replace(tzinfo=timezone.utc)
+                    if pub_date < cutoff_date:
+                        continue
+
+                title = entry.get('title', '').strip()
+                link = entry.get('link', '').strip()
+
+                # 날짜 문자열 변환
+                pub_date_str = ''
+                if pub_date:
+                    pub_date_str = pub_date.strftime('%Y-%m-%d')
+
+                # 키워드 필터링
+                matched_keywords = []
+                if apply_keyword_filter:
+                    content = self._get_content(entry)
+                    combined_text = f"{title} {content}"
+                    matched_keywords = self.match_keywords(combined_text, keywords)
+                    if not matched_keywords:
+                        continue
+
+                # 공고 추가
+                notice_preview = {
+                    'title': title,
+                    'published_date': pub_date_str,
+                    'source': 'MFDS',
+                    'board': '식약처 공지사항',
+                    'link': link,
+                    'matched_keywords': matched_keywords
+                }
+                notices_preview.append(notice_preview)
+
+            return notices_preview
+
+        except Exception as e:
+            print(f"[GovernmentMFDSAdapter] get_notices_preview 오류: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return []
+
     def _extract_attachments(self, entry: Dict) -> List[Dict[str, str]]:
         """RSS 항목에서 첨부파일 추출"""
         attachments = []

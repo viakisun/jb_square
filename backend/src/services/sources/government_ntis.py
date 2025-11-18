@@ -6,7 +6,7 @@ NTIS Crawler
 import requests
 import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta
-from typing import Callable, Optional
+from typing import Callable, Optional, List, Dict
 import re
 from html import unescape
 from bs4 import BeautifulSoup
@@ -15,6 +15,7 @@ from src.services.rate_limiter import RateLimiter
 from src.constants.sources import NoticeSource
 from ._base import BaseAdapter, CrawlerStatus, CrawlerPhase
 from .repositories import ConfigRepository
+from ..utils.crawler_utils import parse_date
 
 
 class GovernmentNTISAdapter(BaseAdapter):
@@ -483,21 +484,27 @@ class GovernmentNTISAdapter(BaseAdapter):
                 "message": f"\n키워드 매칭 및 DB 저장 중... (키워드: {len(keywords)}개)"
             })
 
-            self.save_results(filtered_notices, keywords)
+            save_stats = self.save_results(filtered_notices, keywords)
 
             await self.send_event(callback, "log", {
                 "source_id": self.source_id,
-                "message": f"DB 저장 완료"
+                "message": f"DB 저장 완료 - 신규: {save_stats['added']}개, 업데이트: {save_stats['updated']}개, "
+                          f"키워드 필터: {save_stats['skipped_filtered']}개, "
+                          f"이미 게시됨: {save_stats['skipped_registered']}개"
             })
 
             # Phase 5: 완료
             await self.set_phase(callback, CrawlerPhase.COMPLETED, "크롤링 완료")
 
+            total_in_queue = save_stats['added'] + save_stats['updated']
+            total_skipped = save_stats['skipped_filtered'] + save_stats['skipped_registered'] + save_stats['skipped_rejected']
+
             self.status["status"] = CrawlerStatus.COMPLETED
             await self.send_event(callback, "complete", {
                 "source_id": self.source_id,
-                "message": "NTIS RSS 피드 수집이 완료되었습니다.",
+                "message": f"NTIS RSS 피드 수집이 완료되었습니다. RSS {len(items)}개 수집 → 날짜 필터({self.days_filter}일) {len(filtered_notices)}개 → 키워드 매칭 {total_in_queue}개 → 크롤링 대기열에 {total_in_queue}개 추가됨 (키워드 불일치 {save_stats['skipped_filtered']}개, 이미 게시됨 {save_stats['skipped_registered']}개 제외)",
                 "total_collected": len(filtered_notices),
+                "total_in_queue": total_in_queue,
                 "success": self.status["success"],
                 "failed": self.status["failed"]
             })
@@ -533,3 +540,104 @@ class GovernmentNTISAdapter(BaseAdapter):
                 "source_id": self.source_id,
                 "message": f"크롤링 중 오류 발생: {str(e)}"
             })
+
+    async def get_notices_preview(
+        self,
+        count: int = 100,
+        apply_keyword_filter: bool = False,
+        date_range_days: int = 30
+    ) -> List[Dict]:
+        """
+        NTIS RSS 공고 미리보기 (DB 저장 없음)
+
+        Args:
+            count: 반환할 최대 공고 개수
+            apply_keyword_filter: 키워드 필터 적용 여부
+            date_range_days: 최근 N일 이내 공고
+
+        Returns:
+            공고 목록 (제목, 날짜, 출처, 키워드 등)
+        """
+        try:
+            # RSS 피드 다운로드
+            response = requests.get(self.rss_url, timeout=30)
+            response.encoding = 'utf-8'
+            response.raise_for_status()
+
+            # XML 파싱
+            root = ET.fromstring(response.content)
+            items = root.findall('.//item')
+
+            # 날짜 필터링
+            cutoff_date = datetime.now() - timedelta(days=date_range_days)
+
+            # 키워드 로드 (필터 적용시)
+            keywords = self.get_keywords() if apply_keyword_filter else []
+
+            notices_preview = []
+
+            for item in items:
+                try:
+                    # 기본 정보 추출
+                    title_elem = item.find('title')
+                    link_elem = item.find('link')
+                    pub_date_elem = item.find('pubDate')
+                    category_elem = item.find('category')
+
+                    # IMPORTANT: Use 'is None' instead of 'not' for ElementTree elements
+                    # ElementTree elements with no children evaluate to False!
+                    if title_elem is None or not title_elem.text:
+                        continue
+
+                    title = title_elem.text.strip()
+                    link = link_elem.text.strip() if link_elem is not None and link_elem.text else ""
+
+                    # 날짜 파싱
+                    pub_date = None
+                    pub_date_str = None
+                    if pub_date_elem is not None and pub_date_elem.text:
+                        pub_date_text = pub_date_elem.text.strip()
+                        pub_date = parse_date(pub_date_text)
+
+                        if pub_date:
+                            # 날짜 필터링 (키워드 필터 적용시에만)
+                            if apply_keyword_filter and pub_date < cutoff_date:
+                                continue
+                            pub_date_str = pub_date.strftime('%Y-%m-%d')
+                        else:
+                            # 날짜 파싱 실패시에도 포함 (날짜가 없는 공고도 수집)
+                            pub_date_str = ''
+
+                    # 키워드 필터 적용
+                    matched_keywords = []
+                    if apply_keyword_filter:
+                        matched_keywords = self.match_keywords(title, keywords)
+                        if not matched_keywords:
+                            continue  # 키워드 매칭 안되면 스킵
+
+                    # 미리보기 데이터 구성
+                    notice_preview = {
+                        'title': title,
+                        'published_date': pub_date_str or '',
+                        'source': 'NTIS',
+                        'board': category_elem.text.strip() if category_elem is not None and category_elem.text else '',
+                        'link': link,
+                        'matched_keywords': matched_keywords
+                    }
+
+                    notices_preview.append(notice_preview)
+
+                    if len(notices_preview) >= count:
+                        break
+
+                except Exception as e:
+                    print(f"Error processing NTIS item: {str(e)}")
+                    continue
+
+            return notices_preview
+
+        except Exception as e:
+            print(f"Error in NTIS get_notices_preview: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return []

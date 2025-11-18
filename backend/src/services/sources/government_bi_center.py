@@ -428,3 +428,23 @@ class GovernmentBiCenterAdapter(BaseAdapter):
         finally:
             if driver:
                 driver.quit()
+
+    async def get_notices_preview(
+        self,
+        count: int = 100,
+        apply_keyword_filter: bool = False,
+        date_range_days: int = 30
+    ) -> List:
+        """
+        BI Center 크롤러는 공고가 아닌 창업보육센터 정보를 수집하므로
+        get_notices_preview는 빈 리스트를 반환합니다.
+
+        Args:
+            count: 수집할 최대 공고 개수 (사용 안 함)
+            apply_keyword_filter: 키워드 필터 적용 여부 (사용 안 함)
+            date_range_days: 검색 기간 (사용 안 함)
+
+        Returns:
+            빈 리스트 (BI Center는 공고를 수집하지 않음)
+        """
+        return []

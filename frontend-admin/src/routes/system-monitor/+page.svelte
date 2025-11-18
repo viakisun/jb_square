@@ -46,7 +46,7 @@
 	let selectedContainer: string | null = null;
 
 	/** 자동 새로고침 타이머 */
-	let refreshTimer: NodeJS.Timeout | null = null;
+	let refreshTimer: ReturnType<typeof setInterval> | null = null;
 	let autoRefresh: boolean = true;
 	let refreshInterval: number = 30; // 30초
 

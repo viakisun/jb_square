@@ -6,6 +6,7 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from src.routers import dashboard, contents, organizations, analytics, settings, notices, bi_centers, crawling_config, tags, ksic_codes, system_monitor, unified_config
+from src.api.routes import crawling_test, keyword_tuning
 from src.core.database import init_db
 
 # Import models to ensure they're registered with SQLAlchemy
@@ -62,6 +63,8 @@ app.include_router(notices.router, tags=["공고관리"])  # Notice: prefix alre
 app.include_router(bi_centers.router, prefix="/api/bi-centers", tags=["창업보육센터"])
 app.include_router(tags.router, tags=["태그관리"])
 app.include_router(system_monitor.router, tags=["시스템 모니터링"])
+app.include_router(crawling_test.router, tags=["크롤링 테스트"])
+app.include_router(keyword_tuning.router, prefix="/api", tags=["키워드 튜닝"])
 
 
 @app.get("/")

@@ -7,7 +7,7 @@
 	import { Button } from '$lib/components/ui/buttons';
 	import { Input } from '$lib/components/ui/forms';
 	import { toast } from '$lib/stores/toast';
-	import JBTPConfigInline from './JBTPConfigInline.svelte';
+	// import JBTPConfigInline from './JBTPConfigInline.svelte';
 	import { API_BASE_URL } from '$lib/config/api';
 
 	interface JBTPConfig {
@@ -338,7 +338,7 @@
 	{#if activeTab === 'jbtp'}
 		<div class="tab-content">
 			<!-- 검색 기간 및 키워드 설정 (인라인) -->
-			<JBTPConfigInline />
+			<!-- <JBTPConfigInline /> -->
 
 			<h3>JBTP 게시판 설정</h3>
 			<p class="description">크롤링할 JBTP 게시판을 추가하거나 관리합니다.</p>

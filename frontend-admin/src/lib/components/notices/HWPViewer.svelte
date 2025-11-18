@@ -91,6 +91,9 @@
 
 				// PDF 파일을 먼저 fetch로 다운로드 (CORS 우회)
 				console.log('[HWPViewer] Step 1: Fetching PDF...');
+				if (!pdfUrl) {
+					throw new Error('PDF URL이 없습니다.');
+				}
 				const response = await fetch(pdfUrl);
 				console.log('[HWPViewer] Fetch response:', {
 					ok: response.ok,

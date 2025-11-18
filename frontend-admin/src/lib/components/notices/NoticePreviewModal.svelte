@@ -49,6 +49,7 @@
 				d_day?: string;
 				content_html?: string;
 				content?: string;
+				content_viewer_url?: string;
 				attachments?: Array<{ filename: string; url: string }>;
 			};
 		};

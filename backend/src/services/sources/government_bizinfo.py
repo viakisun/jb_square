@@ -4,7 +4,7 @@ Bizinfo Crawler
 """
 
 import asyncio
-from typing import Callable, Optional
+from typing import Callable, Optional, List, Dict
 
 from src.services.rate_limiter import RateLimiter
 from src.constants.sources import NoticeSource
@@ -140,3 +140,83 @@ class GovernmentBizinfoAdapter(BaseAdapter):
                 "source_id": self.source_id,
                 "message": f"데이터 수집 중 오류 발생: {str(e)}"
             })
+
+    async def get_notices_preview(
+        self,
+        count: int = 100,
+        apply_keyword_filter: bool = False,
+        date_range_days: int = 30
+    ) -> List[Dict]:
+        """
+        키워드 필터 적용 여부를 선택하여 공고 미리보기 (DB 저장 없음)
+
+        Args:
+            count: 수집할 최대 공고 개수
+            apply_keyword_filter: 키워드 필터 적용 여부
+            date_range_days: 검색 기간 (일)
+
+        Returns:
+            [{
+                'title': str,
+                'published_date': str,
+                'source': str,
+                'board': str,
+                'link': str,
+                'matched_keywords': List[str]
+            }]
+        """
+        try:
+            keywords = self.get_keywords() if apply_keyword_filter else []
+
+            # Helper 클래스 사용하여 리스트 수집 (Phase 1만)
+            list_collector = BizinfoListCollector(
+                source_id=self.source_id,
+                stop_flag_checker=lambda: False,
+                event_sender=self.send_event,
+                status_dict=self.status
+            )
+
+            # 리스트 페이지에서 공고 수집
+            notice_rows = await list_collector.collect_notice_list(
+                callback=None,
+                max_pages=10,  # 미리보기는 최대 10페이지
+                date_range_days=date_range_days
+            )
+
+            notices_preview = []
+            for row in notice_rows:
+                if len(notices_preview) >= count:
+                    break
+
+                title = row.get('title', '')
+                ministry = row.get('ministry', '')
+                organization = row.get('organization', '')
+                published_date = row.get('published_date', '')
+                link = row.get('link', '')
+
+                # 키워드 필터링 (제목 + 소관부처 + 사업수행기관)
+                matched_keywords = []
+                if apply_keyword_filter:
+                    search_text = f"{title} {ministry} {organization}"
+                    matched_keywords = self.match_keywords(search_text, keywords)
+                    if not matched_keywords:
+                        continue
+
+                # 공고 추가
+                notice_preview = {
+                    'title': title,
+                    'published_date': published_date,
+                    'source': 'Bizinfo',
+                    'board': '기업마당',
+                    'link': link,
+                    'matched_keywords': matched_keywords
+                }
+                notices_preview.append(notice_preview)
+
+            return notices_preview
+
+        except Exception as e:
+            print(f"[GovernmentBizinfoAdapter] get_notices_preview 오류: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return []

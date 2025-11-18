@@ -20,7 +20,10 @@
 		| 'source:ntis:rss'
 		| 'source:jbtp:local'
 		| 'source:jbtp:external'
-		| 'source:bizinfo:web';
+		| 'source:jbtp:events'
+		| 'source:bizinfo:web'
+		| 'source:news:mfds'
+		| 'source:news:mohw';
 
 	interface Props {
 		sourceId: SourceId; // NoticeSource enum values

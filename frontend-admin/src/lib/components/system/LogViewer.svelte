@@ -36,7 +36,7 @@
 	let linesCount: number = 500;
 
 	/** 자동 새로고침 타이머 */
-	let refreshTimer: NodeJS.Timeout | null = null;
+	let refreshTimer: ReturnType<typeof setInterval> | null = null;
 
 	/** 로그 컨테이너 요소 (자동 스크롤용) */
 	let logContainer: HTMLDivElement;

@@ -21,7 +21,7 @@
 	let activeTab = $state<'queue' | 'published'>('queue');
 
 	// Queue state
-	let queueItems = $state([]);
+	let queueItems = $state<any[]>([]);
 	let selectedIds = $state<number[]>([]);
 	let loading = $state(false);
 

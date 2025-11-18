@@ -152,8 +152,11 @@ class BaseAdapter(ABC):
         Args:
             notices: 공고 리스트
             keywords: 키워드 리스트
+
+        Returns:
+            dict: 저장 통계 (added, updated, skipped_filtered, skipped_registered, skipped_rejected)
         """
-        CrawlQueueRepository.save_results(notices, keywords, self.source_id)
+        return CrawlQueueRepository.save_results(notices, keywords, self.source_id)
 
     @abstractmethod
     async def execute(self, callback: Optional[Callable] = None):
@@ -162,6 +165,36 @@ class BaseAdapter(ABC):
 
         Args:
             callback: WebSocket 콜백 함수
+        """
+        pass
+
+    @abstractmethod
+    async def get_notices_preview(
+        self,
+        count: int = 100,
+        apply_keyword_filter: bool = False,
+        date_range_days: int = 30
+    ) -> List[Dict]:
+        """
+        키워드 필터 적용 여부를 선택하여 공고 미리보기 (DB 저장 없음)
+
+        테스트/검증 목적으로 사용되며, 실제 크롤링 실행 없이
+        특정 조건의 공고 목록을 반환합니다.
+
+        Args:
+            count: 반환할 최대 공고 개수
+            apply_keyword_filter: True면 키워드 매칭된 공고만, False면 전체 공고
+            date_range_days: 최근 N일 이내 공고만 수집
+
+        Returns:
+            [{
+                'title': str,              # 공고 제목
+                'published_date': str,     # 게시일 (YYYY-MM-DD)
+                'source': str,             # 출처 (예: "NTIS", "지자체")
+                'board': str,              # 게시판명
+                'link': str,               # 공고 URL
+                'matched_keywords': List[str]  # 매칭된 키워드 (필터 적용시만)
+            }]
         """
         pass
 
