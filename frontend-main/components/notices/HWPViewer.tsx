@@ -12,10 +12,14 @@ interface HWPViewerProps {
  * HWP 뷰어 컴포넌트 - Hancom API를 사용하여 HWP를 PDF로 변환 후 PDF.js로 렌더링
  */
 const HWPViewer: React.FC<HWPViewerProps> = ({ url, filename }) => {
-  const [converting, setConverting] = useState(true); // HWP -> PDF 변환 중
+  // 파일 타입 감지
+  const isPDF = filename.toLowerCase().endsWith('.pdf');
+  const isHWP = filename.toLowerCase().endsWith('.hwp') || filename.toLowerCase().endsWith('.hwpx');
+
+  const [converting, setConverting] = useState(!isPDF); // PDF는 변환 불필요
   const [rendering, setRendering] = useState(false);  // PDF 렌더링 중
   const [error, setError] = useState<string | null>(null);
-  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(isPDF ? url : null); // PDF면 바로 URL 사용
   const [numPages, setNumPages] = useState<number>(0);
   const [renderedPages, setRenderedPages] = useState<number>(0);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -25,8 +29,21 @@ const HWPViewer: React.FC<HWPViewerProps> = ({ url, filename }) => {
     pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
   }, []);
 
-  // HWP -> PDF 변환
+  // HWP -> PDF 변환 (PDF 파일은 변환 불필요)
   useEffect(() => {
+    // PDF 파일이면 변환 스킵
+    if (isPDF) {
+      setConverting(false);
+      return;
+    }
+
+    // HWP 파일만 변환 수행
+    if (!isHWP) {
+      setError('지원하지 않는 파일 형식입니다');
+      setConverting(false);
+      return;
+    }
+
     const convertHWPToPDF = async () => {
       console.log('[HWPViewer] HWP -> PDF 변환 시작:', url);
       setConverting(true);
@@ -71,7 +88,7 @@ const HWPViewer: React.FC<HWPViewerProps> = ({ url, filename }) => {
     };
 
     convertHWPToPDF();
-  }, [url]);
+  }, [url, isPDF, isHWP]);
 
   // PDF 렌더링
   useEffect(() => {
@@ -208,7 +225,7 @@ const HWPViewer: React.FC<HWPViewerProps> = ({ url, filename }) => {
       <div className="flex justify-center items-center py-20 bg-gray-50 border border-gray-300 rounded-lg">
         <div className="text-center">
           <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
-          <p className="text-gray-600">HWP 파일을 PDF로 변환하는 중...</p>
+          <p className="text-gray-600">{isHWP ? 'HWP 파일을 PDF로 변환하는 중...' : '파일 로딩 중...'}</p>
           <p className="text-gray-500 text-sm mt-2">잠시만 기다려주세요</p>
         </div>
       </div>

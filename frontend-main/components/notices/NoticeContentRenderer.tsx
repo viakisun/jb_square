@@ -94,32 +94,15 @@ export const NoticeContentRenderer: React.FC<NoticeContentRendererProps> = ({ no
       return `${apiBaseUrl}/api/notices/serve-pdf?pdf_key=${encodeURIComponent(s3Key)}&${downloadParam}`;
     };
 
-    // PDF 파일
+    // PDF 파일 - HWPViewer 사용 (admin과 동일)
     if (isPDF(firstAttachment.filename)) {
       return (
         <div className="mb-6">
           <h3 className="text-base font-semibold text-gray-900 mb-4">첨부 문서 (PDF)</h3>
-          <div className="bg-white border border-gray-300 rounded-lg overflow-hidden" style={{ height: '800px' }}>
-            <embed
-              src={getPdfProxyUrl(firstAttachment.url, false)}
-              type="application/pdf"
-              className="w-full h-full"
-              title="PDF 문서"
-            />
-          </div>
-          <div className="mt-3 flex items-center justify-between text-sm">
-            <span className="text-gray-600">{firstAttachment.filename}</span>
-            <a
-              href={getPdfProxyUrl(firstAttachment.url, true)}
-              download={firstAttachment.filename}
-              className="inline-flex items-center text-blue-600 hover:text-blue-700 font-medium"
-            >
-              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              다운로드
-            </a>
-          </div>
+          <HWPViewer
+            url={getPdfProxyUrl(firstAttachment.url, false)}
+            filename={firstAttachment.filename}
+          />
         </div>
       );
     }
