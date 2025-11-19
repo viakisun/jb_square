@@ -65,7 +65,8 @@ class S3Client:
                 self.bucket_name,
                 s3_key,
                 ExtraArgs={
-                    'ContentType': file.content_type or 'application/octet-stream'
+                    'ContentType': file.content_type or 'application/octet-stream',
+                    'ACL': 'public-read'
                 }
             )
 
@@ -99,7 +100,8 @@ class S3Client:
                 Bucket=self.bucket_name,
                 Key=key,
                 Body=content,
-                ContentType=content_type
+                ContentType=content_type,
+                ACL='public-read'
             )
             return True
 
@@ -165,7 +167,8 @@ class S3Client:
             self.s3_client.copy_object(
                 CopySource=copy_source,
                 Bucket=self.bucket_name,
-                Key=dest_key
+                Key=dest_key,
+                ACL='public-read'
             )
             return True
         except Exception as e:
