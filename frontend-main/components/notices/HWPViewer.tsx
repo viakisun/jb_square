@@ -16,7 +16,6 @@ const HWPViewer: React.FC<HWPViewerProps> = ({ url, filename }) => {
   const [rendering, setRendering] = useState(false);  // PDF 렌더링 중
   const [error, setError] = useState<string | null>(null);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
-  const [cached, setCached] = useState(false);
   const [numPages, setNumPages] = useState<number>(0);
   const [renderedPages, setRenderedPages] = useState<number>(0);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -59,7 +58,6 @@ const HWPViewer: React.FC<HWPViewerProps> = ({ url, filename }) => {
             : `${apiBaseUrl}/api${data.pdf_url}`;
           console.log('[HWPViewer] Final PDF URL:', fullPdfUrl);
           setPdfUrl(fullPdfUrl);
-          setCached(data.cached || false);
           // PDF URL을 받았으니 변환 완료
           setConverting(false);
         } else {
@@ -238,15 +236,6 @@ const HWPViewer: React.FC<HWPViewerProps> = ({ url, filename }) => {
 
   return (
     <div className="relative">
-      {cached && (
-        <div className="mb-4 text-xs text-green-600 flex items-center">
-          <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-          </svg>
-          캐시된 PDF 사용 중
-        </div>
-      )}
-
       {/* PDF 렌더링 진행 상황 */}
       {rendering && numPages > 0 && (
         <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
@@ -256,22 +245,6 @@ const HWPViewer: React.FC<HWPViewerProps> = ({ url, filename }) => {
               PDF 렌더링 중... ({renderedPages}/{numPages})
             </span>
           </div>
-        </div>
-      )}
-
-      {/* PDF 다운로드 링크 */}
-      {pdfUrl && (
-        <div className="mb-4 text-right">
-          <a
-            href={pdfUrl}
-            download={filename}
-            className="inline-flex items-center px-4 py-2 text-sm text-blue-600 hover:text-blue-700 font-medium"
-          >
-            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-            </svg>
-            다운로드
-          </a>
         </div>
       )}
 
