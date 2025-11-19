@@ -950,15 +950,19 @@ async def get_crawl_queue(
     for item in items:
         item_data = item.to_dict()
 
-        # Check if title already exists in notices
-        existing_notice = db.query(Notice).filter(
-            Notice.title == item.title,
-            Notice.status == 'published'
-        ).first()
-
-        item_data['already_exists'] = existing_notice is not None
-        if existing_notice:
-            item_data['existing_notice_id'] = existing_notice.id
+        # Check if item is already published (via published_notice_id)
+        # or if title already exists in notices table (from different source)
+        if item.published_notice_id:
+            item_data['already_exists'] = True
+            item_data['existing_notice_id'] = item.published_notice_id
+        else:
+            existing_notice = db.query(Notice).filter(
+                Notice.title == item.title,
+                Notice.status == 'published'
+            ).first()
+            item_data['already_exists'] = existing_notice is not None
+            if existing_notice:
+                item_data['existing_notice_id'] = existing_notice.id
 
         items_dict.append(item_data)
 
@@ -1091,8 +1095,8 @@ async def publish_from_queue(
 
         published_ids.append(notice.id)
 
-        # Delete queue item (no longer need is_processed)
-        db.delete(queue_item)
+        # Keep queue item and mark as published (instead of deleting)
+        queue_item.published_notice_id = notice.id
 
     db.commit()
 
