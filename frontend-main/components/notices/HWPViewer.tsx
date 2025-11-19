@@ -252,7 +252,7 @@ const HWPViewer: React.FC<HWPViewerProps> = ({ url, filename }) => {
       <div
         ref={containerRef}
         className="bg-white p-4 rounded-lg border border-gray-200"
-        style={{ maxWidth: '1200px', margin: '0 auto', overflow: 'auto' }}
+        style={{ maxWidth: '1200px', maxHeight: '1200px', margin: '0 auto', overflowY: 'auto' }}
       />
     </div>
   );

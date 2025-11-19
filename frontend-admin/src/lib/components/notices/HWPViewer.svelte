@@ -273,7 +273,8 @@
 		border-radius: 0.5rem;
 		border: 1px solid #e5e7eb;
 		max-width: 1200px;
+		max-height: 1200px;
 		margin: 0 auto;
-		overflow: auto;
+		overflow-y: auto;
 	}
 </style>
