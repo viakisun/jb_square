@@ -357,43 +357,43 @@ class SourceManager:
 
         if existing:
             # 2. 거부된 항목이면 스킵 (다시 추가하지 않음)
-            if existing.rejection_status == 'rejected':
+            if existing.approval_status == 'rejected':
                 return ('rejected', matched_keywords, None)
 
             # 3. 기존 항목 업데이트 (최신 정보 반영)
-            existing.link = notice.get('link')
+            existing.source_url = notice.get('link')
             existing.source_board_name = notice.get('board')
             existing.raw_data = notice
             existing.matched_keywords = matched_keywords
             existing.crawler_extracted_at = datetime.now()
             # Update parsed fields
-            existing.deadline = parsed_data.get('deadline')
-            existing.published_date = parsed_data.get('published_date')
+            existing.application_deadline = parsed_data.get('deadline')
+            existing.source_published_date = parsed_data.get('published_date')
             existing.organization = parsed_data.get('organization')
             existing.department = parsed_data.get('department')
-            existing.contact = parsed_data.get('contact')
-            existing.views = parsed_data.get('views', 0)
-            existing.status = parsed_data.get('status')
+            existing.contact_info = parsed_data.get('contact')
+            existing.source_view_count = parsed_data.get('views', 0)
+            existing.source_status = parsed_data.get('status')
             return ('updated', matched_keywords, existing)
         else:
             # 4. 새로운 항목 추가
             queue_item = CrawlQueue(
                 crawler_source_id=source_id,
                 title=title,
-                link=notice.get('link'),
+                source_url=notice.get('link'),
                 source_board_name=notice.get('board'),
                 raw_data=notice,
                 matched_keywords=matched_keywords,
                 crawler_extracted_at=datetime.now(),
-                rejection_status=None,  # NULL = pending review
+                approval_status='pending',
                 # Structured fields
-                deadline=parsed_data.get('deadline'),
-                published_date=parsed_data.get('published_date'),
+                application_deadline=parsed_data.get('deadline'),
+                source_published_date=parsed_data.get('published_date'),
                 organization=parsed_data.get('organization'),
                 department=parsed_data.get('department'),
-                contact=parsed_data.get('contact'),
-                views=parsed_data.get('views', 0),
-                status=parsed_data.get('status')
+                contact_info=parsed_data.get('contact'),
+                source_view_count=parsed_data.get('views', 0),
+                source_status=parsed_data.get('status')
             )
             db.add(queue_item)
             return ('added', matched_keywords, queue_item)
@@ -430,12 +430,12 @@ class SourceManager:
 
                 if existing:
                     # 2. 거부된 항목이면 스킵 (다시 추가하지 않음)
-                    if existing.rejection_status == 'rejected':
+                    if existing.approval_status == 'rejected':
                         skipped_rejected += 1
                         continue
 
                     # 3. 기존 항목이 있으면 데이터 업데이트 (최신 정보 반영)
-                    existing.link = notice.get('link')
+                    existing.source_url = notice.get('link')
                     existing.source_board_name = notice.get('board')
                     existing.raw_data = notice
                     existing.crawler_extracted_at = datetime.now()
@@ -445,11 +445,11 @@ class SourceManager:
                     queue_item = CrawlQueue(
                         crawler_source_id=source_id,
                         title=title,
-                        link=notice.get('link'),
+                        source_url=notice.get('link'),
                         source_board_name=notice.get('board'),
                         raw_data=notice,
                         crawler_extracted_at=datetime.now(),
-                        rejection_status=None  # NULL = pending review
+                        approval_status='pending'
                     )
                     db.add(queue_item)
                     added_new += 1

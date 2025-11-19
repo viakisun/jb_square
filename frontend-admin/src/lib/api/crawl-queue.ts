@@ -8,10 +8,15 @@ import { API_BASE_URL } from '$lib/config/api';
 /**
  * Fetch crawl queue items for a specific source
  * @param sourceId - The source identifier (e.g., 'bizinfo', 'ntis', 'jbtp')
+ * @param status - Optional status filter ('pending', 'approved', 'rejected', 'all')
  * @returns Promise with queue items
  */
-export async function fetchCrawlQueue(sourceId: string) {
-	const res = await fetch(`${API_BASE_URL}/notices/crawl-queue/list?source_id=${sourceId}`);
+export async function fetchCrawlQueue(sourceId: string, status?: string) {
+	let url = `${API_BASE_URL}/notices/crawl-queue/list?source_id=${sourceId}`;
+	if (status) {
+		url += `&status=${status}`;
+	}
+	const res = await fetch(url);
 	if (!res.ok) {
 		throw new Error(`Failed to fetch crawl queue: ${res.statusText}`);
 	}
@@ -70,4 +75,48 @@ export async function bulkDeleteQueueItems(ids: number[]): Promise<{
 		success: successCount,
 		failed: failCount
 	};
+}
+
+/**
+ * Bulk approve crawl queue items
+ * @param queueIds - Array of queue item IDs to approve
+ * @param reason - Optional reason for approval
+ * @returns Promise with approval result
+ */
+export async function bulkApproveQueueItems(queueIds: number[], reason?: string) {
+	const res = await fetch(`${API_BASE_URL}/notices/crawl-queue/bulk-approve`, {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json'
+		},
+		body: JSON.stringify({ queue_ids: queueIds, reason })
+	});
+
+	if (!res.ok) {
+		throw new Error(`Failed to approve queue items: ${res.statusText}`);
+	}
+
+	return res.json();
+}
+
+/**
+ * Bulk reject crawl queue items
+ * @param queueIds - Array of queue item IDs to reject
+ * @param reason - Optional reason for rejection
+ * @returns Promise with rejection result
+ */
+export async function bulkRejectQueueItems(queueIds: number[], reason?: string) {
+	const res = await fetch(`${API_BASE_URL}/notices/crawl-queue/bulk-reject`, {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json'
+		},
+		body: JSON.stringify({ queue_ids: queueIds, reason })
+	});
+
+	if (!res.ok) {
+		throw new Error(`Failed to reject queue items: ${res.statusText}`);
+	}
+
+	return res.json();
 }

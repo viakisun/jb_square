@@ -10,7 +10,7 @@
 	} from '$lib/components/notices';
 	import { toast } from '$lib/stores/toast';
 	import { WS_BASE_URL } from '$lib/config/api';
-	import { fetchCrawlQueue } from '$lib/api/crawl-queue';
+	import { fetchCrawlQueue, bulkApproveQueueItems, bulkRejectQueueItems } from '$lib/api/crawl-queue';
 	import { publishNotices } from '$lib/api/notices';
 	import { useCrawlWebSocket } from '$lib/composables/useCrawlWebSocket.svelte';
 	import { NoticeSource } from '$lib/constants/sources';
@@ -24,6 +24,7 @@
 	let queueItems = $state<any[]>([]);
 	let selectedIds = $state<number[]>([]);
 	let loading = $state(false);
+	let statusFilter = $state<'pending' | 'approved' | 'rejected' | 'all'>('pending');
 
 	// Modal state
 	let showAddModal = $state(false);
@@ -37,7 +38,7 @@
 	async function loadQueue() {
 		loading = true;
 		try {
-			queueItems = await fetchCrawlQueue(SOURCE_ID);
+			queueItems = await fetchCrawlQueue(SOURCE_ID, statusFilter);
 		} catch (error) {
 			console.error('Failed to load queue:', error);
 			toast.error('대기열 로드 실패');
@@ -45,6 +46,12 @@
 			loading = false;
 		}
 	}
+
+	// Reload queue when status filter changes
+	$effect(() => {
+		statusFilter;
+		loadQueue();
+	});
 
 	function crawlBizinfo() {
 		const wsUrl = `${WS_BASE_URL}/api/notices/crawl/${SOURCE_ID}`;
@@ -76,13 +83,65 @@
 		loading = true;
 		try {
 			const result = await publishNotices(selectedIds, []);
-			toast.success(`${result.published}개 공고가 게시되었습니다`);
+			if (result.failed > 0) {
+				toast.error(`${result.failed}개 항목 게시 실패 (승인된 항목만 게시할 수 있습니다)`);
+			}
+			if (result.published > 0) {
+				toast.success(`${result.published}개 공고가 게시되었습니다`);
+			}
 			await loadQueue();
 			selectedIds = [];
-			activeTab = 'published'; // Switch to published tab
+			if (result.published > 0) {
+				activeTab = 'published'; // Switch to published tab
+			}
 		} catch (error) {
 			console.error('Publish failed:', error);
 			toast.error('게시 실패');
+		} finally {
+			loading = false;
+		}
+	}
+
+	async function approveSelected() {
+		if (selectedIds.length === 0) return;
+
+		loading = true;
+		try {
+			const result = await bulkApproveQueueItems(selectedIds);
+			toast.success(`${result.approved}개 항목이 승인되었습니다`);
+			await loadQueue();
+			selectedIds = [];
+		} catch (error) {
+			console.error('Approve failed:', error);
+			toast.error('승인 실패');
+		} finally {
+			loading = false;
+		}
+	}
+
+	let showRejectModal = $state(false);
+	let rejectReason = $state('');
+
+	function openRejectModal() {
+		if (selectedIds.length === 0) return;
+		showRejectModal = true;
+		rejectReason = '';
+	}
+
+	async function confirmReject() {
+		if (selectedIds.length === 0) return;
+
+		loading = true;
+		showRejectModal = false;
+		try {
+			const result = await bulkRejectQueueItems(selectedIds, rejectReason || undefined);
+			toast.success(`${result.rejected}개 항목이 반려되었습니다`);
+			await loadQueue();
+			selectedIds = [];
+			rejectReason = '';
+		} catch (error) {
+			console.error('Reject failed:', error);
+			toast.error('반려 실패');
 		} finally {
 			loading = false;
 		}
@@ -178,6 +237,38 @@
 	<!-- Tab Content -->
 	{#if activeTab === 'queue'}
 		<Panel title="크롤링 대기열">
+			<!-- Status Filter Buttons -->
+			<div class="status-filters">
+				<button
+					class="filter-btn"
+					class:active={statusFilter === 'pending'}
+					onclick={() => (statusFilter = 'pending')}
+				>
+					대기
+				</button>
+				<button
+					class="filter-btn"
+					class:active={statusFilter === 'approved'}
+					onclick={() => (statusFilter = 'approved')}
+				>
+					승인됨
+				</button>
+				<button
+					class="filter-btn"
+					class:active={statusFilter === 'rejected'}
+					onclick={() => (statusFilter === 'rejected')}
+				>
+					반려됨
+				</button>
+				<button
+					class="filter-btn"
+					class:active={statusFilter === 'all'}
+					onclick={() => (statusFilter = 'all')}
+				>
+					전체
+				</button>
+			</div>
+
 			<CrawlQueueTable
 				bind:items={queueItems}
 				onSelectionChange={(ids) => (selectedIds = ids)}
@@ -186,9 +277,21 @@
 
 			{#if selectedIds.length > 0}
 				<div class="queue-actions">
-					<Button onclick={publishSelected} disabled={loading}>
-						선택 항목 게시 ({selectedIds.length})
-					</Button>
+					{#if statusFilter === 'pending'}
+						<Button variant="primary" onclick={approveSelected} disabled={loading}>
+							선택 항목 승인 ({selectedIds.length})
+						</Button>
+						<Button variant="outline" onclick={openRejectModal} disabled={loading}>
+							선택 항목 반려 ({selectedIds.length})
+						</Button>
+					{:else if statusFilter === 'approved'}
+						<Button variant="primary" onclick={publishSelected} disabled={loading}>
+							선택 항목 게시 ({selectedIds.length})
+						</Button>
+						<Button variant="outline" onclick={openRejectModal} disabled={loading}>
+							선택 항목 반려 ({selectedIds.length})
+						</Button>
+					{/if}
 				</div>
 			{/if}
 		</Panel>
@@ -208,6 +311,35 @@
 				activeTab = 'published';
 			}}
 		/>
+	{/if}
+
+	<!-- Reject Reason Modal -->
+	{#if showRejectModal}
+		<div class="modal-overlay" onclick={() => (showRejectModal = false)}>
+			<div class="modal-content" onclick={(e) => e.stopPropagation()}>
+				<div class="modal-header">
+					<h3>반려 사유 입력</h3>
+					<button class="modal-close" onclick={() => (showRejectModal = false)}>×</button>
+				</div>
+				<div class="modal-body">
+					<p class="modal-description">
+						선택한 {selectedIds.length}개 항목을 반려합니다. 반려 사유를 입력해주세요. (선택사항)
+					</p>
+					<textarea
+						bind:value={rejectReason}
+						placeholder="반려 사유를 입력하세요..."
+						rows="4"
+						class="reason-textarea"
+					></textarea>
+				</div>
+				<div class="modal-footer">
+					<Button variant="outline" onclick={() => (showRejectModal = false)}>취소</Button>
+					<Button variant="primary" onclick={confirmReject} disabled={loading}>
+						반려 확인
+					</Button>
+				</div>
+			</div>
+		</div>
 	{/if}
 </div>
 
@@ -272,15 +404,46 @@
 		border-bottom-color: var(--fg);
 	}
 
+	.status-filters {
+		display: flex;
+		gap: var(--space-2);
+		margin-bottom: var(--space-4);
+		padding-bottom: var(--space-4);
+		border-bottom: var(--border-width) solid var(--hair);
+	}
+
+	.filter-btn {
+		padding: var(--space-2) var(--space-4);
+		background: var(--surface-0);
+		border: var(--border-width) solid var(--hair);
+		cursor: pointer;
+		font-size: var(--text-sm);
+		font-weight: var(--font-medium);
+		color: var(--muted);
+		transition: all 0.2s;
+		text-transform: uppercase;
+		letter-spacing: var(--tracking-wide);
+	}
+
+	.filter-btn:hover {
+		color: var(--fg);
+		border-color: var(--fg);
+	}
+
+	.filter-btn.active {
+		color: var(--bg);
+		background: var(--fg);
+		border-color: var(--fg);
+	}
+
 	.queue-actions {
 		display: flex;
-		justify-content: space-between;
-		align-items: flex-start;
+		justify-content: flex-start;
+		align-items: center;
 		padding: var(--space-4);
 		border-top: var(--border-width) solid var(--hair);
 		margin-top: var(--space-4);
-		flex-wrap: wrap;
-		gap: var(--space-4);
+		gap: var(--space-3);
 	}
 
 	.tag-selection-wrapper {
@@ -345,5 +508,103 @@
 			flex-direction: column;
 			align-items: flex-start;
 		}
+
+		.status-filters {
+			flex-wrap: wrap;
+		}
+	}
+
+	/* Modal Styles */
+	.modal-overlay {
+		position: fixed;
+		top: 0;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		background: rgba(0, 0, 0, 0.5);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		z-index: 1000;
+	}
+
+	.modal-content {
+		background: var(--bg);
+		border: var(--border-width) solid var(--hair);
+		width: 90%;
+		max-width: 500px;
+		max-height: 90vh;
+		overflow-y: auto;
+	}
+
+	.modal-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		padding: var(--space-4);
+		border-bottom: var(--border-width) solid var(--hair);
+	}
+
+	.modal-header h3 {
+		font-size: var(--text-lg);
+		font-weight: var(--font-semibold);
+		color: var(--fg);
+		text-transform: uppercase;
+		letter-spacing: var(--tracking-wide);
+	}
+
+	.modal-close {
+		background: none;
+		border: none;
+		font-size: var(--text-2xl);
+		cursor: pointer;
+		color: var(--muted);
+		padding: 0;
+		width: 32px;
+		height: 32px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		transition: color 0.2s;
+	}
+
+	.modal-close:hover {
+		color: var(--fg);
+	}
+
+	.modal-body {
+		padding: var(--space-6);
+	}
+
+	.modal-description {
+		font-size: var(--text-sm);
+		color: var(--muted);
+		margin-bottom: var(--space-4);
+		line-height: 1.6;
+	}
+
+	.reason-textarea {
+		width: 100%;
+		padding: var(--space-3);
+		border: var(--border-width) solid var(--hair);
+		background: var(--surface-0);
+		color: var(--fg);
+		font-size: var(--text-sm);
+		font-family: inherit;
+		resize: vertical;
+		min-height: 100px;
+	}
+
+	.reason-textarea:focus {
+		outline: none;
+		border-color: var(--fg);
+	}
+
+	.modal-footer {
+		display: flex;
+		justify-content: flex-end;
+		gap: var(--space-3);
+		padding: var(--space-4);
+		border-top: var(--border-width) solid var(--hair);
 	}
 </style>

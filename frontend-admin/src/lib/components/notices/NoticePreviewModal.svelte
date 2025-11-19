@@ -115,6 +115,21 @@
 		return ext === 'hwp' || ext === 'hwpx';
 	}
 
+	// Convert S3 URL to backend proxy URL for inline PDF rendering
+	function getPdfProxyUrl(s3Url: string, download: boolean = false): string {
+		// Extract S3 key from URL
+		// Example: https://jb2-bucket.s3.ap-northeast-2.amazonaws.com/notices/123/file.pdf -> notices/123/file.pdf
+		const match = s3Url.match(/amazonaws\.com\/(.+)$/);
+		if (!match) return s3Url; // Fallback to original URL if pattern doesn't match
+
+		const s3Key = match[1];
+		// Use encodeURI to preserve slashes, only encode special characters
+		const encodedKey = encodeURI(s3Key);
+		const downloadParam = download ? '&download=true' : '';
+
+		return `/api/notices/serve-pdf?pdf_key=${encodedKey}${downloadParam}`;
+	}
+
 
 	// Debug logging
 	$effect(() => {
@@ -246,7 +261,7 @@
 							<h3 class="section-title">첨부 문서 (PDF)</h3>
 							<div class="pdf-viewer-container">
 								<embed
-									src={firstAttachment.url}
+									src={getPdfProxyUrl(firstAttachment.url)}
 									type="application/pdf"
 									width="100%"
 									height="600px"
@@ -261,8 +276,8 @@
 									{/if}
 								</span>
 								<a
-									href={firstAttachment.url}
-									download
+									href={getPdfProxyUrl(firstAttachment.url, true)}
+									download={firstAttachment.filename}
 									class="viewer-link"
 								>
 									다운로드 →

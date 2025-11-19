@@ -7,26 +7,30 @@
 	import { Button } from '$lib/components/ui/buttons';
 	import { Checkbox } from '$lib/components/ui/forms';
 	import NoticePreviewModal from './NoticePreviewModal.svelte';
-	import { toast } from '$lib/stores/toast';
-	import { bulkDeleteQueueItems } from '$lib/api/crawl-queue';
 	import { formatDate, getDaysUntilDeadline } from '$lib/utils/date';
 	import { getSourceDisplayName } from '$lib/constants/sources';
 	import { useSelection } from '$lib/composables/useSelection.svelte';
+	import { toast } from '$lib/stores/toast';
+	import { API_BASE_URL } from '$lib/config/api';
 
 	type QueueItem = {
 		id: number;
 		crawler_source_id: string;
 		source_board_name: string | null;
 		title: string;
-		link: string | null;
+		source_url: string | null;
 		crawler_extracted_at: string;
-		deadline: string | null;
-		published_date: string | null;
+		application_deadline: string | null;
+		source_published_date: string | null;
 		organization: string | null;
 		department: string | null;
-		contact: string | null;
-		views: number;
-		status: string | null;
+		contact_info: string | null;
+		source_view_count: number;
+		source_status: string | null;
+		published_notice_id?: number | null; // 게시된 공고 ID
+		approval_status?: string | null; // 'pending', 'approved', 'rejected'
+		approval_change_reason?: string | null;
+		approval_changed_at?: string | null;
 		already_exists?: boolean;
 		existing_notice_id?: number;
 		matched_keywords?: string[];
@@ -48,48 +52,40 @@
 	let expandedRows = $state<Set<number>>(new Set());
 	let previewItem = $state<QueueItem | null>(null);
 	let showPreview = $state(false);
-	let deleting = $state(false);
 
 	// Sync selection state with parent component
 	$effect(() => {
 		onSelectionChange?.(Array.from(selection.selectedIds));
 	});
 
-	// Update allSelected state based on items
+	// Auto-deselect disabled items when items change
 	$effect(() => {
-		selection.allSelected = selection.selectedIds.size === items.length && items.length > 0;
+		const disabledIds = items
+			.filter(item => isItemDisabled(item))
+			.map(item => item.id);
+
+		if (disabledIds.length > 0) {
+			const newSelectedIds = new Set(selection.selectedIds);
+			let changed = false;
+
+			disabledIds.forEach(id => {
+				if (newSelectedIds.has(id)) {
+					newSelectedIds.delete(id);
+					changed = true;
+				}
+			});
+
+			if (changed) {
+				selection.selectedIds = newSelectedIds;
+			}
+		}
 	});
 
-	async function deleteSelected() {
-		if (selection.selectedCount === 0) return;
-
-		if (!confirm(`선택한 ${selection.selectedCount}개 항목을 삭제하시겠습니까?`)) {
-			return;
-		}
-
-		deleting = true;
-		try {
-			const result = await bulkDeleteQueueItems(Array.from(selection.selectedIds));
-
-			// Show result
-			if (result.success > 0) {
-				toast.success(`${result.success}개 항목이 삭제되었습니다`);
-			}
-			if (result.failed > 0) {
-				toast.error(`${result.failed}개 항목 삭제 실패`);
-			}
-
-			// Clear selection and refresh
-			selection.clearSelection();
-			onSelectionChange?.([]);
-			onRefresh?.();
-		} catch (error) {
-			console.error('Delete failed:', error);
-			toast.error('삭제 중 오류가 발생했습니다');
-		} finally {
-			deleting = false;
-		}
-	}
+	// Update allSelected state based on items
+	$effect(() => {
+		const selectableItems = items.filter(item => !isItemDisabled(item));
+		selection.allSelected = selection.selectedIds.size === selectableItems.length && selectableItems.length > 0;
+	});
 
 	function toggleExpand(id: number, event: Event) {
 		event.stopPropagation();
@@ -117,6 +113,77 @@
 		showPreview = false;
 		previewItem = null;
 	}
+
+	function getStatusBadgeClass(item: QueueItem): string {
+		// 등록됨 상태 우선 체크
+		if (item.already_exists || item.published_notice_id != null) {
+			return 'badge-registered';
+		}
+
+		const status = item.approval_status;
+		if (!status || status === 'pending') return 'badge-pending';
+		if (status === 'approved') return 'badge-approved';
+		if (status === 'rejected') return 'badge-rejected';
+		return 'badge-pending';
+	}
+
+	function getStatusText(item: QueueItem): string {
+		// 등록됨 상태 우선 체크
+		if (item.already_exists || item.published_notice_id != null) {
+			return '등록됨';
+		}
+
+		const status = item.approval_status;
+		if (!status || status === 'pending') return '대기';
+		if (status === 'approved') return '승인';
+		if (status === 'rejected') return '반려';
+		return '대기';
+	}
+
+	function isItemDisabled(item: QueueItem): boolean {
+		// 반려된 항목이거나 이미 게시된 항목은 선택 불가
+		return (
+			item.approval_status === 'rejected' ||
+			item.published_notice_id != null ||
+			item.already_exists === true
+		);
+	}
+
+	function isStatusBadgeClickable(item: QueueItem): boolean {
+		// 반려된 항목만 클릭 가능 (복원을 위해)
+		return item.approval_status === 'rejected';
+	}
+
+	async function handleRestoreRejected(item: QueueItem, event: Event) {
+		event.stopPropagation();
+
+		if (!isStatusBadgeClickable(item)) return;
+
+		try {
+			const res = await fetch(`${API_BASE_URL}/notices/crawl-queue/${item.id}/status`, {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					status: 'pending',
+					reason: '반려 취소 - 대기 상태로 복원'
+				})
+			});
+
+			if (!res.ok) {
+				throw new Error('Failed to restore item');
+			}
+
+			toast.success('대기 상태로 복원되었습니다');
+
+			// Refresh the queue
+			if (onRefresh) {
+				await onRefresh();
+			}
+		} catch (error) {
+			console.error('Failed to restore rejected item:', error);
+			toast.error('복원 실패');
+		}
+	}
 </script>
 
 <div class="crawl-queue-table">
@@ -130,11 +197,6 @@
 			{/if}
 		</div>
 		<div class="header-actions">
-			{#if selection.selectedCount > 0}
-				<Button variant="outline" size="sm" onclick={deleteSelected} disabled={deleting}>
-					{deleting ? '삭제 중...' : '선택 삭제'}
-				</Button>
-			{/if}
 			{#if onRefresh}
 				<Button variant="outline" size="sm" onclick={onRefresh}>새로고침</Button>
 			{/if}
@@ -154,6 +216,7 @@
 							class="table-checkbox"
 						/>
 					</th>
+					<th class="col-status">상태</th>
 					<th class="col-title">제목</th>
 					<th class="col-keywords">키워드</th>
 					<th class="col-date">게시일</th>
@@ -165,7 +228,7 @@
 			<tbody>
 				{#if items.length === 0}
 					<tr class="empty-row">
-						<td colspan="7">
+						<td colspan="8">
 							<div class="empty-state">
 								<p>크롤링된 데이터가 없습니다.</p>
 								<p class="text-sm text-muted">크롤링을 실행하여 데이터를 수집하세요.</p>
@@ -177,23 +240,32 @@
 						<tr
 							class="data-row"
 							class:selected={selection.isSelected(item.id)}
-							onclick={() => selection.toggleItem(item.id)}
+							class:disabled={isItemDisabled(item)}
+							onclick={() => !isItemDisabled(item) && selection.toggleItem(item.id)}
 						>
 							<td class="col-checkbox">
 								<input
 									type="checkbox"
 									checked={selection.isSelected(item.id)}
-									onchange={() => selection.toggleItem(item.id)}
+									onchange={() => !isItemDisabled(item) && selection.toggleItem(item.id)}
 									class="table-checkbox"
+									disabled={isItemDisabled(item)}
 									onclick={(e) => e.stopPropagation()}
 								/>
+							</td>
+							<td class="col-status">
+								<span
+									class="status-badge {getStatusBadgeClass(item)}"
+									class:clickable={isStatusBadgeClickable(item)}
+									title={isStatusBadgeClickable(item) ? '클릭하여 대기 상태로 복원' : ''}
+									onclick={(e) => handleRestoreRejected(item, e)}
+								>
+									{getStatusText(item)}
+								</span>
 							</td>
 							<td class="col-title">
 								<div class="title-container">
 									<span class="title-text">{item.title}</span>
-									{#if item.already_exists}
-										<span class="duplicate-badge">등록됨</span>
-									{/if}
 								</div>
 							</td>
 							<td class="col-keywords">
@@ -207,12 +279,12 @@
 									<span class="no-keywords">-</span>
 								{/if}
 							</td>
-							<td class="col-date">{formatDate(item.published_date)}</td>
+							<td class="col-date">{formatDate(item.source_published_date)}</td>
 							<td class="col-deadline">
-								{#if item.deadline}
-									{@const daysLeft = getDaysUntilDeadline(item.deadline)}
+								{#if item.application_deadline}
+									{@const daysLeft = getDaysUntilDeadline(item.application_deadline)}
 									<div class="deadline-cell">
-										<span class="deadline-date">{formatDate(item.deadline)}</span>
+										<span class="deadline-date">{formatDate(item.application_deadline)}</span>
 										{#if daysLeft !== null}
 											{#if daysLeft < 0}
 												<span class="deadline-badge closed">마감</span>
@@ -242,9 +314,9 @@
 								{/if}
 							</td>
 							<td class="col-link">
-								{#if item.link}
+								{#if item.source_url}
 									<a
-										href={item.link}
+										href={item.source_url}
 										target="_blank"
 										rel="noopener noreferrer"
 										class="link-button"
@@ -343,6 +415,10 @@
 		width: 40px;
 	}
 
+	.col-status {
+		width: 80px;
+	}
+
 	.col-title {
 		min-width: 300px;
 	}
@@ -390,9 +466,68 @@
 		background-color: var(--surface-1);
 	}
 
+	.data-row.disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+		text-decoration: line-through;
+	}
+
+	.data-row.disabled:hover {
+		background-color: transparent;
+	}
+
 	td {
 		padding: var(--space-3) var(--space-4);
 		vertical-align: middle;
+	}
+
+	/* ========================================
+     STATUS BADGES
+     ======================================== */
+
+	.status-badge {
+		display: inline-block;
+		padding: var(--space-1) var(--space-2);
+		font-size: var(--text-xs);
+		font-weight: var(--font-medium);
+		text-transform: uppercase;
+		letter-spacing: var(--tracking-wide);
+		border: var(--border-width) solid;
+		white-space: nowrap;
+		transition: all var(--duration-base) var(--ease-out);
+	}
+
+	.status-badge.clickable {
+		cursor: pointer;
+	}
+
+	.status-badge.clickable:hover {
+		filter: brightness(1.2);
+		transform: scale(1.05);
+	}
+
+	.badge-pending {
+		color: var(--fg);
+		background-color: var(--ghost);
+		border-color: var(--hair);
+	}
+
+	.badge-approved {
+		color: #059669;
+		background-color: #d1fae5;
+		border-color: #059669;
+	}
+
+	.badge-rejected {
+		color: #dc2626;
+		background-color: #fee2e2;
+		border-color: #dc2626;
+	}
+
+	.badge-registered {
+		color: #059669;
+		background-color: #d1fae5;
+		border-color: #059669;
 	}
 
 	/* ========================================

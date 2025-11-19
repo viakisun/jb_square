@@ -8,7 +8,7 @@
 	import { Button } from '$lib/components/ui/buttons';
 	import { CrawlingStatus, CrawlerConfigInline } from '$lib/components/crawling';
 	import {
-		CrawlQueueTable,
+		NoticeQueueManager,
 		PublishedNoticesList,
 		AddNoticeModal
 	} from '$lib/components/notices';
@@ -27,12 +27,8 @@
 	// Tab state
 	let activeTab = $state<'queue' | 'published'>('queue');
 
-	// Queue state
-	let queueItems = $state<any[]>([]);
-	let selectedIds = $state<number[]>([]);
-	let loading = $state(false);
-
 	// Crawl state (two-phase: collecting + processing)
+	let loading = $state(false);
 	let crawlStatus = $state<'idle' | 'collecting' | 'processing' | 'completed' | 'error' | 'stopped'>('idle');
 	let crawlLogs = $state<LogEntry[]>([]);
 	let crawlProgress = $state({ progress: 0, total: 0, success: 0, failed: 0 });
@@ -42,28 +38,6 @@
 	// Modal state
 	let showAddModal = $state(false);
 	let publishedListKey = $state(0); // Key to force re-mount
-
-	onMount(() => {
-		loadQueue();
-	});
-
-	async function loadQueue() {
-		loading = true;
-		try {
-			const res = await fetch(`${API_BASE_URL}/notices/crawl-queue/list?source_id=${SOURCE_ID}`);
-			const data = await res.json();
-			// Remove duplicates by ID
-			const uniqueItems = Array.from(
-				new Map(data.items.map((item: any) => [item.id, item])).values()
-			);
-			queueItems = uniqueItems;
-		} catch (error) {
-			console.error('Failed to load queue:', error);
-			toast.error('대기열 로드 실패');
-		} finally {
-			loading = false;
-		}
-	}
 
 	async function crawlJBTP() {
 		loading = true;
@@ -110,13 +84,7 @@
 						break;
 
 					case 'item_added':
-						if (data.item) {
-							// Add item and remove duplicates by ID
-							const newItems = [data.item, ...queueItems];
-							queueItems = Array.from(
-								new Map(newItems.map((item: any) => [item.id, item])).values()
-							);
-						}
+						// Item will be loaded by NoticeQueueManager
 						break;
 
 					case 'progress':
@@ -162,7 +130,6 @@
 				if (crawlStatus === 'collecting' || crawlStatus === 'processing') {
 					crawlStatus = 'completed';
 				}
-				loadQueue();
 				loading = false;
 			};
 
@@ -179,32 +146,6 @@
 		}
 	}
 
-	async function publishSelected() {
-		if (selectedIds.length === 0) return;
-
-		loading = true;
-		try {
-			const res = await fetch(`${API_BASE_URL}/notices/publish`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					queue_ids: selectedIds,
-					tags: []
-				})
-			});
-			const data = await res.json();
-			toast.success(`${data.published}개 공고가 게시되었습니다`);
-			await loadQueue();
-			selectedIds = [];
-			activeTab = 'published'; // Switch to published tab
-			publishedListKey++; // Force re-mount
-		} catch (error) {
-			console.error('Publish failed:', error);
-			toast.error('게시 실패');
-		} finally {
-			loading = false;
-		}
-	}
 </script>
 
 <svelte:head>
@@ -293,19 +234,13 @@
 	<!-- Tab Content -->
 	{#if activeTab === 'queue'}
 		<Panel title="크롤링 대기열">
-			<CrawlQueueTable
-				bind:items={queueItems}
-				onSelectionChange={(ids) => (selectedIds = ids)}
-				onRefresh={loadQueue}
+			<NoticeQueueManager
+				sourceId={SOURCE_ID}
+				onPublishSuccess={() => {
+					activeTab = 'published';
+					publishedListKey++;
+				}}
 			/>
-
-			{#if selectedIds.length > 0}
-				<div class="queue-actions">
-					<Button onclick={publishSelected} disabled={loading}>
-						선택 항목 게시 ({selectedIds.length})
-					</Button>
-				</div>
-			{/if}
 		</Panel>
 	{:else}
 		<Panel title="게시된 공고">
@@ -321,7 +256,6 @@
 			sourceId={SOURCE_ID}
 			onClose={() => (showAddModal = false)}
 			onSuccess={() => {
-				loadQueue();
 				activeTab = 'published';
 				publishedListKey++;
 			}}
@@ -428,17 +362,6 @@
 		border-bottom-color: var(--fg);
 	}
 
-	.queue-actions {
-		display: flex;
-		justify-content: space-between;
-		align-items: flex-start;
-		padding: var(--space-4);
-		border-top: var(--border-width) solid var(--hair);
-		margin-top: var(--space-4);
-		flex-wrap: wrap;
-		gap: var(--space-4);
-	}
-
 	.tag-selection-wrapper {
 		flex: 1;
 		min-width: 300px;
@@ -457,11 +380,6 @@
 
 		.header-actions {
 			width: 100%;
-		}
-
-		.queue-actions {
-			flex-direction: column;
-			align-items: flex-start;
 		}
 	}
 </style>

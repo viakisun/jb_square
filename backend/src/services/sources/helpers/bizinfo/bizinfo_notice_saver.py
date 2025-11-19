@@ -47,12 +47,12 @@ class BizinfoNoticeSaver:
         existing = db.query(CrawlQueue).filter(
             CrawlQueue.crawler_source_id == self.source_id,
             CrawlQueue.title == title,
-            CrawlQueue.notice_id.is_(None)
+            CrawlQueue.published_notice_id.is_(None)
         ).first()
 
         if existing:
             # 2. 거부된 항목이면 스킵
-            if existing.rejection_status == 'rejected':
+            if existing.approval_status == 'rejected':
                 return ('rejected', matched_keywords, None)
 
             # 3. 기존 항목 업데이트
@@ -69,19 +69,19 @@ class BizinfoNoticeSaver:
         matched_keywords: List[str]
     ) -> None:
         """기존 공고 항목 업데이트"""
-        existing.link = notice.get('link')
+        existing.source_url = notice.get('link')
         existing.source_board_name = notice.get('board')
         existing.raw_data = notice
         existing.matched_keywords = matched_keywords
         existing.crawler_extracted_at = datetime.now()
         # Update parsed fields with proper date parsing
-        existing.deadline = self._parse_deadline(notice.get('deadline'))
-        existing.published_date = self._parse_published_date(notice.get('published_date'))
+        existing.application_deadline = self._parse_deadline(notice.get('deadline'))
+        existing.source_published_date = self._parse_published_date(notice.get('published_date'))
         existing.organization = notice.get('organization')
         existing.department = notice.get('department')
-        existing.contact = notice.get('contact')
-        existing.views = self._parse_views(notice.get('views', 0))
-        existing.status = notice.get('status')
+        existing.contact_info = notice.get('contact')
+        existing.source_view_count = self._parse_views(notice.get('views', 0))
+        existing.source_status = notice.get('status')
 
     def _create_new_item(
         self,
@@ -94,20 +94,20 @@ class BizinfoNoticeSaver:
             queue_item = CrawlQueue(
                 crawler_source_id=self.source_id,
                 title=notice['title'],
-                link=notice.get('link'),
+                source_url=notice.get('link'),
                 source_board_name=notice.get('board'),
                 raw_data=notice,
                 matched_keywords=matched_keywords,
                 crawler_extracted_at=datetime.now(),
-                rejection_status=None,
+                approval_status='pending',
                 # Structured fields with proper parsing
-                deadline=self._parse_deadline(notice.get('deadline')),
-                published_date=self._parse_published_date(notice.get('published_date')),
+                application_deadline=self._parse_deadline(notice.get('deadline')),
+                source_published_date=self._parse_published_date(notice.get('published_date')),
                 organization=notice.get('organization'),
                 department=notice.get('department'),
-                contact=notice.get('contact'),
-                views=self._parse_views(notice.get('views', 0)),
-                status=notice.get('status')
+                contact_info=notice.get('contact'),
+                source_view_count=self._parse_views(notice.get('views', 0)),
+                source_status=notice.get('status')
             )
             db.add(queue_item)
             db.flush()
@@ -115,6 +115,9 @@ class BizinfoNoticeSaver:
         except Exception as e:
             db.rollback()
             print(f"Item likely updated by trigger: {notice['title'][:50]}...")
+            print(f"Error details: {type(e).__name__}: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return ('updated', matched_keywords, None)
 
     def _parse_deadline(self, deadline_value) -> Optional[datetime]:

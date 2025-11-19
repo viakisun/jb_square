@@ -31,6 +31,7 @@
 	let queueItems = $state([]);
 	let selectedIds = $state<number[]>([]);
 	let loading = $state(false);
+	let statusFilter = $state<'all' | 'pending' | 'approved' | 'rejected'>('all');
 
 	// Crawl state
 	let crawlStatus = $state<'idle' | 'running' | 'completed' | 'error' | 'stopped'>('idle');
@@ -48,7 +49,8 @@
 	async function loadQueue() {
 		loading = true;
 		try {
-			const res = await fetch(`${API_BASE_URL}/notices/crawl-queue/list?source_id=${SOURCE_ID}`);
+			const url = `${API_BASE_URL}/notices/crawl-queue/list?source_id=${SOURCE_ID}&status=${statusFilter}`;
+			const res = await fetch(url);
 			const data = await res.json();
 			queueItems = data.items;
 		} catch (error) {
@@ -58,6 +60,13 @@
 			loading = false;
 		}
 	}
+
+	// Reload queue when status filter changes
+	$effect(() => {
+		if (activeTab === 'queue') {
+			loadQueue();
+		}
+	});
 
 	async function crawlNTISRSS() {
 		loading = true;
@@ -167,6 +176,34 @@
 			loading = false;
 		}
 	}
+
+	async function rejectSelected() {
+		if (selectedIds.length === 0) return;
+
+		const reason = prompt(`${selectedIds.length}개 항목을 반려하시겠습니까?\n\n반려 사유 (선택사항):`);
+		if (reason === null) return; // User cancelled
+
+		loading = true;
+		try {
+			const res = await fetch(`${API_BASE_URL}/notices/crawl-queue/bulk-reject`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					queue_ids: selectedIds,
+					reason: reason || undefined
+				})
+			});
+			const data = await res.json();
+			toast.success(`${data.rejected}개 항목이 반려되었습니다`);
+			await loadQueue();
+			selectedIds = [];
+		} catch (error) {
+			console.error('Reject failed:', error);
+			toast.error('반려 실패');
+		} finally {
+			loading = false;
+		}
+	}
 </script>
 
 <svelte:head>
@@ -239,6 +276,38 @@
 	<!-- Tab Content -->
 	{#if activeTab === 'queue'}
 		<Panel title="크롤링 대기열">
+			<!-- Status Filter -->
+			<div class="status-filter">
+				<button
+					class="filter-btn"
+					class:active={statusFilter === 'all'}
+					onclick={() => (statusFilter = 'all')}
+				>
+					전체
+				</button>
+				<button
+					class="filter-btn"
+					class:active={statusFilter === 'pending'}
+					onclick={() => (statusFilter = 'pending')}
+				>
+					대기
+				</button>
+				<button
+					class="filter-btn"
+					class:active={statusFilter === 'approved'}
+					onclick={() => (statusFilter = 'approved')}
+				>
+					승인됨
+				</button>
+				<button
+					class="filter-btn"
+					class:active={statusFilter === 'rejected'}
+					onclick={() => (statusFilter = 'rejected')}
+				>
+					반려됨
+				</button>
+			</div>
+
 			<CrawlQueueTable
 				bind:items={queueItems}
 				onSelectionChange={(ids) => (selectedIds = ids)}
@@ -249,6 +318,9 @@
 				<div class="queue-actions">
 					<Button onclick={publishSelected} disabled={loading}>
 						선택 항목 게시 ({selectedIds.length})
+					</Button>
+					<Button variant="outline" onclick={rejectSelected} disabled={loading}>
+						선택 항목 반려 ({selectedIds.length})
 					</Button>
 				</div>
 			{/if}
@@ -343,6 +415,37 @@
 	.tab.active {
 		color: var(--fg);
 		border-bottom-color: var(--fg);
+	}
+
+	.status-filter {
+		display: flex;
+		gap: var(--space-2);
+		padding: var(--space-4);
+		border-bottom: var(--border-width) solid var(--hair);
+		background: var(--bg-subtle);
+	}
+
+	.filter-btn {
+		padding: var(--space-2) var(--space-4);
+		background: var(--bg);
+		border: var(--border-width) solid var(--hair);
+		cursor: pointer;
+		font-size: var(--text-sm);
+		font-weight: var(--font-medium);
+		color: var(--muted);
+		transition: all 0.2s;
+		border-radius: var(--radius-sm);
+	}
+
+	.filter-btn:hover {
+		color: var(--fg);
+		border-color: var(--fg);
+	}
+
+	.filter-btn.active {
+		background: var(--fg);
+		color: var(--bg);
+		border-color: var(--fg);
 	}
 
 	.queue-actions {

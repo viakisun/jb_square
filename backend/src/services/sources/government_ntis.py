@@ -475,34 +475,70 @@ class GovernmentNTISAdapter(BaseAdapter):
             })
 
             # Phase 4: 키워드 매칭 및 DB 저장
-            await self.set_phase(callback, CrawlerPhase.SAVING, "키워드 매칭 및 DB 저장 중...")
+            await self.set_phase(callback, CrawlerPhase.SAVING, "데이터 필터링 및 저장 중...")
 
             keywords = self.get_keywords()
 
             await self.send_event(callback, "log", {
                 "source_id": self.source_id,
-                "message": f"\n키워드 매칭 및 DB 저장 중... (키워드: {len(keywords)}개)"
+                "message": f"\n📋 데이터 필터링 및 저장 시작 (키워드: {len(keywords)}개)"
+            })
+
+            # 단계별 로그를 위한 메시지
+            await self.send_event(callback, "log", {
+                "source_id": self.source_id,
+                "message": f"\n1️⃣ RSS 수집: {len(items)}개"
+            })
+
+            await self.send_event(callback, "log", {
+                "source_id": self.source_id,
+                "message": f"2️⃣ 날짜 필터({self.days_filter}일 이내): {len(filtered_notices)}개 OK"
             })
 
             save_stats = self.save_results(filtered_notices, keywords)
 
+            total_in_queue = save_stats['added'] + save_stats['updated']
+            total_filtered = save_stats['skipped_filtered']
+            total_published = save_stats['skipped_registered']
+            total_rejected = save_stats['skipped_rejected']
+
+            # 남은 데이터 = 전체 - 이미 게시됨 - 반려됨
+            remaining_after_checks = len(filtered_notices) - total_published - total_rejected
+
             await self.send_event(callback, "log", {
                 "source_id": self.source_id,
-                "message": f"DB 저장 완료 - 신규: {save_stats['added']}개, 업데이트: {save_stats['updated']}개, "
-                          f"키워드 필터: {save_stats['skipped_filtered']}개, "
-                          f"이미 게시됨: {save_stats['skipped_registered']}개"
+                "message": f"3️⃣ 이미 등록된 데이터 체크: {total_published}개 (제외)"
+            })
+
+            await self.send_event(callback, "log", {
+                "source_id": self.source_id,
+                "message": f"4️⃣ 이미 반려된 데이터 체크: {total_rejected}개 (제외)"
+            })
+
+            await self.send_event(callback, "log", {
+                "source_id": self.source_id,
+                "message": f"5️⃣ 남은 데이터: {remaining_after_checks}개"
+            })
+
+            await self.send_event(callback, "log", {
+                "source_id": self.source_id,
+                "message": f"6️⃣ 키워드 매칭: 일치 {total_in_queue}개 / 불일치 {total_filtered}개"
+            })
+
+            await self.send_event(callback, "log", {
+                "source_id": self.source_id,
+                "message": f"\n✅ 크롤링 큐 등록 완료: 총 {total_in_queue}개 (신규 {save_stats['added']}개 + 업데이트 {save_stats['updated']}개)"
             })
 
             # Phase 5: 완료
             await self.set_phase(callback, CrawlerPhase.COMPLETED, "크롤링 완료")
 
-            total_in_queue = save_stats['added'] + save_stats['updated']
-            total_skipped = save_stats['skipped_filtered'] + save_stats['skipped_registered'] + save_stats['skipped_rejected']
+            total_skipped = total_filtered + total_published + total_rejected
 
             self.status["status"] = CrawlerStatus.COMPLETED
             await self.send_event(callback, "complete", {
                 "source_id": self.source_id,
-                "message": f"NTIS RSS 피드 수집이 완료되었습니다. RSS {len(items)}개 수집 → 날짜 필터({self.days_filter}일) {len(filtered_notices)}개 → 키워드 매칭 {total_in_queue}개 → 크롤링 대기열에 {total_in_queue}개 추가됨 (키워드 불일치 {save_stats['skipped_filtered']}개, 이미 게시됨 {save_stats['skipped_registered']}개 제외)",
+                "message": f"NTIS RSS 피드 수집 완료 - 총 {len(items)}개 수집 → {len(filtered_notices)}개 처리 → {total_in_queue}개 크롤링 큐 등록/업데이트",
                 "total_collected": len(filtered_notices),
                 "total_in_queue": total_in_queue,
                 "success": self.status["success"],

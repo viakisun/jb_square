@@ -897,37 +897,39 @@ async def get_crawl_queue(
     Get items in the crawl queue
 
     - **source_id**: Filter by 'jbtp', 'ntis_rss', 'bizinfo'
-    - **status**: Filter by status ('pending', 'approved', 'rejected', 'all')
-      - Default: shows pending and approved items (excludes rejected)
+    - **status**: Filter by status ('pending', 'approved', 'rejected', 'published', 'all')
+      - Default: shows pending and approved items (excludes rejected and published)
 
     Returns items with `already_exists` flag if title already in notices table
     """
     query = db.query(CrawlQueue)
 
-    # Only show items not yet published to notices
-    query = query.filter(CrawlQueue.notice_id.is_(None))
-
     # Filter by status
     if status:
         if status == 'all':
-            # Show all items regardless of status
+            # Show all items regardless of status or published state
             pass
+        elif status == 'published':
+            # Show only published items
+            query = query.filter(CrawlQueue.published_notice_id.isnot(None))
         elif status in ['pending', 'approved', 'rejected']:
-            # Show specific status
-            query = query.filter(CrawlQueue.rejection_status == status)
+            # Show specific approval status (not yet published)
+            query = query.filter(CrawlQueue.approval_status == status)
+            query = query.filter(CrawlQueue.published_notice_id.is_(None))
         else:
             raise HTTPException(
                 status_code=400,
-                detail="Invalid status. Must be one of: pending, approved, rejected, all"
+                detail="Invalid status. Must be one of: pending, approved, rejected, published, all"
             )
     else:
-        # Default: show pending and approved items (exclude rejected)
+        # Default: show pending and approved items (exclude rejected and published)
         query = query.filter(
             or_(
-                CrawlQueue.rejection_status == 'pending',
-                CrawlQueue.rejection_status == 'approved'
+                CrawlQueue.approval_status == 'pending',
+                CrawlQueue.approval_status == 'approved'
             )
         )
+        query = query.filter(CrawlQueue.published_notice_id.is_(None))
 
     # Filter by source
     if source_id:
@@ -993,14 +995,6 @@ async def publish_from_queue(
             failed_ids.append({"id": queue_id, "reason": "Not found"})
             continue
 
-        # Validate: only approved items can be published
-        if queue_item.rejection_status != 'approved':
-            failed_ids.append({
-                "id": queue_id,
-                "reason": f"Item must be approved before publishing (current status: {queue_item.rejection_status})"
-            })
-            continue
-
         # Extract content data from raw_data
         content_html = None
         content_text = None
@@ -1051,7 +1045,7 @@ async def publish_from_queue(
         # Create notice from queue item (use typed columns directly)
         notice = Notice(
             title=queue_item.title,
-            link=queue_item.link,
+            link=queue_item.source_url,
             origin_type='crawled',
             crawler_source_id=queue_item.crawler_source_id,
             source_board_name=queue_item.source_board_name,
@@ -1059,11 +1053,11 @@ async def publish_from_queue(
             status='published',
             published_at=datetime.now(),
             # Use structured fields from queue
-            deadline=queue_item.deadline,
-            announcement_date=queue_item.published_date,
+            deadline=queue_item.application_deadline,
+            announcement_date=queue_item.source_published_date,
             organization=queue_item.organization,
             department=queue_item.department,
-            contact=queue_item.contact,
+            contact=queue_item.contact_info,
             crawler_extracted_at=queue_item.crawler_extracted_at,
             # Application period dates
             application_start=application_start,
@@ -1202,10 +1196,10 @@ async def bulk_approve_queue_items(
             continue
 
         # Update status to approved
-        queue_item.rejection_status = 'approved'
-        queue_item.state_change_reason = data.reason
-        queue_item.state_changed_at = datetime.now()
-        # queue_item.state_changed_by = current_user (future auth)
+        queue_item.approval_status = 'approved'
+        queue_item.approval_change_reason = data.reason
+        queue_item.approval_changed_at = datetime.now()
+        # queue_item.approval_changed_by = current_user (future auth)
 
         approved_ids.append(queue_id)
 
@@ -1247,10 +1241,10 @@ async def bulk_reject_queue_items(
             continue
 
         # Update status to rejected
-        queue_item.rejection_status = 'rejected'
-        queue_item.state_change_reason = data.reason
-        queue_item.state_changed_at = datetime.now()
-        # queue_item.state_changed_by = current_user (future auth)
+        queue_item.approval_status = 'rejected'
+        queue_item.approval_change_reason = data.reason
+        queue_item.approval_changed_at = datetime.now()
+        # queue_item.approval_changed_by = current_user (future auth)
 
         # Also set legacy fields for backward compatibility
         queue_item.rejection_reason = data.reason
@@ -1298,10 +1292,10 @@ async def update_queue_item_status(
         raise HTTPException(status_code=404, detail="Queue item not found")
 
     # Update status
-    queue_item.rejection_status = data.status
-    queue_item.state_change_reason = data.reason
-    queue_item.state_changed_at = datetime.now()
-    # queue_item.state_changed_by = current_user (future auth)
+    queue_item.approval_status = data.status
+    queue_item.approval_change_reason = data.reason
+    queue_item.approval_changed_at = datetime.now()
+    # queue_item.approval_changed_by = current_user (future auth)
 
     # Update legacy fields if rejected
     if data.status == 'rejected':

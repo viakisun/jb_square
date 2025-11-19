@@ -138,26 +138,31 @@ class CrawlQueue(Base):
 
     # Crawled Data
     title = Column(Text, nullable=False)
-    link = Column(Text)
+    source_url = Column(Text)
     crawler_extracted_at = Column(DateTime, default=datetime.now)
 
     # Structured Data (parsed from raw_data)
-    deadline = Column(DateTime)  # Application deadline (마감일) - TIMESTAMP
-    published_date = Column(Date)  # Published date from source
+    application_deadline = Column(DateTime)  # Application deadline (마감일) - TIMESTAMP
+    source_published_date = Column(Date)  # Published date from source
     organization = Column(String(255))  # Organization name
     department = Column(String(255))  # Department name
-    contact = Column(String(255))  # Contact information
-    views = Column(Integer, default=0)  # View count from source
-    status = Column(String(50))  # Status from source (접수중, 마감, etc)
+    contact_info = Column(String(255))  # Contact information
+    source_view_count = Column(Integer, default=0)  # View count from source
+    source_status = Column(String(50))  # Status from source (접수중, 마감, etc)
 
     # Processing State
-    notice_id = Column(Integer, ForeignKey('support_notices.id', ondelete='SET NULL'))
+    published_notice_id = Column(Integer, ForeignKey('support_notices.id', ondelete='SET NULL'))
 
-    # Rejection/Hidden State (prevents re-crawling unwanted items)
-    rejection_status = Column(String(20))  # NULL (pending), 'rejected' (hidden), 'kept' (to publish)
-    rejection_reason = Column(Text)        # Optional notes on why rejected
-    rejected_at = Column(DateTime)         # When item was rejected
-    rejected_by = Column(String(100))      # User who rejected (for future auth)
+    # Approval/Rejection State (three-state workflow: pending -> approved -> published OR pending -> rejected)
+    approval_status = Column(String(20), default='pending')  # 'pending', 'approved', 'rejected'
+    approval_change_reason = Column(Text)        # Reason for approval/rejection
+    approval_changed_at = Column(DateTime)       # When approval status was changed
+    approval_changed_by = Column(String(100))    # User who changed approval status (for future auth)
+
+    # Legacy fields (kept for backward compatibility)
+    rejection_reason = Column(Text)           # Deprecated: use approval_change_reason
+    rejected_at = Column(DateTime)            # Deprecated: use approval_changed_at
+    rejected_by = Column(String(100))         # Deprecated: use approval_changed_by
 
     # Additional Metadata
     raw_data = Column(JSON)  # Full crawled data
@@ -174,20 +179,23 @@ class CrawlQueue(Base):
             'crawler_source_id': self.crawler_source_id,
             'source_board_name': self.source_board_name,
             'title': self.title,
-            'link': self.link,
-            'deadline': self.deadline.isoformat() if self.deadline else None,
-            'published_date': self.published_date.isoformat() if self.published_date else None,
+            'source_url': self.source_url,
+            'application_deadline': self.application_deadline.isoformat() if self.application_deadline else None,
+            'source_published_date': self.source_published_date.isoformat() if self.source_published_date else None,
             'organization': self.organization,
             'department': self.department,
-            'contact': self.contact,
-            'views': self.views,
-            'status': self.status,
+            'contact_info': self.contact_info,
+            'source_view_count': self.source_view_count,
+            'source_status': self.source_status,
             'crawler_extracted_at': self.crawler_extracted_at.isoformat() if self.crawler_extracted_at else None,
-            'notice_id': self.notice_id,
-            'rejection_status': self.rejection_status,
-            'rejection_reason': self.rejection_reason,
-            'rejected_at': self.rejected_at.isoformat() if self.rejected_at else None,
-            'rejected_by': self.rejected_by,
+            'published_notice_id': self.published_notice_id,
+            'approval_status': self.approval_status,
+            'approval_change_reason': self.approval_change_reason,
+            'approval_changed_at': self.approval_changed_at.isoformat() if self.approval_changed_at else None,
+            'approval_changed_by': self.approval_changed_by,
+            'rejection_reason': self.rejection_reason,  # Legacy field
+            'rejected_at': self.rejected_at.isoformat() if self.rejected_at else None,  # Legacy field
+            'rejected_by': self.rejected_by,  # Legacy field
             'raw_data': self.raw_data,
             'matched_keywords': self.matched_keywords or [],
             'suggested_tags': self.suggested_tags or [],

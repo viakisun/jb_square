@@ -167,27 +167,27 @@ class JBTPBaseAdapter(BaseAdapter):
         existing = db.query(CrawlQueue).filter(
             CrawlQueue.crawler_source_id == self.source_id,
             CrawlQueue.title == title,
-            CrawlQueue.notice_id.is_(None)
+            CrawlQueue.published_notice_id.is_(None)
         ).first()
 
         if existing:
             # 거부된 항목은 스킵
-            if existing.rejection_status == 'rejected':
+            if existing.approval_status == 'rejected':
                 return ('rejected', matched_keywords, None)
 
             # 기존 항목 업데이트
-            existing.link = notice.get('link')
+            existing.source_url = notice.get('link')
             existing.source_board_name = notice.get('board')
             existing.raw_data = notice
             existing.matched_keywords = matched_keywords
             existing.crawler_extracted_at = datetime.now()
-            existing.deadline = parsed_data.get('deadline')
-            existing.published_date = parsed_data.get('published_date')
+            existing.application_deadline = parsed_data.get('deadline')
+            existing.source_published_date = parsed_data.get('published_date')
             existing.organization = parsed_data.get('organization')
             existing.department = parsed_data.get('department')
-            existing.contact = parsed_data.get('contact')
-            existing.views = parsed_data.get('views', 0)
-            existing.status = parsed_data.get('status')
+            existing.contact_info = parsed_data.get('contact')
+            existing.source_view_count = parsed_data.get('views', 0)
+            existing.source_status = parsed_data.get('status')
             return ('updated', matched_keywords, existing)
         else:
             # 신규 항목 추가
@@ -195,19 +195,19 @@ class JBTPBaseAdapter(BaseAdapter):
                 queue_item = CrawlQueue(
                     crawler_source_id=self.source_id,
                     title=title,
-                    link=notice.get('link'),
+                    source_url=notice.get('link'),
                     source_board_name=notice.get('board'),
                     raw_data=notice,
                     matched_keywords=matched_keywords,
                     crawler_extracted_at=datetime.now(),
-                    rejection_status=None,
-                    deadline=parsed_data.get('deadline'),
-                    published_date=parsed_data.get('published_date'),
+                    approval_status='pending',
+                    application_deadline=parsed_data.get('deadline'),
+                    source_published_date=parsed_data.get('published_date'),
                     organization=parsed_data.get('organization'),
                     department=parsed_data.get('department'),
-                    contact=parsed_data.get('contact'),
-                    views=parsed_data.get('views', 0),
-                    status=parsed_data.get('status')
+                    contact_info=parsed_data.get('contact'),
+                    source_view_count=parsed_data.get('views', 0),
+                    source_status=parsed_data.get('status')
                 )
                 db.add(queue_item)
                 db.flush()
@@ -215,6 +215,9 @@ class JBTPBaseAdapter(BaseAdapter):
             except Exception as e:
                 db.rollback()
                 print(f"Item likely updated by trigger: {title[:50]}...")
+                print(f"Error details: {type(e).__name__}: {str(e)}")
+                import traceback
+                traceback.print_exc()
                 return ('updated', matched_keywords, None)
 
     async def _crawl_jbtp_board(
@@ -443,8 +446,8 @@ class JBTPBaseAdapter(BaseAdapter):
                 in_queue = db.query(CrawlQueue).filter(
                     CrawlQueue.crawler_source_id == self.source_id,
                     CrawlQueue.title == title,
-                    CrawlQueue.notice_id.is_(None),
-                    CrawlQueue.rejection_status != 'rejected'
+                    CrawlQueue.published_notice_id.is_(None),
+                    CrawlQueue.approval_status != 'rejected'
                 ).first()
                 if in_queue:
                     stats_in_queue += 1

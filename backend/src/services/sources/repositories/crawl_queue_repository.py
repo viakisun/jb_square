@@ -39,7 +39,7 @@ class CrawlQueueRepository:
             return session.query(CrawlQueue).filter(
                 CrawlQueue.crawler_source_id == source_id,
                 CrawlQueue.title == title,
-                CrawlQueue.notice_id.is_(None)
+                CrawlQueue.published_notice_id.is_(None)
             ).first()
         finally:
             session.close()
@@ -55,7 +55,7 @@ class CrawlQueueRepository:
         Returns:
             거부되었으면 True
         """
-        return item and item.rejection_status == 'rejected'
+        return item and item.approval_status == 'rejected'
 
     @staticmethod
     def is_already_registered(source_id: str, title: str) -> bool:
@@ -191,7 +191,7 @@ class CrawlQueueRepository:
         matched_keywords: List[str]
     ) -> None:
         """기존 항목 업데이트"""
-        existing.link = notice.get('link')
+        existing.source_url = notice.get('link')
         existing.source_board_name = notice.get('board')
         existing.raw_data = notice.get('raw_data', notice)
         existing.crawler_extracted_at = datetime.now()
@@ -202,9 +202,9 @@ class CrawlQueueRepository:
 
         existing.organization = notice.get('organization')
         existing.department = notice.get('department')
-        existing.contact = notice.get('contact')
-        existing.views = CrawlQueueRepository._parse_views(notice.get('views', 0))
-        existing.status = notice.get('status')
+        existing.contact_info = notice.get('contact')
+        existing.source_view_count = CrawlQueueRepository._parse_views(notice.get('views', 0))
+        existing.source_status = notice.get('status')
         existing.matched_keywords = matched_keywords
         existing.suggested_tags = []
 
@@ -225,18 +225,18 @@ class CrawlQueueRepository:
         queue_item = CrawlQueue(
             crawler_source_id=source_id,
             title=notice['title'],
-            link=notice.get('link'),
+            source_url=notice.get('link'),
             source_board_name=notice.get('board'),
             raw_data=notice.get('raw_data', notice),
             crawler_extracted_at=datetime.now(),
-            rejection_status=None,  # NULL = pending review
-            deadline=deadline,
-            published_date=published_date.date() if published_date else None,
+            approval_status='pending',
+            application_deadline=deadline,
+            source_published_date=published_date.date() if published_date else None,
             organization=notice.get('organization'),
             department=notice.get('department'),
-            contact=notice.get('contact'),
-            views=views,
-            status=notice.get('status'),
+            contact_info=notice.get('contact'),
+            source_view_count=views,
+            source_status=notice.get('status'),
             matched_keywords=matched_keywords,
             suggested_tags=[]
         )
@@ -246,26 +246,26 @@ class CrawlQueueRepository:
 
     @staticmethod
     def _set_deadline(item: CrawlQueue, deadline_value) -> None:
-        """deadline 필드 설정"""
+        """application_deadline 필드 설정"""
         if deadline_value:
             if isinstance(deadline_value, datetime):
-                item.deadline = deadline_value
+                item.application_deadline = deadline_value
             else:
-                item.deadline = parse_date(deadline_value)
+                item.application_deadline = parse_date(deadline_value)
         else:
-            item.deadline = None
+            item.application_deadline = None
 
     @staticmethod
     def _set_published_date(item: CrawlQueue, published_value) -> None:
-        """published_date 필드 설정"""
+        """source_published_date 필드 설정"""
         if published_value:
             if isinstance(published_value, datetime):
-                item.published_date = published_value.date()
+                item.source_published_date = published_value.date()
             else:
                 parsed = parse_date(published_value)
-                item.published_date = parsed.date() if parsed else None
+                item.source_published_date = parsed.date() if parsed else None
         else:
-            item.published_date = None
+            item.source_published_date = None
 
     @staticmethod
     def _parse_deadline(deadline_value) -> Optional[datetime]:
