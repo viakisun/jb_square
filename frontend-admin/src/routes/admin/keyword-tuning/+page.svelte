@@ -114,7 +114,7 @@
 	// Load available sources
 	onMount(async () => {
 		try {
-			const response = await fetch(`${API_BASE}/api/keyword-tuning/sources`);
+			const response = await fetch(`${API_BASE}/keyword-tuning/sources`);
 			const data = await response.json();
 			if (data.success) {
 				availableSources = data.data;
@@ -141,7 +141,7 @@
 		try {
 			const sourcesParam = selectedSources.join(',');
 			// Always fetch with empty keywords to get ALL data
-			const url = `${API_BASE}/api/keyword-tuning/preview?source_ids=${sourcesParam}&keywords=&date_range_days=${dateRange}&count_per_source=${countPerSource}`;
+			const url = `${API_BASE}/keyword-tuning/preview?source_ids=${sourcesParam}&keywords=&date_range_days=${dateRange}&count_per_source=${countPerSource}`;
 
 			const response = await fetch(url);
 			const data = await response.json();

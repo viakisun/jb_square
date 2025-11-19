@@ -20,7 +20,6 @@
 		Calendar,
 		Newspaper,
 		BookOpen,
-		TestTube2,
 		Target
 	} from 'lucide-svelte';
 
@@ -53,7 +52,6 @@
 		{ path: '/organizations', label: '기업·기관', icon: Building },
 		{ path: '/ksic', label: 'KSIC 코드', icon: Tag },
 		{ path: '/analytics', label: '통계', icon: BarChart3 },
-		{ path: '/crawling-test', label: '크롤링 테스트', icon: TestTube2 },
 		{ path: '/admin/keyword-tuning', label: '키워드 튜닝', icon: Target },
 		{ path: '/system-monitor', label: '시스템 모니터링', icon: Activity },
 		{ path: '/docs', label: '사용자 가이드', icon: BookOpen }
