@@ -2,8 +2,12 @@
 	import { BookOpen } from 'lucide-svelte';
 	import DocNav from '$lib/components/docs/DocNav.svelte';
 	import DocSection from '$lib/components/docs/DocSection.svelte';
+	import { API_BASE_URL } from '$lib/config/api';
 
 	let activeSection = $state('overview');
+
+	// Get API docs URL from API_BASE_URL
+	const apiDocsUrl = API_BASE_URL.replace('/api', '/docs');
 
 	function scrollToSection(id: string) {
 		activeSection = id;
@@ -978,7 +982,7 @@
 			<h3>API 문서</h3>
 			<p>
 				Swagger UI에서 전체 API 문서를 확인할 수 있습니다:<br />
-				<a href="http://localhost:8000/docs" target="_blank">http://localhost:8000/docs</a>
+				<a href={apiDocsUrl} target="_blank">{apiDocsUrl}</a>
 			</p>
 		</DocSection>
 	</main>

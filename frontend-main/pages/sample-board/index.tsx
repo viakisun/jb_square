@@ -27,6 +27,11 @@ import Head from 'next/head';
 import { CategorySection } from '@/components/sample-board/CategorySection';
 import { IncubatorSection } from '@/components/sample-board/IncubatorSection';
 
+// API Base URL from environment variable
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
+const API_DOCS_URL = API_BASE_URL.replace('/api', '') + '/docs';
+const API_REDOC_URL = API_BASE_URL.replace('/api', '') + '/redoc';
+
 /**
  * 공고 메인 페이지 컴포넌트
  *
@@ -70,7 +75,7 @@ export default function SampleBoardMainPage() {
               {/* 우측: API 문서 링크 버튼 */}
               <div className="flex items-center gap-4">
                 <a
-                  href="http://localhost:8000/docs"
+                  href={API_DOCS_URL}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
@@ -184,7 +189,7 @@ export default function SampleBoardMainPage() {
               {/* 외부 링크 */}
               <div className="flex items-center justify-center gap-6">
                 <a
-                  href="http://localhost:8000/docs"
+                  href={API_DOCS_URL}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-blue-600 hover:text-blue-800 underline"
@@ -192,7 +197,7 @@ export default function SampleBoardMainPage() {
                   Swagger API 문서
                 </a>
                 <a
-                  href="http://localhost:8000/redoc"
+                  href={API_REDOC_URL}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-blue-600 hover:text-blue-800 underline"

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import * as pdfjsLib from 'pdfjs-dist';
+	import { API_BASE_URL } from '$lib/config/api';
 
 	interface Props {
 		url: string;
@@ -31,8 +32,7 @@
 			error = null;
 
 			try {
-				const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
-				const conversionUrl = `${apiBaseUrl}/api/notices/convert-hwp-to-pdf?hwp_url=${encodeURIComponent(url)}`;
+				const conversionUrl = `${API_BASE_URL}/notices/convert-hwp-to-pdf?hwp_url=${encodeURIComponent(url)}`;
 				console.log('[HWPViewer] Conversion URL:', conversionUrl);
 
 				const response = await fetch(conversionUrl);
@@ -53,7 +53,7 @@
 				if (data.success && data.pdf_url) {
 					const fullPdfUrl = data.pdf_url.startsWith('http')
 						? data.pdf_url
-						: `${apiBaseUrl}${data.pdf_url}`;
+						: `${API_BASE_URL}${data.pdf_url}`;
 					console.log('[HWPViewer] Final PDF URL:', fullPdfUrl);
 					pdfUrl = fullPdfUrl;
 					cached = data.cached || false;
