@@ -117,13 +117,7 @@ class CrawlQueueRepository:
                 title = notice['title']
                 print(f"\n  처리 중: {title[:50]}...")
 
-                # 1. Notice 테이블에 이미 등록되어 있는지 확인
-                if CrawlQueueRepository.is_already_registered(source_id, title):
-                    print(f"    → 이미 등록됨 (Notice 테이블), 스킵")
-                    stats['skipped_registered'] += 1
-                    continue
-
-                # 2. 키워드 필터링
+                # 1. 키워드 필터링
                 matched_keywords = []
                 if keywords:
                     matched_keywords = KeywordService.match_keywords(title, keywords)
@@ -133,23 +127,23 @@ class CrawlQueueRepository:
                         continue
                     print(f"    → 매칭된 키워드: {matched_keywords}")
 
-                # 3. 기존 CrawlQueue 항목 확인
+                # 2. 기존 CrawlQueue 항목 확인
                 existing = CrawlQueueRepository.find_existing(source_id, title)
                 print(f"    → 기존 큐 항목 존재 여부: {existing is not None}")
 
                 if existing:
-                    # 4. 거부된 항목이면 스킵
+                    # 3. 거부된 항목이면 스킵
                     if CrawlQueueRepository.is_rejected(existing):
                         print(f"    → 거부된 항목, 스킵")
                         stats['skipped_rejected'] += 1
                         continue
 
-                    # 5. 기존 항목 업데이트
+                    # 4. 기존 항목 업데이트
                     print(f"    → 기존 항목 업데이트 (ID: {existing.id})")
                     CrawlQueueRepository._update_item(existing, notice, matched_keywords)
                     stats['updated'] += 1
                 else:
-                    # 6. 새로운 항목 추가
+                    # 5. 새로운 항목 추가
                     try:
                         print(f"    → 신규 항목 추가 시도")
                         CrawlQueueRepository._create_item(
