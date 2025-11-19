@@ -120,26 +120,17 @@
 		// Extract S3 key from URL
 		// Example: https://jb2-bucket.s3.ap-northeast-2.amazonaws.com/notices/123/file.pdf -> notices/123/file.pdf
 		const match = s3Url.match(/amazonaws\.com\/(.+)$/);
-		if (!match) return s3Url; // Fallback to original URL if pattern doesn't match
+		if (!match) {
+			return s3Url; // Fallback to original URL if pattern doesn't match
+		}
 
 		const s3Key = match[1];
-		// Use encodeURI to preserve slashes, only encode special characters
-		const encodedKey = encodeURI(s3Key);
-		const downloadParam = download ? '&download=true' : '';
+		const encodedKey = encodeURIComponent(s3Key);
+		const downloadParam = download ? 'download=true' : 'download=false';
 
-		return `/api/notices/serve-pdf?pdf_key=${encodedKey}${downloadParam}`;
+		return `/api/notices/serve-pdf?pdf_key=${encodedKey}&${downloadParam}`;
 	}
 
-
-	// Debug logging
-	$effect(() => {
-		if (open && activeItem) {
-			console.log('NoticePreviewModal - activeItem:', activeItem);
-			console.log('NoticePreviewModal - raw_data:', activeItem?.raw_data);
-			console.log('NoticePreviewModal - detail:', detail);
-			console.log('NoticePreviewModal - firstAttachment:', firstAttachment);
-		}
-	});
 
 	function handleBackdropClick(e: MouseEvent) {
 		if (e.target === e.currentTarget) {
@@ -152,6 +143,8 @@
 			onClose();
 		}
 	}
+
+
 </script>
 
 {#if open && activeItem}
@@ -255,56 +248,18 @@
 
 				<!-- JBTP Attachment Viewer (replaces SYNAP viewer) -->
 				{#if isJBTPNotice && firstAttachment}
-					<!-- PDF Attachment -->
-					{#if isPDF(firstAttachment.filename)}
+					<!-- PDF/HWP/HWPX Attachment - use HWPViewer for all -->
+					{#if isPDF(firstAttachment.filename) || isHWP(firstAttachment.filename)}
 						<div class="attachment-viewer-section">
-							<h3 class="section-title">첨부 문서 (PDF)</h3>
-							<div class="pdf-viewer-container">
-								<embed
-									src={getPdfProxyUrl(firstAttachment.url)}
-									type="application/pdf"
-									width="100%"
-									height="600px"
-									class="pdf-embed"
-								/>
-							</div>
-							<div class="viewer-footer">
-								<span class="attachment-info">
-									{firstAttachment.filename}
-									{#if attachments && attachments.length > 1}
-										<span class="attachment-count">(총 {attachments.length}개 첨부파일)</span>
-									{/if}
-								</span>
-								<a
-									href={getPdfProxyUrl(firstAttachment.url, true)}
-									download={firstAttachment.filename}
-									class="viewer-link"
-								>
-									다운로드 →
-								</a>
-							</div>
-						</div>
-					<!-- HWP/HWPX Attachment -->
-					{:else if isHWP(firstAttachment.filename)}
-						<div class="attachment-viewer-section">
-							<h3 class="section-title">첨부 문서 (한글)</h3>
-							<HWPViewer url={firstAttachment.url} filename={firstAttachment.filename} />
-
-							<div class="viewer-footer">
-								<span class="attachment-info">
-									{firstAttachment.filename}
-									{#if attachments && attachments.length > 1}
-										<span class="attachment-count">(총 {attachments.length}개 첨부파일)</span>
-									{/if}
-								</span>
-								<a
-									href={firstAttachment.url}
-									download
-									class="viewer-link download-button"
-								>
-									다운로드 →
-								</a>
-							</div>
+							<h3 class="section-title">
+								첨부 문서 ({isPDF(firstAttachment.filename) ? 'PDF' : '한글'})
+							</h3>
+							<HWPViewer
+								url={isPDF(firstAttachment.filename)
+									? getPdfProxyUrl(firstAttachment.url)
+									: firstAttachment.url}
+								filename={firstAttachment.filename}
+							/>
 						</div>
 					<!-- Unsupported File Type -->
 					{:else}
@@ -756,9 +711,10 @@
 
 	.pdf-viewer-container {
 		width: 100%;
-		height: 600px;
+		height: 800px;
 		background-color: var(--surface-1);
 		border: var(--border-width) solid var(--hair);
+		border-radius: var(--radius-lg);
 		margin-bottom: var(--space-3);
 		position: relative;
 		overflow: hidden;

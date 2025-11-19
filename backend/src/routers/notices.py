@@ -362,9 +362,10 @@ async def convert_hwp_to_pdf(
             pdf_s3_key = f"notices/converted/{url_hash}/{pdf_filename}"
 
         # Generate proxy URL to serve PDF through backend
+        # Return without /api prefix - frontend will prepend API_BASE_URL which already includes /api
         from urllib.parse import quote
         encoded_key = quote(pdf_s3_key, safe='/')
-        pdf_proxy_url = f"/api/notices/serve-pdf?pdf_key={encoded_key}"
+        pdf_proxy_url = f"/notices/serve-pdf?pdf_key={encoded_key}"
 
         # Check if PDF already exists in S3
         try:
