@@ -90,8 +90,8 @@ export const NoticeContentRenderer: React.FC<NoticeContentRendererProps> = ({ no
       if (!s3Url.includes('.amazonaws.com/')) return s3Url;
       const s3Key = s3Url.split('.amazonaws.com/')[1];
       const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
-      const downloadParam = forceDownload ? '&download=true' : '';
-      return `${apiBaseUrl}/api/notices/serve-pdf?pdf_key=${encodeURIComponent(s3Key)}${downloadParam}`;
+      const downloadParam = forceDownload ? 'download=true' : 'download=false';
+      return `${apiBaseUrl}/api/notices/serve-pdf?pdf_key=${encodeURIComponent(s3Key)}&${downloadParam}`;
     };
 
     // PDF 파일
