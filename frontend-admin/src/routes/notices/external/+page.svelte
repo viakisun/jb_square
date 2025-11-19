@@ -3,205 +3,44 @@
 	 * 유관기관 공고 페이지 (External Organization Notices)
 	 * JBTP 유관기관 공고 크롤링 + 게시된 공고 관리
 	 */
-	import { onMount } from 'svelte';
 	import { Panel } from '$lib/components/layout';
 	import { Button } from '$lib/components/ui/buttons';
 	import { CrawlingStatus, CrawlerConfigInline } from '$lib/components/crawling';
 	import {
+		NoticeQueueManager,
 		PublishedNoticesList,
 		AddNoticeModal
 	} from '$lib/components/notices';
-	import ExternalNoticeQueueTable from '$lib/components/notices/ExternalNoticeQueueTable.svelte';
-	import { toast } from '$lib/stores/toast';
-	import { API_BASE_URL, WS_BASE_URL } from '$lib/config/api';
+	import { WS_BASE_URL } from '$lib/config/api';
+	import { useCrawlWebSocket } from '$lib/composables/useCrawlWebSocket.svelte';
 	import { NoticeSource } from '$lib/constants/sources';
 
 	const SOURCE_ID = NoticeSource.JBTP_EXTERNAL;
 
-	interface LogEntry {
-		timestamp: string;
-		message: string;
-		type?: 'info' | 'success' | 'error' | 'warning';
-	}
-
 	// Tab state
 	let activeTab = $state<'queue' | 'published'>('queue');
 
-	// Queue state
-	let queueItems = $state<any[]>([]);
-	let selectedIds = $state<number[]>([]);
-	let loading = $state(false);
-
-	// Crawl state (two-phase: collecting + processing)
-	let crawlStatus = $state<'idle' | 'collecting' | 'processing' | 'completed' | 'error' | 'stopped'>('idle');
-	let crawlLogs = $state<LogEntry[]>([]);
-	let crawlProgress = $state({ progress: 0, total: 0, success: 0, failed: 0 });
-	let pageProgress = $state({ page: 0, accumulated: 0 });
-	let errorMessage = $state('');
-
 	// Modal state
 	let showAddModal = $state(false);
+	let publishedListKey = $state(0); // Key to force re-mount
 
-	onMount(() => {
-		loadQueue();
-	});
+	// WebSocket composable for crawling
+	const crawlWs = useCrawlWebSocket();
 
-	async function loadQueue() {
-		loading = true;
-		try {
-			const res = await fetch(`${API_BASE_URL}/notices/crawl-queue/list?source_id=${SOURCE_ID}`);
-			const data = await res.json();
-			// Remove duplicates by ID
-			const uniqueItems = Array.from(
-				new Map(data.items.map((item: any) => [item.id, item])).values()
-			);
-			queueItems = uniqueItems;
-		} catch (error) {
-			console.error('Failed to load queue:', error);
-			toast.error('대기열 로드 실패');
-		} finally {
-			loading = false;
-		}
-	}
+	function crawlExternal() {
+		const wsUrl = `${WS_BASE_URL}/api/notices/crawl/${SOURCE_ID}`;
 
-	async function crawlExternal() {
-		loading = true;
-		crawlStatus = 'collecting';
-		crawlLogs = [];
-		crawlProgress = { progress: 0, total: 0, success: 0, failed: 0 };
-		pageProgress = { page: 0, accumulated: 0 };
-		errorMessage = '';
-
-		try {
-			const ws = new WebSocket(`${WS_BASE_URL}/api/notices/crawl/${SOURCE_ID}`);
-
-			ws.onmessage = (event) => {
-				const data = JSON.parse(event.data);
-				const timestamp = new Date().toISOString();
-
-				switch (data.type) {
-					case 'start':
-						crawlLogs = [...crawlLogs, { timestamp, message: data.message || '크롤링 시작...', type: 'info' }];
-						break;
-
-					case 'log':
-						crawlLogs = [...crawlLogs, { timestamp, message: data.message, type: 'info' }];
-						break;
-
-					case 'page_progress':
-						crawlStatus = 'collecting';
-						pageProgress = {
-							page: data.page || 0,
-							accumulated: data.accumulated || 0
-						};
-						break;
-
-					case 'collection_complete':
-						crawlStatus = 'processing';
-						crawlLogs = [
-							...crawlLogs,
-							{
-								timestamp,
-								message: `✓ ${data.total_collected}개 공고 수집 완료. 상세 정보 수집 시작...`,
-								type: 'success'
-							}
-						];
-						break;
-
-					case 'item_added':
-						if (data.item) {
-							// Add item and remove duplicates by ID
-							const newItems = [data.item, ...queueItems];
-							queueItems = Array.from(
-								new Map(newItems.map((item: any) => [item.id, item])).values()
-							);
-						}
-						break;
-
-					case 'progress':
-						crawlStatus = 'processing';
-						crawlProgress = {
-							progress: data.progress || 0,
-							total: data.total || 0,
-							success: data.success || 0,
-							failed: data.failed || 0
-						};
-						if (data.message) {
-							crawlLogs = [...crawlLogs, { timestamp, message: data.message, type: 'info' }];
-						}
-						break;
-
-					case 'complete':
-						crawlStatus = 'completed';
-						crawlLogs = [
-							...crawlLogs,
-							{ timestamp, message: data.message || '크롤링 완료', type: 'success' },
-							{ timestamp, message: `📋 크롤링 대기열 탭에서 ${crawlProgress.success}개의 공고를 확인하세요`, type: 'info' }
-						];
-						loading = false;
-						activeTab = 'queue';
-						break;
-
-					case 'error':
-						crawlStatus = 'error';
-						errorMessage = data.message || '크롤링 중 오류 발생';
-						crawlLogs = [...crawlLogs, { timestamp, message: data.message, type: 'error' }];
-						loading = false;
-						break;
-
-					case 'stopped':
-						crawlStatus = 'stopped';
-						crawlLogs = [...crawlLogs, { timestamp, message: data.message || '크롤링 중단됨', type: 'warning' }];
-						loading = false;
-						break;
-				}
-			};
-
-			ws.onclose = () => {
-				if (crawlStatus === 'collecting' || crawlStatus === 'processing') {
-					crawlStatus = 'completed';
-				}
-				loadQueue();
-				loading = false;
-			};
-
-			ws.onerror = (error) => {
-				crawlStatus = 'error';
-				errorMessage = '웹소켓 연결 오류';
-				crawlLogs = [...crawlLogs, { timestamp: new Date().toISOString(), message: '웹소켓 연결 오류', type: 'error' }];
-				loading = false;
-			};
-		} catch (error) {
-			crawlStatus = 'error';
-			errorMessage = String(error);
-			loading = false;
-		}
-	}
-
-	async function publishSelected() {
-		if (selectedIds.length === 0) return;
-
-		loading = true;
-		try {
-			const res = await fetch(`${API_BASE_URL}/notices/publish`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					queue_ids: selectedIds,
-					tags: []
-				})
-			});
-			const data = await res.json();
-			toast.success(`${data.published}개 공고가 게시되었습니다`);
-			await loadQueue();
-			selectedIds = [];
-			activeTab = 'published'; // Switch to published tab
-		} catch (error) {
-			console.error('Publish failed:', error);
-			toast.error('게시 실패');
-		} finally {
-			loading = false;
-		}
+		crawlWs.connect(
+			wsUrl,
+			// onItemAdded callback
+			() => {
+				// Items will be loaded by NoticeQueueManager
+			},
+			// onComplete callback
+			() => {
+				activeTab = 'queue';
+			}
+		);
 	}
 </script>
 
@@ -228,8 +67,8 @@
 			<p class="crawler-description">
 				전북테크노파크의 유관기관 공고를 수집합니다.
 			</p>
-			<Button variant="primary" onclick={crawlExternal} disabled={loading}>
-				{loading ? '크롤링 중...' : '유관기관 크롤링 시작'}
+			<Button variant="primary" onclick={crawlExternal} disabled={crawlWs.loading}>
+				{crawlWs.loading ? '크롤링 중...' : '유관기관 크롤링 시작'}
 			</Button>
 		</div>
 	</Panel>
@@ -238,20 +77,20 @@
 	<CrawlerConfigInline sourceId={SOURCE_ID} />
 
 	<!-- Crawling Status -->
-	{#if crawlStatus !== 'idle'}
+	{#if crawlWs.status !== 'idle'}
 		<Panel title="크롤링 진행 상황">
-			{#if crawlStatus === 'collecting'}
+			{#if crawlWs.status === 'collecting'}
 				<div class="phase-indicator">
 					<span class="phase-label">🔍 페이지 수집 중...</span>
 					<span class="phase-info">
-						페이지 {pageProgress.page} | 누적 {pageProgress.accumulated}개
+						페이지 {crawlWs.pageProgress.page} | 누적 {crawlWs.pageProgress.accumulated}개
 					</span>
 				</div>
-			{:else if crawlStatus === 'processing'}
+			{:else if crawlWs.status === 'processing'}
 				<div class="phase-indicator processing">
 					<span class="phase-label">⚙️ 상세 정보 수집 중...</span>
 					<span class="phase-info">
-						{crawlProgress.progress} / {crawlProgress.total}
+						{crawlWs.progress.progress} / {crawlWs.progress.total}
 					</span>
 				</div>
 			{/if}
@@ -259,13 +98,13 @@
 			<CrawlingStatus
 				sourceId={SOURCE_ID}
 				sourceName="JBTP 유관기관"
-				status={crawlStatus === 'collecting' || crawlStatus === 'processing' ? 'running' : crawlStatus}
-				progress={crawlProgress.progress}
-				total={crawlProgress.total}
-				success={crawlProgress.success}
-				failed={crawlProgress.failed}
-				logs={crawlLogs}
-				{errorMessage}
+				status={crawlWs.status === 'collecting' || crawlWs.status === 'processing' ? 'running' : crawlWs.status}
+				progress={crawlWs.progress.progress}
+				total={crawlWs.progress.total}
+				success={crawlWs.progress.success}
+				failed={crawlWs.progress.failed}
+				logs={crawlWs.logs}
+				errorMessage={crawlWs.errorMessage}
 			/>
 		</Panel>
 	{/if}
@@ -291,23 +130,19 @@
 	<!-- Tab Content -->
 	{#if activeTab === 'queue'}
 		<Panel title="크롤링 대기열">
-			<ExternalNoticeQueueTable
-				bind:items={queueItems}
-				onSelectionChange={(ids) => (selectedIds = ids)}
-				onRefresh={loadQueue}
+			<NoticeQueueManager
+				sourceId={SOURCE_ID}
+				onPublishSuccess={() => {
+					activeTab = 'published';
+					publishedListKey++;
+				}}
 			/>
-
-			{#if selectedIds.length > 0}
-				<div class="queue-actions">
-					<Button onclick={publishSelected} disabled={loading}>
-						선택 항목 게시 ({selectedIds.length})
-					</Button>
-				</div>
-			{/if}
 		</Panel>
 	{:else}
 		<Panel title="게시된 공고">
-			<PublishedNoticesList sourceId={SOURCE_ID} />
+			{#key publishedListKey}
+				<PublishedNoticesList sourceId={SOURCE_ID} />
+			{/key}
 		</Panel>
 	{/if}
 
@@ -317,8 +152,8 @@
 			sourceId={SOURCE_ID}
 			onClose={() => (showAddModal = false)}
 			onSuccess={() => {
-				loadQueue();
 				activeTab = 'published';
+				publishedListKey++;
 			}}
 		/>
 	{/if}
@@ -423,22 +258,6 @@
 		border-bottom-color: var(--fg);
 	}
 
-	.queue-actions {
-		display: flex;
-		justify-content: space-between;
-		align-items: flex-start;
-		padding: var(--space-4);
-		border-top: var(--border-width) solid var(--hair);
-		margin-top: var(--space-4);
-		flex-wrap: wrap;
-		gap: var(--space-4);
-	}
-
-	.tag-selection-wrapper {
-		flex: 1;
-		min-width: 300px;
-	}
-
 	@media (max-width: 768px) {
 		.page {
 			padding: var(--space-4);
@@ -452,11 +271,6 @@
 
 		.header-actions {
 			width: 100%;
-		}
-
-		.queue-actions {
-			flex-direction: column;
-			align-items: flex-start;
 		}
 	}
 </style>
