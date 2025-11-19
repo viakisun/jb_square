@@ -1,8 +1,9 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { API_BASE_URL } from '$lib/config/api';
 
 	// API Base URL
-	const API_BASE = 'http://localhost:8000';
+	const API_BASE = API_BASE_URL;
 
 	// State
 	let loading = $state(false);
