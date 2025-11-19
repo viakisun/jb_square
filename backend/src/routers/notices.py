@@ -212,12 +212,16 @@ async def proxy_file(url: str = Query(..., description="External file URL to pro
 # ============================================
 
 @router.get("/serve-pdf")
-async def serve_pdf(pdf_key: str = Query(..., description="S3 key of the PDF file")):
+async def serve_pdf(
+    pdf_key: str = Query(..., description="S3 key of the PDF file"),
+    download: bool = Query(False, description="Force download instead of inline display")
+):
     """
     Serve PDF file through backend proxy to avoid S3 403 errors with special characters
 
     Args:
         pdf_key: S3 key (e.g., "notices/869/file.pdf"), can be URL-encoded
+        download: If True, force download (attachment); if False, display inline (default)
 
     Returns:
         StreamingResponse with PDF content
@@ -243,13 +247,16 @@ async def serve_pdf(pdf_key: str = Query(..., description="S3 key of the PDF fil
         from urllib.parse import quote
         encoded_filename = quote(filename)
 
+        # Set Content-Disposition based on download parameter
+        disposition_type = "attachment" if download else "inline"
+
         # Return PDF as streaming response
         return StreamingResponse(
             iter([pdf_content]),
             media_type='application/pdf',
             headers={
                 'Access-Control-Allow-Origin': '*',
-                'Content-Disposition': f"inline; filename*=UTF-8''{encoded_filename}"
+                'Content-Disposition': f"{disposition_type}; filename*=UTF-8''{encoded_filename}"
             }
         )
 

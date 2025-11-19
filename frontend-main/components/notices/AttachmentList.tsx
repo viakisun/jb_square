@@ -54,6 +54,26 @@ export const AttachmentList: React.FC<AttachmentListProps> = ({ attachments }) =
     return null;
   }
 
+  /**
+   * 다운로드 URL 생성
+   * PDF/HWP 파일은 백엔드 프록시를 사용하여 다운로드
+   */
+  const getDownloadUrl = (attachment: Attachment): string => {
+    const url = attachment.url;
+    const filename = attachment.filename.toLowerCase();
+
+    // PDF/HWP 파일은 백엔드 프록시 사용 (download=true)
+    if (filename.endsWith('.pdf') || filename.endsWith('.hwp') || filename.endsWith('.hwpx')) {
+      if (!url.includes('.amazonaws.com/')) return url;
+      const s3Key = url.split('.amazonaws.com/')[1];
+      const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
+      return `${apiBaseUrl}/api/notices/serve-pdf?pdf_key=${encodeURIComponent(s3Key)}&download=true`;
+    }
+
+    // 기타 파일은 직접 S3 URL 사용
+    return url;
+  };
+
   return (
     <div className="mb-6">
       {/* 섹션 제목 */}
@@ -81,9 +101,8 @@ export const AttachmentList: React.FC<AttachmentListProps> = ({ attachments }) =
 
               {/* 다운로드 버튼 */}
               <a
-                href={attachment.url}
-                target="_blank"
-                rel="noopener noreferrer"
+                href={getDownloadUrl(attachment)}
+                download={decodedFilename}
                 className="attachment-download"
               >
                 다운로드

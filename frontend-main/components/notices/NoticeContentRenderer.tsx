@@ -85,6 +85,15 @@ export const NoticeContentRenderer: React.FC<NoticeContentRendererProps> = ({ no
    * JBTP 공고이고 첨부파일이 있는 경우: 첨부파일 렌더링
    */
   if (isJBTPNotice && firstAttachment) {
+    // Helper function to convert S3 URL to backend proxy URL
+    const getPdfProxyUrl = (s3Url: string, forceDownload: boolean = false): string => {
+      if (!s3Url.includes('.amazonaws.com/')) return s3Url;
+      const s3Key = s3Url.split('.amazonaws.com/')[1];
+      const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
+      const downloadParam = forceDownload ? '&download=true' : '';
+      return `${apiBaseUrl}/api/notices/serve-pdf?pdf_key=${encodeURIComponent(s3Key)}${downloadParam}`;
+    };
+
     // PDF 파일
     if (isPDF(firstAttachment.filename)) {
       return (
@@ -92,7 +101,7 @@ export const NoticeContentRenderer: React.FC<NoticeContentRendererProps> = ({ no
           <h3 className="text-base font-semibold text-gray-900 mb-4">첨부 문서 (PDF)</h3>
           <div className="bg-white border border-gray-300 rounded-lg overflow-hidden" style={{ height: '800px' }}>
             <embed
-              src={firstAttachment.url}
+              src={getPdfProxyUrl(firstAttachment.url, false)}
               type="application/pdf"
               className="w-full h-full"
               title="PDF 문서"
@@ -101,8 +110,8 @@ export const NoticeContentRenderer: React.FC<NoticeContentRendererProps> = ({ no
           <div className="mt-3 flex items-center justify-between text-sm">
             <span className="text-gray-600">{firstAttachment.filename}</span>
             <a
-              href={firstAttachment.url}
-              download
+              href={getPdfProxyUrl(firstAttachment.url, true)}
+              download={firstAttachment.filename}
               className="inline-flex items-center text-blue-600 hover:text-blue-700 font-medium"
             >
               <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
