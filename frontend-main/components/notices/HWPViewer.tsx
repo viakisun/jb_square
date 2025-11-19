@@ -56,7 +56,7 @@ const HWPViewer: React.FC<HWPViewerProps> = ({ url, filename }) => {
         if (data.success && data.pdf_url) {
           const fullPdfUrl = data.pdf_url.startsWith('http')
             ? data.pdf_url
-            : `${apiBaseUrl}${data.pdf_url}`;
+            : `${apiBaseUrl}/api${data.pdf_url}`;
           console.log('[HWPViewer] Final PDF URL:', fullPdfUrl);
           setPdfUrl(fullPdfUrl);
           setCached(data.cached || false);
