@@ -130,19 +130,6 @@ export const NoticeContentRenderer: React.FC<NoticeContentRendererProps> = ({ no
         <div className="mb-6">
           <h3 className="text-base font-semibold text-gray-900 mb-4">첨부 문서 (한글)</h3>
           <HWPViewer url={firstAttachment.url} filename={firstAttachment.filename} />
-          <div className="mt-3 flex items-center justify-between text-sm">
-            <span className="text-gray-600">{firstAttachment.filename}</span>
-            <a
-              href={firstAttachment.url}
-              download
-              className="inline-flex items-center text-blue-600 hover:text-blue-700 font-medium"
-            >
-              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              다운로드
-            </a>
-          </div>
         </div>
       );
     }

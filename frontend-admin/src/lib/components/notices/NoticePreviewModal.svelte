@@ -365,6 +365,50 @@
 						</div>
 					{/if}
 
+					<!-- Attachments -->
+					{#if attachments && attachments.length > 0}
+						<div class="attachments-section">
+							<h3 class="section-title">첨부파일 ({attachments.length})</h3>
+							<ul class="attachments-list">
+								{#each attachments as attachment}
+									<li class="attachment-item">
+										<span class="attachment-icon">📎</span>
+										<span class="attachment-name">{attachment.filename}</span>
+										<a
+											href={attachment.url}
+											target="_blank"
+											rel="noopener noreferrer"
+											class="attachment-download"
+										>
+											다운로드
+										</a>
+									</li>
+								{/each}
+							</ul>
+						</div>
+					{:else if detail?.attachments && detail.attachments.length > 0}
+						<!-- Fallback for crawl queue preview -->
+						<div class="attachments-section">
+							<h3 class="section-title">첨부파일 ({detail.attachments.length})</h3>
+							<ul class="attachments-list">
+								{#each detail.attachments as attachment}
+									<li class="attachment-item">
+										<span class="attachment-icon">📎</span>
+										<span class="attachment-name">{attachment.filename}</span>
+										<a
+											href={attachment.url}
+											target="_blank"
+											rel="noopener noreferrer"
+											class="attachment-download"
+										>
+											다운로드
+										</a>
+									</li>
+								{/each}
+							</ul>
+						</div>
+					{/if}
+
 					<!-- No content fallback for Bizinfo -->
 					{#if activeItem.crawler_source_id === 'bizinfo' && !detail?.content_html && (!attachments || attachments.length === 0) && (!detail?.attachments || detail.attachments.length === 0)}
 						<div class="no-content-notice">
