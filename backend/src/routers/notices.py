@@ -84,6 +84,24 @@ class BulkUpdateTagsRequest(BaseModel):
     tags: List[str]
 
 
+class BulkApproveRequest(BaseModel):
+    """Schema for bulk approving crawl queue items"""
+    queue_ids: List[int]
+    reason: Optional[str] = None
+
+
+class BulkRejectRequest(BaseModel):
+    """Schema for bulk rejecting crawl queue items"""
+    queue_ids: List[int]
+    reason: Optional[str] = None
+
+
+class UpdateQueueStatusRequest(BaseModel):
+    """Schema for updating single queue item status"""
+    status: str  # 'pending', 'approved', 'rejected'
+    reason: Optional[str] = None
+
+
 # ============================================
 # 1. GET /api/notices - List notices with filters
 # ============================================
@@ -251,12 +269,15 @@ async def serve_pdf(
         disposition_type = "attachment" if download else "inline"
 
         # Return PDF as streaming response
+        # Note: Do NOT set X-Frame-Options to allow embedding in iframes
+        # Use Content-Security-Policy frame-ancestors directive instead
         return StreamingResponse(
             iter([pdf_content]),
             media_type='application/pdf',
             headers={
                 'Access-Control-Allow-Origin': '*',
-                'Content-Disposition': f"{disposition_type}; filename*=UTF-8''{encoded_filename}"
+                'Content-Disposition': f"{disposition_type}; filename*=UTF-8''{encoded_filename}",
+                'Content-Security-Policy': "frame-ancestors 'self' https://jb2.kr https://www.jb2.kr https://admin.jb2.kr http://localhost:* http://127.0.0.1:*"
             }
         )
 
@@ -867,28 +888,46 @@ async def crawl_source(websocket: WebSocket, source_id: str):
 @router.get("/crawl-queue/list")
 async def get_crawl_queue(
     source_id: Optional[str] = Query(None, description="Filter by source"),
+    status: Optional[str] = Query(None, description="Filter by status: pending, approved, rejected, all"),
     limit: int = Query(100, le=500),
     offset: int = Query(0),
     db: Session = Depends(get_db)
 ):
     """
-    Get items in the crawl queue (pending review)
+    Get items in the crawl queue
 
     - **source_id**: Filter by 'jbtp', 'ntis_rss', 'bizinfo'
+    - **status**: Filter by status ('pending', 'approved', 'rejected', 'all')
+      - Default: shows pending and approved items (excludes rejected)
 
     Returns items with `already_exists` flag if title already in notices table
     """
     query = db.query(CrawlQueue)
 
-    # Only show pending items (not yet processed and not rejected)
-    query = query.filter(
-        CrawlQueue.notice_id.is_(None)  # Not yet processed to notice
-    ).filter(
-        or_(
-            CrawlQueue.rejection_status.is_(None),  # Pending review
-            CrawlQueue.rejection_status != 'rejected'  # Not rejected
+    # Only show items not yet published to notices
+    query = query.filter(CrawlQueue.notice_id.is_(None))
+
+    # Filter by status
+    if status:
+        if status == 'all':
+            # Show all items regardless of status
+            pass
+        elif status in ['pending', 'approved', 'rejected']:
+            # Show specific status
+            query = query.filter(CrawlQueue.rejection_status == status)
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid status. Must be one of: pending, approved, rejected, all"
+            )
+    else:
+        # Default: show pending and approved items (exclude rejected)
+        query = query.filter(
+            or_(
+                CrawlQueue.rejection_status == 'pending',
+                CrawlQueue.rejection_status == 'approved'
+            )
         )
-    )
 
     # Filter by source
     if source_id:
@@ -952,6 +991,14 @@ async def publish_from_queue(
 
         if not queue_item:
             failed_ids.append({"id": queue_id, "reason": "Not found"})
+            continue
+
+        # Validate: only approved items can be published
+        if queue_item.rejection_status != 'approved':
+            failed_ids.append({
+                "id": queue_id,
+                "reason": f"Item must be approved before publishing (current status: {queue_item.rejection_status})"
+            })
             continue
 
         # Extract content data from raw_data
@@ -1124,4 +1171,147 @@ async def clear_processed_queue(db: Session = Depends(get_db)):
     return {
         "message": f"Cleared {deleted_count} processed items",
         "count": deleted_count
+    }
+
+
+# ============================================
+# 12. POST /api/notices/crawl-queue/bulk-approve - Bulk approve queue items
+# ============================================
+
+@router.post("/crawl-queue/bulk-approve")
+async def bulk_approve_queue_items(
+    data: BulkApproveRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Bulk approve crawl queue items
+
+    Changes status from 'pending' to 'approved', allowing them to be published
+
+    - **queue_ids**: List of queue item IDs to approve
+    - **reason**: Optional reason for approval
+    """
+    approved_ids = []
+    failed_ids = []
+
+    for queue_id in data.queue_ids:
+        queue_item = db.query(CrawlQueue).filter(CrawlQueue.id == queue_id).first()
+
+        if not queue_item:
+            failed_ids.append({"id": queue_id, "reason": "Not found"})
+            continue
+
+        # Update status to approved
+        queue_item.rejection_status = 'approved'
+        queue_item.state_change_reason = data.reason
+        queue_item.state_changed_at = datetime.now()
+        # queue_item.state_changed_by = current_user (future auth)
+
+        approved_ids.append(queue_id)
+
+    db.commit()
+
+    return {
+        "approved": len(approved_ids),
+        "failed": len(failed_ids),
+        "approved_ids": approved_ids,
+        "failed_items": failed_ids
+    }
+
+
+# ============================================
+# 13. POST /api/notices/crawl-queue/bulk-reject - Bulk reject queue items
+# ============================================
+
+@router.post("/crawl-queue/bulk-reject")
+async def bulk_reject_queue_items(
+    data: BulkRejectRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Bulk reject crawl queue items
+
+    Changes status to 'rejected', hiding them from future crawling and preventing publication
+
+    - **queue_ids**: List of queue item IDs to reject
+    - **reason**: Optional reason for rejection
+    """
+    rejected_ids = []
+    failed_ids = []
+
+    for queue_id in data.queue_ids:
+        queue_item = db.query(CrawlQueue).filter(CrawlQueue.id == queue_id).first()
+
+        if not queue_item:
+            failed_ids.append({"id": queue_id, "reason": "Not found"})
+            continue
+
+        # Update status to rejected
+        queue_item.rejection_status = 'rejected'
+        queue_item.state_change_reason = data.reason
+        queue_item.state_changed_at = datetime.now()
+        # queue_item.state_changed_by = current_user (future auth)
+
+        # Also set legacy fields for backward compatibility
+        queue_item.rejection_reason = data.reason
+        queue_item.rejected_at = datetime.now()
+
+        rejected_ids.append(queue_id)
+
+    db.commit()
+
+    return {
+        "rejected": len(rejected_ids),
+        "failed": len(failed_ids),
+        "rejected_ids": rejected_ids,
+        "failed_items": failed_ids
+    }
+
+
+# ============================================
+# 14. PATCH /api/notices/crawl-queue/{id}/status - Update queue item status
+# ============================================
+
+@router.patch("/crawl-queue/{queue_id}/status")
+async def update_queue_item_status(
+    queue_id: int,
+    data: UpdateQueueStatusRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Update status of a single crawl queue item
+
+    - **status**: New status ('pending', 'approved', 'rejected')
+    - **reason**: Optional reason for status change
+    """
+    # Validate status value
+    valid_statuses = ['pending', 'approved', 'rejected']
+    if data.status not in valid_statuses:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid status. Must be one of: {', '.join(valid_statuses)}"
+        )
+
+    queue_item = db.query(CrawlQueue).filter(CrawlQueue.id == queue_id).first()
+
+    if not queue_item:
+        raise HTTPException(status_code=404, detail="Queue item not found")
+
+    # Update status
+    queue_item.rejection_status = data.status
+    queue_item.state_change_reason = data.reason
+    queue_item.state_changed_at = datetime.now()
+    # queue_item.state_changed_by = current_user (future auth)
+
+    # Update legacy fields if rejected
+    if data.status == 'rejected':
+        queue_item.rejection_reason = data.reason
+        queue_item.rejected_at = datetime.now()
+
+    db.commit()
+
+    return {
+        "message": "Status updated successfully",
+        "id": queue_id,
+        "new_status": data.status
     }
